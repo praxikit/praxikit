@@ -23,3 +23,10 @@
   CI: actionlint v1.7.7 (sha256-verified) on workflows + security template -> passed after moving the release-notes script out of inline shell
   ```
 - Not done: `/keel:security` run on a real repo; Cursor adapter used on a real project; install smoke test.
+
+## 2026-11-15 — install smoke test (owner-run), partial
+- Owner installed `keel@praxikit` from GitHub (settings show the marketplace as `praxikit/praxikit`), ran `/keel:plan a small CLI that converts markdown to HTML` in an empty folder.
+- Result: `docs/plan/` with six files; `00-brief.md` and `01-critique.md` were filled (critique ~10 KB with sources and a list of edits the plan needs). `02-decisions.md`, `03-phases.md`, `04-security.md`, `05-progress.md` are still the templates: the run stopped at the critique gate awaiting the owner's decision. This is the path fix working: the skill read method/templates from inside the installed plugin.
+- First attempts failed with `API Error: 400 Invalid effort level` and a `UserPromptSubmit` timeout: neither is Keel (Keel registers no such hook and sets no effort). Resolved by the owner.
+- Not yet confirmed in a live session: the drift hook warning and the model-required hook refusal (steps 6 and 7).
+- To do: remove "smoke test not recorded" from `kits/keel/kit.json` limits in the next release (0.2.1).
