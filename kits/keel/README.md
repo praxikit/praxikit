@@ -25,13 +25,17 @@ Then, in any project:
 | `/keel:critique` | The gate alone, on a plan, an idea or a PR. Returns a verdict. |
 | `/keel:delegate <task>` | Writes a full brief and hands the task to the right tier (Scout / Builder / Reviewer) |
 | `/keel:verify [phase]` | Runs a phase's acceptance checks, pastes the output, marks it passed or not |
+| `/keel:cost` | Full token and cost table per model for the last prompt and the session, sub-agents included |
+| `/keel:settings` | Turn the For you / Task list / cost footer on or off; choose which models tasks are distributed among and each tier's model |
 | `/keel:security` | Free scanners in CI, entry-point table from the code, pre-launch checklist ticked only with evidence, OWASP review |
 | `/keel:replan <change>` | The idea changed: back through the gate, decisions and phases edited, logged |
 
 Agents the plugin adds: `keel:critic` (your session's model), `keel:builder` (Sonnet),
 `keel:reviewer` (Sonnet), `keel:scout` (Haiku).
 
-A second hook warns once per session when an edit lands outside the current phase's Files list.
+Each prompt ends with a **For you** section (what only you can do, step by step) and a **Task list** (✅ done, 🔄 in progress, ⬜ next) when there is something to show, followed by a one-line token and cost estimate per model. All of it can be switched off in `/keel:settings`.
+
+A drift hook warns once per session when an edit lands outside the current phase's Files list.
 
 A hook refuses any `Agent` call that names no model, so nothing runs on your most expensive model
 by accident. `fork` and Keel's own agents pass; set `KEEL_ALLOW_AGENTS=my-agent,other` for agents
@@ -73,7 +77,7 @@ more than any sub-agent routing.
 
 ## Status
 
-v0.2 — drift hook, security skill and configurable tiers shipped. Still to do: adapters tested on a real project, and the install-from-GitHub smoke test. See [Keel's own plan](docs/plan/03-phases.md).
+v0.3 — drift hook, security skill, configurable models, For you / Task list format and a per-prompt cost footer. Install tested by the owner on 2026-11-15. Still to do: adapters tested on a real project. See [Keel's own plan](docs/plan/03-phases.md).
 
 ## Licence
 

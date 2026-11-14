@@ -1,0 +1,5 @@
+{
+  "note": "Keel's default behaviour. Override per project in .keel/config.json (or run /keel:settings). 'models' is the set tasks may be distributed among; 'tiers' maps Keel's agents to a model and overrides tiers.json.",
+  "defaults": { "forYou": true, "taskList": true, "costFooter": true },
+  "models": ["haiku", "sonnet", "opus", "fable"]
+}

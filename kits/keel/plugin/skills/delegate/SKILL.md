@@ -20,10 +20,13 @@ The saving in model routing is the brief, not the routing. This skill refuses to
 3. **Show the brief** to the user in one short block only if it changes files outside the current
    phase or installs anything. Otherwise launch.
 4. **Launch** the agent (`keel:scout`, `keel:builder` or `keel:reviewer`) with the brief as the
-   whole prompt. Pick the model from the project's `.keel/tiers.json` if it exists, otherwise from
-   `${CLAUDE_PLUGIN_ROOT}/tiers.json`, and pass it as the Agent call's `model` (skip it when the
-   tier is `inherit`). Never launch a bare general-purpose agent for delegated work (the Keel hook
-   refuses an Agent call without a model for this reason).
+   whole prompt. Pick the model from `tiers` in the project's `.keel/config.json` if it exists,
+   otherwise from `${CLAUDE_PLUGIN_ROOT}/tiers.json`, and pass it as the Agent call's `model`
+   (skip it when the tier is `inherit`). The model must be in the `models` list of that config
+   (default: haiku, sonnet, opus, fable). If it is not, use the next more capable allowed model,
+   or the next cheaper one if none is more capable, and tell the user you did. Never launch a bare
+   general-purpose agent for delegated work (the Keel hook refuses an Agent call without a model
+   for this reason).
 5. **Run the checks yourself** when the agent reports back. Paste the outputs into
    `docs/plan/05-progress.md` under today's entry. If a check fails, fix it or send the agent back
    with the failure; do not mark it done.

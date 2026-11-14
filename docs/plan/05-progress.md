@@ -30,3 +30,10 @@
 - First attempts failed with `API Error: 400 Invalid effort level` and a `UserPromptSubmit` timeout: neither is Keel (Keel registers no such hook and sets no effort). Resolved by the owner.
 - Not yet confirmed in a live session: the drift hook warning and the model-required hook refusal (steps 6 and 7).
 - To do: remove "smoke test not recorded" from `kits/keel/kit.json` limits in the next release (0.2.1).
+
+## 2026-11-15 — Keel 0.3.0 built (For you / Task list, cost footer, model settings)
+- Added: SessionStart hook (standing response format), Stop hook (one-line token and cost footer, sub-agents included), `/keel:cost`, `/keel:settings`, `prices.json` (sourced from platform.claude.com pricing page, 2026-11-15), `defaults.json`, `.keel/config.json` overrides.
+- Findings that shaped it: transcripts repeat a message once per content block (de-dupe by message id); sub-agent usage is in `<session>/subagents/*.jsonl`; Claude Code's own `cost-state` entries are too sparse to use per prompt.
+- Cross-check against the app: an earlier `cost-state` snapshot of this session showed $2.80 for 11.4M cache-read / 74k out / 227k 1h cache-write tokens; the same tokens at Sonnet 5.5 list prices = $2.795.
+- Checks run locally: `cost.test.mjs` ok (exact dollars for dedupe, Haiku long tier, sub-agent, unpriced model, config switches); drift and site tests ok; `claude plugin validate` passed; `check-kits` ok. The checker caught an unescaped-quote JSON error in `tiers.json` before commit.
+- Not yet verified live: the Stop footer and SessionStart rules inside a fresh installed session (needs 0.3.0 installed).

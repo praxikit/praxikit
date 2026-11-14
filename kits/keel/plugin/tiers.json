@@ -1,5 +1,5 @@
 {
-  "note": "Single source of truth for Keel's model tiers. The agents' frontmatter must match (CI checks it). To change a tier for one project without editing the plugin, copy this file to .keel/tiers.json in that project; /keel:delegate passes the model explicitly.",
+  "note": "Single source of truth for Keel's model tiers. The agents' frontmatter must match (CI checks it). To change a tier for one project without editing the plugin, set \"tiers\" in .keel/config.json in that project (or run /keel:settings); /keel:delegate passes the model explicitly.",
   "scout": "haiku",
   "builder": "sonnet",
   "reviewer": "sonnet",

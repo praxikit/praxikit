@@ -1,6 +1,18 @@
 {
-  "description": "Keel: (1) refuse a sub-agent launch that names no model, so the lead's expensive model never runs one by accident; (2) warn once per session when an edit lands outside the current phase's Files list.",
+  "description": "Keel: (1) refuse a sub-agent launch that names no model; (2) warn once per session when an edit lands outside the current phase's Files list; (3) inject Keel's response format once per session (For you, Task list); (4) print a one-line token and cost footer when a prompt finishes.",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/session-start.mjs"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Agent|Task",
@@ -23,6 +35,18 @@
             "command": "node",
             "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/drift.mjs"],
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/footer.mjs"],
+            "timeout": 15
           }
         ]
       }
