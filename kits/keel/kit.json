@@ -3,7 +3,7 @@
   "kind": "plugin",
   "collections": ["Planning", "Build and delegate", "Quality and security"],
   "tags": ["planning", "critique", "model-routing", "sub-agents", "phases"],
-  "version": "0.1.1",
+  "version": "0.2.0",
   "promise": "Plan with a critique gate, build in phases that prove themselves, give each task to the cheapest capable model.",
   "install": [
     "/plugin marketplace add praxikit/praxikit",
@@ -12,6 +12,7 @@
   "limits": [
     "Not a pentest and not a model classifier.",
     "Model routing works in Claude Code only; the method and prompts work with any agent.",
+    "The security skill wires free scanners and an evidenced checklist; it is not a pentest and does not prove a project is secure.",
     "The install-from-GitHub smoke test has not been recorded yet."
   ]
 }

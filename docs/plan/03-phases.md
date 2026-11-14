@@ -19,7 +19,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ passed (date) · ⛔ blocked 
 **Files:** `site/build.mjs`, `site/templates/*`, `site/recommended.json`, `site/styles.css`, `.github/workflows/pages.yml`.
 **Checks:** build output has a page per kit and one per category; every manifest string is HTML-escaped (test with `<script>` in a promise); external links carry `rel="noopener noreferrer"`; page works at 375px width and in dark mode; `versions.json` matches the manifests; the site loads at `praxikit.github.io/praxikit/`.
 
-## Phase 3 — Keel v0.2 ⬜
+## Phase 3 — Keel v0.2 🟨 (built 2026-11-14; awaiting CI actionlint and tag)
 **Goal:** the roadmap items in `why-keel.md` v2.
 **Files:** `kits/keel/plugin/**`, `kits/keel/docs/**`.
 **Tasks:** drift hook (warn once per session on edits outside the phase's files); `/keel:security` skill + CI template; configurable tiers (models set in one place instead of per-agent frontmatter); record the install smoke test; bump to 0.2.0 with changelog.

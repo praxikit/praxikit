@@ -25,10 +25,13 @@ Then, in any project:
 | `/keel:critique` | The gate alone, on a plan, an idea or a PR. Returns a verdict. |
 | `/keel:delegate <task>` | Writes a full brief and hands the task to the right tier (Scout / Builder / Reviewer) |
 | `/keel:verify [phase]` | Runs a phase's acceptance checks, pastes the output, marks it passed or not |
+| `/keel:security` | Free scanners in CI, entry-point table from the code, pre-launch checklist ticked only with evidence, OWASP review |
 | `/keel:replan <change>` | The idea changed: back through the gate, decisions and phases edited, logged |
 
 Agents the plugin adds: `keel:critic` (your session's model), `keel:builder` (Sonnet),
 `keel:reviewer` (Sonnet), `keel:scout` (Haiku).
+
+A second hook warns once per session when an edit lands outside the current phase's Files list.
 
 A hook refuses any `Agent` call that names no model, so nothing runs on your most expensive model
 by accident. `fork` and Keel's own agents pass; set `KEEL_ALLOW_AGENTS=my-agent,other` for agents
@@ -70,8 +73,7 @@ more than any sub-agent routing.
 
 ## Status
 
-v0.1 — Phase 0 of [Keel's own plan](docs/plan/03-phases.md), written with the method. Roadmap:
-drift hook, security tooling and tested adapters (v2), then publishing (v3).
+v0.2 — drift hook, security skill and configurable tiers shipped. Still to do: adapters tested on a real project, and the install-from-GitHub smoke test. See [Keel's own plan](docs/plan/03-phases.md).
 
 ## Licence
 

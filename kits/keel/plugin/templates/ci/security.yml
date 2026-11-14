@@ -1,0 +1,47 @@
+name: security
+# Free scanners on every push and pull request. Copy to .github/workflows/security.yml.
+# Not a pentest: these catch known patterns (leaked secrets, vulnerable dependencies, common code flaws).
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1"
+permissions:
+  contents: read
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks (pinned release, checksum verified)
+        env:
+          V: 8.18.4
+        run: |
+          curl -sSfL -o gl.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${V}/gitleaks_${V}_linux_x64.tar.gz"
+          curl -sSfL -o gl.sums "https://github.com/gitleaks/gitleaks/releases/download/v${V}/gitleaks_${V}_checksums.txt"
+          grep " gitleaks_${V}_linux_x64.tar.gz\$" gl.sums | sed 's/ gitleaks_.*/ gl.tgz/' | sha256sum -c -
+          tar -xzf gl.tgz gitleaks
+          ./gitleaks detect --source . --redact --verbose
+  dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm audit (only if the project uses npm)
+        run: |
+          if [ -f package-lock.json ]; then npm audit --audit-level=high
+          else echo "no package-lock.json; skipping"; fi
+      - name: pip-audit (only if the project uses pip)
+        run: |
+          if [ -f requirements.txt ]; then pipx run pip-audit -r requirements.txt
+          else echo "no requirements.txt; skipping"; fi
+  static-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep community rules
+        run: pipx run semgrep scan --config p/owasp-top-ten --config p/secrets --error --metrics=off

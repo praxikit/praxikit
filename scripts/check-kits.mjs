@@ -51,6 +51,17 @@ for (const name of kitNames) {
     const pj = join(dir, "plugin", ".claude-plugin", "plugin.json");
     if (!existsSync(pj)) fail(name, "plugin kit has no plugin/.claude-plugin/plugin.json");
     else if (readJson(pj).version !== k.version) fail(name, `plugin.json version ${readJson(pj).version} != kit.json version ${k.version}`);
+    const tiersFile = join(dir, "plugin", "tiers.json");
+    if (existsSync(tiersFile)) {
+      const tiers = readJson(tiersFile);
+      for (const [agent, model] of Object.entries(tiers)) {
+        if (agent === "note") continue;
+        const af = join(dir, "plugin", "agents", `${agent}.md`);
+        if (!existsSync(af)) { fail(name, `tiers.json lists "${agent}" but plugin/agents/${agent}.md is missing`); continue; }
+        const got = /^model:\s*(\S+)/m.exec(readFileSync(af, "utf8"))?.[1];
+        if (got !== model) fail(name, `agent ${agent} has model "${got}" but tiers.json says "${model}"`);
+      }
+    }
     const entry = (marketplace.plugins ?? []).find((p) => p.name === name);
     if (!entry) fail(name, "not listed in .claude-plugin/marketplace.json");
     else if (entry.source !== `./kits/${name}/plugin`) fail(name, `marketplace source is ${entry.source}, expected ./kits/${name}/plugin`);

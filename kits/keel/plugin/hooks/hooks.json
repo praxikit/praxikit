@@ -1,5 +1,5 @@
 {
-  "description": "Keel: refuse a sub-agent launch that names no model (the lead's expensive model would run it by default). Keel's own agents carry their models; fork inherits by design.",
+  "description": "Keel: (1) refuse a sub-agent launch that names no model, so the lead's expensive model never runs one by accident; (2) warn once per session when an edit lands outside the current phase's Files list.",
   "hooks": {
     "PreToolUse": [
       {
@@ -9,6 +9,19 @@
             "type": "command",
             "command": "node",
             "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/require-model.mjs"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/drift.mjs"],
             "timeout": 10
           }
         ]

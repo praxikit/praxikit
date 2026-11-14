@@ -33,6 +33,17 @@ jobs:
           node scripts/check-kits.mjs --base "$BASE"
       - name: Catalog site builds and escapes hostile input
         run: node site/test.mjs
+      - name: Keel drift hook and tier tests
+        run: node kits/keel/tests/drift.test.mjs
+      - name: actionlint on workflows and the security template (pinned, checksum verified)
+        env:
+          V: 1.7.7
+        run: |
+          curl -sSfL -o al.tgz "https://github.com/rhysd/actionlint/releases/download/v${V}/actionlint_${V}_linux_amd64.tar.gz"
+          curl -sSfL -o al.sums "https://github.com/rhysd/actionlint/releases/download/v${V}/actionlint_${V}_checksums.txt"
+          grep " actionlint_${V}_linux_amd64.tar.gz\$" al.sums | sed 's/ actionlint_.*/ al.tgz/' | sha256sum -c -
+          tar -xzf al.tgz actionlint
+          ./actionlint .github/workflows/*.yml kits/*/plugin/templates/ci/*.yml
       - name: Keel hook denies a model-less Agent call
         run: |
           H=kits/keel/plugin/scripts/require-model.mjs
