@@ -14,7 +14,7 @@ Status: ⬜ not started · 🟨 in progress · ✅ passed (date) · ⛔ blocked 
 **Files:** `schema/kit.schema.json`, `kits/*/kit.json`, `kits/*/CHANGELOG.md`, `scripts/check-kits.mjs`, `.github/workflows/{check,release}.yml`.
 **Checks:** a bad `kit.json` fails the script; editing a kit file without bumping `version` fails CI; a tag `keel-v0.1.1` creates a release.
 
-## Phase 2 — catalog site 🟨 (built 2026-11-14; awaiting first deploy)
+## Phase 2 — catalog site ✅ (2026-11-14, live at praxikit.github.io/praxikit/)
 **Goal:** a static page on Pages listing Built by praxikit (by category) and Recommended.
 **Files:** `site/build.mjs`, `site/templates/*`, `site/recommended.json`, `site/styles.css`, `.github/workflows/pages.yml`.
 **Checks:** build output has a page per kit and one per category; every manifest string is HTML-escaped (test with `<script>` in a promise); external links carry `rel="noopener noreferrer"`; page works at 375px width and in dark mode; `versions.json` matches the manifests; the site loads at `praxikit.github.io/praxikit/`.
