@@ -1,0 +1,53 @@
+#!/usr/bin/env node
+// Builds the site from a hostile fixture and checks escaping, links and output. No dependencies.
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const root = mkdtempSync(join(tmpdir(), "praxikit-site-"));
+const out = join(root, "out");
+const put = (rel, text) => { const p = join(root, rel); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, text); };
+const XSS = `<script>alert(1)</script>"><img src=x onerror=alert(2)>`;
+
+put("kits/evil/kit.json", JSON.stringify({
+  name: "evil", kind: "skill", collections: ["Planning", "Design and 3D"], tags: ["x"], version: "1.2.3",
+  promise: XSS, install: [XSS], limits: [XSS],
+}));
+put("kits/evil/CHANGELOG.md", `# Changelog\n\n## 1.2.3 — 2026-01-01\n- ${XSS}\n`);
+put("kits/evil/plugin/skills/s/SKILL.md", `---\nname: ${XSS}\ndescription: ${XSS}\n---\nbody\n`);
+put("site/recommended.json", JSON.stringify([{ name: XSS, url: "https://example.com/?a=1&b=2", author: XSS, why: XSS, category: "Skill", added: "2026-11-14" }]));
+
+execFileSync("node", [join(here, "build.mjs"), "--root", root, "--out", out], { stdio: "inherit" });
+
+const failures = [];
+const must = (cond, msg) => { if (!cond) failures.push(msg); };
+const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
+const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
+
+must(htmlFiles.length === 4, `expected index + 2 collections + 1 kit page = 4 html files, got ${htmlFiles.length}`);
+for (const f of htmlFiles) {
+  const h = readFileSync(f, "utf8");
+  const stripped = h.replace(/<script>[\s\S]*?<\/script>\s*<\/body>/, "</body>"); // drop our own copy-button script
+  must(!/<script>alert/.test(stripped), `raw <script> payload in ${f}`);
+  must(!/<img src=x/.test(h), `raw <img> payload in ${f}`);
+}
+const idx = readFileSync(join(out, "index.html"), "utf8");
+must(idx.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "payload not shown escaped on index");
+must(/href="https:\/\/example\.com\/\?a=1&amp;b=2" rel="noopener noreferrer"/.test(idx), "recommended link missing rel=noopener noreferrer or unescaped &");
+must(!/href="https:\/\/github\.com[^"]*"(?![^>]*rel=)/.test(idx), "external GitHub link without rel");
+must(existsSync(join(out, "k/evil/index.html")) && existsSync(join(out, "c/planning/index.html")) && existsSync(join(out, "c/design-and-3d/index.html")), "kit or collection pages missing");
+must(!/href="\//.test(idx), "absolute href found; links must be relative");
+const versions = JSON.parse(readFileSync(join(out, "versions.json"), "utf8"));
+must(versions.evil?.version === "1.2.3", "versions.json does not match manifests");
+
+// a non-https recommended url must be refused
+put("site/recommended.json", JSON.stringify([{ name: "x", url: "javascript:alert(1)", author: "a", why: "w", category: "Skill", added: "2026-11-14" }]));
+let refused = false;
+try { execFileSync("node", [join(here, "build.mjs"), "--root", root, "--out", out], { stdio: "pipe" }); } catch { refused = true; }
+must(refused, "javascript: url was accepted");
+
+if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }
+console.log("ok: site escapes hostile input, links are relative, external links are noopener, javascript: urls refused");

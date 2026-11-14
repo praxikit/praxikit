@@ -31,6 +31,8 @@ jobs:
             echo "no base commit; skipping"; exit 0
           fi
           node scripts/check-kits.mjs --base "$BASE"
+      - name: Catalog site builds and escapes hostile input
+        run: node site/test.mjs
       - name: Keel hook denies a model-less Agent call
         run: |
           H=kits/keel/plugin/scripts/require-model.mjs
