@@ -1,0 +1,124 @@
+name: approve-submission
+# Started by the admin app when a maintainer approves a submission (or submits a repository themselves).
+# The inputs are untrusted: the repository is read and scanned again here, the entry is validated again,
+# and a scan that fails stops the listing. "List anyway" does not exist on this path; it stays a manual
+# action in the Add listing workflow.
+run-name: "approve #${{ inputs.submission_id }}"
+on:
+  workflow_dispatch:
+    inputs:
+      submission_id:
+        description: Submission number in the admin app
+        required: true
+        type: string
+      url:
+        description: Repository link, https://github.com/owner/repo
+        required: true
+        type: string
+      name:
+        description: Name shown in the catalogue
+        required: true
+        type: string
+      kind:
+        description: Type
+        required: true
+        type: choice
+        options: [plugin, skill, mcp, template, adapter, agent, hook]
+      source:
+        description: recommended or community
+        required: true
+        type: choice
+        options: [recommended, community]
+      author:
+        description: Who made it (the repository's owner)
+        required: true
+        type: string
+      why:
+        description: The text shown on the card
+        required: true
+        type: string
+      decided_by:
+        description: GitHub login of the maintainer who approved it
+        required: true
+        type: string
+permissions: {}
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    outputs:
+      status: ${{ steps.scan.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: scan
+        env:
+          IN_NAME: ${{ inputs.name }}
+          IN_URL: ${{ inputs.url }}
+          IN_KIND: ${{ inputs.kind }}
+          IN_SOURCE: ${{ inputs.source }}
+          IN_AUTHOR: ${{ inputs.author }}
+          IN_WHY: ${{ inputs.why }}
+          IN_ALLOW_FAILED: "false"
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          node scripts/listings.mjs scan --mode dispatch --out-dir "$RUNNER_TEMP/listing"
+          echo "status=$(cat "$RUNNER_TEMP/listing/status.txt")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: listing
+          path: ${{ runner.temp }}/listing
+          retention-days: 3
+
+  publish:
+    needs: scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    concurrency:
+      group: listings
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: listing
+          path: ${{ runner.temp }}/listing
+      - name: Publish, or show why not
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          STATUS: ${{ needs.scan.outputs.status }}
+          DIR: ${{ runner.temp }}/listing
+          SUBMISSION: ${{ inputs.submission_id }}
+          DECIDED_BY: ${{ inputs.decided_by }}
+        run: |
+          cat "$DIR/comment.md" >> "$GITHUB_STEP_SUMMARY"
+          case "$SUBMISSION" in ''|*[!0-9]*) echo "Bad submission number."; exit 1 ;; esac
+          case "$DECIDED_BY" in ''|*[!A-Za-z0-9-]*) DECIDED_BY="unknown" ;; esac
+          if [ "$STATUS" != "ok" ]; then
+            echo "Not listed. The reason is in the job summary."
+            exit 1
+          fi
+          node scripts/listings.mjs publish --entry "$DIR/entry.json" --file site/listings.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/listings.json
+          git commit -m "listings: add submission #$SUBMISSION (approved by $DECIDED_BY)"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh workflow run pages.yml --ref main
+          gh workflow run listing-drift.yml --ref main
+          echo "Listed. The site is redeploying." >> "$GITHUB_STEP_SUMMARY"

@@ -22,6 +22,23 @@ export function d1Store(db) {
     },
     async get(id) { return (await db.prepare("SELECT * FROM submissions WHERE id = ?").bind(id).first()) ?? null; },
     async pending(limit = 100) { return (await db.prepare("SELECT * FROM submissions WHERE status = 'pending' ORDER BY id DESC LIMIT ?").bind(limit).all()).results ?? []; },
+    async recent(limit = 15) { return (await db.prepare("SELECT * FROM submissions WHERE status <> 'pending' ORDER BY id DESC LIMIT ?").bind(limit).all()).results ?? []; },
+    /** Approving is one atomic step: it only succeeds while the submission is still pending. Returns true if it did. */
+    async approve(id, { by, name, kind, text, at }) {
+      const r = await db.prepare("UPDATE submissions SET status = 'approved', decided_by = ?, decided_at = ?, final_name = ?, final_kind = ?, final_text = ?, publish_state = 'dispatching', publish_note = '' WHERE id = ? AND status = 'pending'").bind(by, at, name, kind, text, id).run();
+      return Number(r.meta?.changes) === 1;
+    },
+    async reject(id, { by, note, at }) {
+      const r = await db.prepare("UPDATE submissions SET status = 'rejected', decided_by = ?, decided_at = ?, decision_note = ? WHERE id = ? AND status = 'pending'").bind(by, at, note, id).run();
+      return Number(r.meta?.changes) === 1;
+    },
+    async setPublish(id, state, note = "") { await db.prepare("UPDATE submissions SET publish_state = ?, publish_note = ? WHERE id = ? AND status = 'approved'").bind(state, note, id).run(); },
+    /** A blocked publish can be tried again; this flips it back and reports whether it was blocked. */
+    async retry(id) {
+      const r = await db.prepare("UPDATE submissions SET publish_state = 'dispatching', publish_note = '' WHERE id = ? AND status = 'approved' AND publish_state = 'blocked'").bind(id).run();
+      return Number(r.meta?.changes) === 1;
+    },
+    async inFlight(limit = 10) { return (await db.prepare("SELECT * FROM submissions WHERE status = 'approved' AND publish_state IN ('dispatching','dispatched') ORDER BY id LIMIT ?").bind(limit).all()).results ?? []; },
     async byUser(userId, limit = 20) { return (await db.prepare("SELECT * FROM submissions WHERE submitted_by_id = ? ORDER BY id DESC LIMIT ?").bind(userId, limit).all()).results ?? []; },
   };
 }

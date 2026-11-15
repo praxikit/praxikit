@@ -1,4 +1,4 @@
-# Praxikit admin API (phases 1 and 2: sign in, and the submit form)
+# Praxikit admin API (sign in, the submit form, approve and reject)
 
 A small Cloudflare Worker with no dependencies. Phase 1 signs people in with GitHub, decides whether they may maintain the catalogue, and shows a read-only admin page. The public catalogue stays a static site on GitHub Pages; only this app needs a login, and the pages are served from this app's own address so the sign-in cookie is first-party.
 
@@ -87,3 +87,31 @@ Safety: only `https://github.com/<owner>/<repo>` links are accepted; private rep
 5. Redeploy: `npx wrangler deploy`, then open `/submit`.
 
 Checks: `node --no-warnings api/test-submit.mjs` runs the submit flow against a fake GitHub and a real SQLite database.
+
+## Phase 3: approve, reject and publish from the app
+
+Open a submission on `/admin`: confirm the name, the type and the card text, then **Approve and publish**, or **Reject** with a reason the submitter sees on `/mine`. A maintainer's own submission at `/submit` is published directly (it is held for review if its type is unknown, a quick check failed, or the sign-in is older than 30 minutes).
+
+**The app never edits the catalogue.** Approving asks GitHub to start the `approve-submission` workflow, which scans the repository again (read-only), validates the entry, and commits it. A failed scan stops it; "list anyway" does not exist on this path (it stays a manual action in the *Add listing* workflow). The app then follows that run and shows Publishing, Listed or Blocked (with a link to the run and a Try again button).
+
+Safety: approving, rejecting and retrying need a maintainer, a request from this site, and a sign-in from the last 30 minutes; an approval is one atomic database step, so double clicks cannot start two jobs; the token the app holds can only start workflows, not change files.
+
+### Setup for phase 3
+
+1. Pull and add the new columns to your existing database, **once** (a database created from the current `schema.sql` already has them):
+   ```bash
+   npx wrangler d1 execute praxikit-admin --remote --file=migrations/0002_publish.sql
+   ```
+2. Create a **fine-grained personal access token** for starting the publish job:
+   - Name `praxikit-admin-dispatch`, expiry 90 days.
+   - Resource owner: the `praxikit` organisation (if it is not offered, an owner must allow fine-grained tokens under the org's Settings, Personal access tokens; a request may then wait for an owner's approval in the same place).
+   - Repository access: **only** `praxikit/praxikit`.
+   - Permissions: **Actions: Read and write**. Nothing else.
+   Then store it (never paste it in chat):
+   ```bash
+   npx wrangler secret put GITHUB_DISPATCH_TOKEN
+   ```
+3. Redeploy: `npx wrangler deploy`.
+4. Try it with a submission you actually want listed. Approving publishes it for real. Watch the *Actions* tab for a run called `approve #N`.
+
+Checks: `node --no-warnings api/test-approve.mjs` covers approving, rejecting, retrying, blocked and refused jobs, stale sign-ins and direct publishing.

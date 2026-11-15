@@ -23,7 +23,12 @@ CREATE TABLE IF NOT EXISTS submissions (
   created_at TEXT NOT NULL,
   decided_by TEXT NOT NULL DEFAULT '',
   decided_at TEXT NOT NULL DEFAULT '',
-  decision_note TEXT NOT NULL DEFAULT ''
+  decision_note TEXT NOT NULL DEFAULT '',
+  publish_state TEXT NOT NULL DEFAULT '',   -- '', dispatching, dispatched, listed, blocked (phase 3)
+  publish_note TEXT NOT NULL DEFAULT '',
+  final_name TEXT NOT NULL DEFAULT '',      -- what the maintainer confirmed at approval
+  final_kind TEXT NOT NULL DEFAULT '',
+  final_text TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS one_pending_per_repo ON submissions (repo_key) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS by_user_time ON submissions (submitted_by_id, created_at);

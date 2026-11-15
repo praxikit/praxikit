@@ -17,13 +17,16 @@ import { signToken, verifyToken, randomToken, safeEqual, parseCookies, cookie } 
 import { authorizeUrl, exchangeCode, getUser, decideRole, listPending } from "./lib/github.mjs";
 import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, precheck, UserError } from "./lib/repo.mjs";
 import { storeFor } from "./lib/store.mjs";
-import { CSS, signInPage, messagePage, adminPage, submitPage, minePage, detailPage } from "./lib/html.mjs";
+import { dispatchApprove, syncPublishing, publishingConfigured } from "./lib/publish.mjs";
+import { CSS, signInPage, messagePage, adminPage, submitPage, minePage, detailPage, FLASH } from "./lib/html.mjs";
 
 const SESSION_COOKIE = "__Host-praxikit-session";
 const STATE_COOKIE = "__Host-praxikit-state";
 const SESSION_SECONDS = 4 * 60 * 60; // short on purpose: a removed maintainer loses access within hours
 const STATE_SECONDS = 10 * 60;
 const SUBMISSIONS_PER_DAY = 5, SUBMISSIONS_PER_DAY_MAINTAINER = 30;
+const FRESH_MS = 30 * 60 * 1000; // approving, rejecting and publishing need a sign-in from the last 30 minutes
+const KINDS = ["plugin", "skill", "mcp", "template", "adapter", "agent", "hook"];
 
 const HEADERS = {
   "Content-Security-Policy": "default-src 'none'; style-src 'self'; img-src https://avatars.githubusercontent.com; form-action 'self' https://github.com; base-uri 'none'; frame-ancestors 'none'",
@@ -63,6 +66,26 @@ function sameOrigin(request, env) {
   return (origin === null || origin === "null") && request.headers.get("Sec-Fetch-Site") === "same-origin";
 }
 
+const fresh = (s) => Number.isFinite(s?.iat) && Date.now() - s.iat < FRESH_MS;
+const back = (path, code) => send("", { status: 303, location: code ? `${path}?m=${code}` : path });
+const flashOf = (url) => FLASH[url.searchParams.get("m")] ?? "";
+const listed = (env) => (key) => alreadyListed(env, key);
+
+/** Approving, rejecting, retrying: maintainers only, from this site, with a recent sign-in. Returns a Response to stop, or null to go on. */
+function gate(request, env, s) {
+  if (!s) return send(signInPage(), { status: 401 });
+  if (s.role !== "admin") return send(messagePage("No access", "Only maintainers can do that.", false), { status: 403 });
+  if (!sameOrigin(request, env)) return send(messagePage("Refused", "That request did not come from this site."), { status: 403 });
+  if (!fresh(s)) return send(signInPage("For safety, sign in again to confirm this action (your sign-in is older than 30 minutes)."), { status: 401 });
+  return null;
+}
+
+/** Start the publish job for an approved row and record whether GitHub accepted it. Returns "dispatched" or "blocked". */
+async function startPublish(env, store, row) {
+  try { await dispatchApprove(env, row); await store.setPublish(row.id, "dispatched"); return "dispatched"; }
+  catch (e) { await store.setPublish(row.id, "blocked", e instanceof UserError ? e.message : "The publish job could not be started."); return "blocked"; }
+}
+
 const oneLine = (s, n) => String(s ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 
 async function submit(request, env, session) {
@@ -92,8 +115,9 @@ async function submit(request, env, session) {
   const author = await isAuthor(env, info, session.sub);
   const source = author ? "community" : "recommended";
   const pre = precheck(info);
+  let newId;
   try {
-    await store.insert({
+    newId = await store.insert({
       repo_url: repo.url, repo_key: repo.key, name: info.name, owner: info.owner, owner_type: info.ownerType, submitted_by: session.sub, submitted_by_id: session.id,
       source, kind_guess: info.kind, license: info.license, commit_sha: info.commit, readme_url: info.readmeUrl, readme_excerpt: info.excerpt,
       why: source === "recommended" ? values.why : "", precheck: JSON.stringify(pre.checks), precheck_status: pre.status, created_at: new Date().toISOString(),
@@ -102,7 +126,52 @@ async function submit(request, env, session) {
     if (String(e?.message) === "duplicate") return fail("That repository is already waiting for review.", 409);
     throw e;
   }
+  // a maintainer's own submission is published directly, after the same scan. It is held for review if it cannot be.
+  if (session.role === "admin") {
+    const text = oneLine(source === "recommended" && values.why ? values.why : info.excerpt || `${info.name} by ${info.owner}`, 400);
+    if (fresh(session) && info.kind && pre.status !== "fail" && publishingConfigured(env) && (await store.approve(newId, { by: session.sub, name: oneLine(info.name, 80), kind: info.kind, text, at: new Date().toISOString() }))) {
+      await startPublish(env, store, { id: newId, repo_url: repo.url, source, owner: info.owner, final_name: oneLine(info.name, 80), final_kind: info.kind, final_text: text, decided_by: session.sub });
+      return send("", { status: 303, location: "/mine?ok=direct" });
+    }
+    return send("", { status: 303, location: "/mine?ok=held" });
+  }
   return send("", { status: 303, location: "/mine?ok=1" });
+}
+
+async function approveRoute(request, env, s, id) {
+  const stop = gate(request, env, s); if (stop) return stop;
+  const store = storeFor(env); const base = `/admin/submissions/${id}`;
+  if (!store) return send(messagePage("Not available", "This app has no database connected.", false), { status: 503 });
+  if (!publishingConfigured(env)) return back(base, "nopublish");
+  let f; try { f = await request.formData(); } catch { return back(base, "bad"); }
+  const name = oneLine(f.get("name"), 100), kind = String(f.get("kind") ?? ""), text = oneLine(f.get("text"), 500);
+  if (!name || name.length > 80 || !KINDS.includes(kind) || !text || text.length > 400) return back(base, "bad");
+  const row = await store.get(id);
+  if (!row || row.status !== "pending") return back(base, "already");
+  if (!(await store.approve(id, { by: s.sub, name, kind, text, at: new Date().toISOString() }))) return back(base, "already");
+  const state = await startPublish(env, store, { ...row, final_name: name, final_kind: kind, final_text: text, decided_by: s.sub });
+  return back(base, state === "dispatched" ? "approved" : "failed");
+}
+
+async function rejectRoute(request, env, s, id) {
+  const stop = gate(request, env, s); if (stop) return stop;
+  const store = storeFor(env); const base = `/admin/submissions/${id}`;
+  if (!store) return send(messagePage("Not available", "This app has no database connected.", false), { status: 503 });
+  let f; try { f = await request.formData(); } catch { return back(base, "bad"); }
+  const note = oneLine(f.get("note"), 400);
+  if (!note || note.length > 300) return back(base, "bad");
+  return back(base, (await store.reject(id, { by: s.sub, note, at: new Date().toISOString() })) ? "rejected" : "already");
+}
+
+async function retryRoute(request, env, s, id) {
+  const stop = gate(request, env, s); if (stop) return stop;
+  const store = storeFor(env); const base = `/admin/submissions/${id}`;
+  if (!store) return send(messagePage("Not available", "This app has no database connected.", false), { status: 503 });
+  if (!publishingConfigured(env)) return back(base, "nopublish");
+  if (!(await store.retry(id))) return back(base, "already");
+  const row = await store.get(id);
+  const state = await startPublish(env, store, { ...row, decided_by: s.sub });
+  return back(base, state === "dispatched" ? "retried" : "failed");
 }
 
 async function route(request, env) {
@@ -140,7 +209,7 @@ async function route(request, env) {
     } catch {
       return send(signInPage("Sign-in could not be completed. Try again in a moment."), { status: 502, cookies: [clearState] });
     }
-    const session = await signToken({ sub: user.login, id: user.id, role: who.role, via: who.via ?? "", exp: Date.now() + SESSION_SECONDS * 1000 }, env.SESSION_SECRET);
+    const session = await signToken({ sub: user.login, id: user.id, role: who.role, via: who.via ?? "", iat: Date.now(), exp: Date.now() + SESSION_SECONDS * 1000 }, env.SESSION_SECRET);
     return send("", { status: 302, location: mode === "user" ? "/submit" : "/admin", cookies: [clearState, cookie(SESSION_COOKIE, session, { maxAge: SESSION_SECONDS })] });
   }
 
@@ -170,7 +239,7 @@ async function route(request, env) {
     if (!s) return send(signInPage("", { submit: true }));
     const store = storeFor(env);
     if (!store) return send(messagePage("Submissions are not open yet", "This app has no database connected yet.", false), { status: 503 });
-    return send(minePage({ session: s, rows: await store.byUser(s.id), flash: url.searchParams.get("ok") ? "Thanks. Your submission is waiting for review." : "" }));
+    return send(minePage({ session: s, rows: await store.byUser(s.id), flash: { 1: "Thanks. Your submission is waiting for review.", direct: FLASH.direct, held: FLASH.held }[url.searchParams.get("ok")] ?? "" }));
   }
 
   if (path === "/admin" && method === "GET") {
@@ -180,8 +249,11 @@ async function route(request, env) {
     let queue = [], queueError = "", subs = null;
     try { queue = await listPending(env); } catch { queueError = "The waiting list could not be loaded from GitHub just now. Reload in a minute."; }
     const store = storeFor(env);
-    if (store) { try { subs = await store.pending(); } catch { queueError = queueError || "The submissions database could not be read just now."; } }
-    return send(adminPage({ session: s, env, queue, queueError, subs }));
+    let recent = [];
+    if (store) {
+      try { await syncPublishing(env, store, listed(env)); subs = await store.pending(); recent = await store.recent(); } catch { queueError = queueError || "The submissions database could not be read just now."; }
+    }
+    return send(adminPage({ session: s, env, queue, queueError, subs, recent, flash: flashOf(url) }));
   }
 
   const detail = /^\/admin\/submissions\/(\d{1,9})$/.exec(path);
@@ -190,8 +262,15 @@ async function route(request, env) {
     if (!s) return send(signInPage());
     if (s.role !== "admin") return send(messagePage("No access", "Only maintainers can see submissions.", false), { status: 403 });
     const store = storeFor(env);
+    if (store) { try { await syncPublishing(env, store, listed(env)); } catch { /* the page still works without a refresh */ } }
     const row = store ? await store.get(Number(detail[1])) : null;
-    return row ? send(detailPage({ session: s, s: row })) : send(messagePage("Not found", "There is no such submission.", false), { status: 404 });
+    return row ? send(detailPage({ session: s, s: row, flash: flashOf(url), canPublish: publishingConfigured(env) })) : send(messagePage("Not found", "There is no such submission.", false), { status: 404 });
+  }
+
+  const action = /^\/admin\/submissions\/(\d{1,9})\/(approve|reject|retry)$/.exec(path);
+  if (action && method === "POST") {
+    const s = await sessionOf(request, env), id = Number(action[1]);
+    return action[2] === "approve" ? approveRoute(request, env, s, id) : action[2] === "reject" ? rejectRoute(request, env, s, id) : retryRoute(request, env, s, id);
   }
 
   return send(messagePage("Not found", "There is nothing here.", false), { status: 404 });

@@ -18,7 +18,7 @@ button.ghost,.btn.ghost{background:transparent;color:var(--accent)}
 table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line)}th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);font-size:.93rem;vertical-align:top}th{color:var(--muted);font-weight:600}
 ul.links{padding-left:1.2rem}ul.links li{margin:.35rem 0}
 label{display:block;font-weight:600;margin:1rem 0 .3rem}input[type=text],input[type=url],textarea{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
-textarea{min-height:5rem;resize:vertical}.hint{font-weight:400;color:var(--muted);font-size:.88rem}
+textarea{min-height:5rem;resize:vertical}select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}button[disabled]{opacity:.5;cursor:not-allowed}.hint{font-weight:400;color:var(--muted);font-size:.88rem}
 blockquote{margin:.5rem 0;padding:.4rem 1rem;border-left:3px solid var(--line);color:var(--muted)}
 dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:6px 18px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}
 `;
@@ -66,28 +66,50 @@ ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${error ? `<p class="note">${es
 <p class="muted">If you are the repository's owner (or a public member of its organisation), it is listed as a community kit by its author. Otherwise it is a recommendation. GitHub decides which, not the form.</p>`);
 }
 
+const KIND_OPTIONS = [["plugin", "Plugin"], ["skill", "Skill"], ["mcp", "MCP config"], ["template", "Template"], ["adapter", "Adapter"], ["agent", "Agent"], ["hook", "Hook"]];
+/** Fixed messages only: a query string picks one by key and is never echoed. */
+export const FLASH = {
+  approved: "Approved. The publish job has started; its result shows here in a minute or two.",
+  rejected: "Rejected. The submitter will see your reason.",
+  retried: "Trying again. The publish job has started.",
+  already: "That submission was already decided.",
+  stale: "For safety, sign in again before approving or rejecting (your sign-in is older than 30 minutes).",
+  bad: "Check the fields: a name up to 80 characters, a type from the list, and card text up to 400 characters. A rejection needs a reason up to 300 characters.",
+  nopublish: "Publishing is not connected yet: the app has no token to start the publish job. Nothing was changed.",
+  failed: "Approved, but GitHub would not start the publish job. You can try again from this page.",
+  direct: "Saved, and since you are a maintainer it is being published now (after the usual scan).",
+  held: "Saved for review. It could not be published directly (no recognisable type, a failed quick check, or your sign-in is older than 30 minutes); open it to decide.",
+};
+const PUBLISH = {
+  dispatching: "Starting the publish job…", dispatched: "Publishing: the scan and the commit are running on GitHub.",
+  listed: "Listed. It is on the catalogue.", blocked: "Blocked. The publish job did not complete.",
+};
+const mineStatus = (r) => (r.status === "pending" ? "Waiting for review" : r.status === "rejected" ? `Not listed${r.decision_note ? `: ${r.decision_note}` : ""}` : r.status === "approved" ? (r.publish_state === "listed" ? "Listed" : r.publish_state === "blocked" ? "Approved, but the automatic scan or publish step stopped it. A maintainer will look." : "Approved, being published") : r.status);
+
 export function minePage({ session, rows, flash }) {
   const body = rows.length
-    ? `<table><thead><tr><th>Repository</th><th>As</th><th>Status</th><th>Submitted</th></tr></thead><tbody>${rows.map((r) => `<tr><td><a href="${esc(r.repo_url)}" rel="noopener noreferrer">${esc(r.name)}</a></td><td>${esc(r.source)}</td><td>${esc(r.status)}</td><td>${esc(String(r.created_at).slice(0, 10))}</td></tr>`).join("")}</tbody></table>`
+    ? `<table><thead><tr><th>Repository</th><th>As</th><th>Status</th><th>Submitted</th></tr></thead><tbody>${rows.map((r) => `<tr><td><a href="${esc(r.repo_url)}" rel="noopener noreferrer">${esc(r.name)}</a></td><td>${esc(r.source)}</td><td>${esc(mineStatus(r))}</td><td>${esc(String(r.created_at).slice(0, 10))}</td></tr>`).join("")}</tbody></table>`
     : '<p class="muted">You have not submitted anything yet.</p>';
   return page("My submissions — Praxikit", `${nav(session)}<h1>My submissions</h1>${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${body}<p><a class="btn" href="/submit">Submit another</a></p>`);
 }
 
-export function adminPage({ session, env, queue, queueError, subs }) {
+export function adminPage({ session, env, queue, queueError, subs, recent, flash }) {
   const via = session.via === "owner" ? `an owner of ${esc(env.ORG)}` : `a member of ${esc(env.ORG)}/${esc(env.TEAM)}`;
   const issueRows = queue.map((q) => `<tr><td><a href="${esc(REPO_LINK(env.REPO, `/issues/${q.number}`))}" rel="noopener noreferrer">#${q.number}</a></td><td>${esc(q.title)}</td><td>${esc(q.by)}</td><td>${esc(q.label)}</td><td>${esc(q.checks || "waiting")}</td><td>${esc(q.created)}</td></tr>`).join("");
   const subRows = (subs ?? []).map((s) => `<tr><td><a href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a><br><span class="muted">${esc(s.owner)}</span></td><td>${esc(s.kind_guess || "?")}</td><td>${esc(s.source)}</td><td>${esc(s.license || "none")}</td><td>${status(s.precheck_status)}</td><td>${esc(s.submitted_by)}</td><td>${esc(String(s.created_at).slice(0, 10))}</td></tr>`).join("");
+  const recentRows = (recent ?? []).map((s) => `<tr><td><a href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a></td><td>${esc(s.status)}</td><td>${esc(s.status === "approved" ? (PUBLISH[s.publish_state] ?? s.publish_state) : s.status === "rejected" ? s.decision_note : "")}</td><td>${esc(s.decided_by)}</td><td>${esc(String(s.decided_at).slice(0, 10))}</td></tr>`).join("");
   return page("Admin — Praxikit", `${nav(session)}
 <h1>Catalogue admin</h1>
 <p class="muted">You can maintain the catalogue because you are ${via}.</p>
-<p class="note">Phase 2: submissions from the new form are collected and shown here, read-only. Approving, rejecting and adding still happen on GitHub (label an issue, or run the workflows below). Doing it here comes next.</p>
-${subs ? `<h2>New submissions (${subs.length})</h2>${subRows ? `<table><thead><tr><th>Repository</th><th>Type</th><th>As</th><th>Licence</th><th>Quick check</th><th>By</th><th>Opened</th></tr></thead><tbody>${subRows}</tbody></table>` : '<p class="muted">Nothing is waiting.</p>'}` : ""}
-<h2>Waiting for review${subs ? " (issue forms)" : ""}</h2>
+${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
+${subs ? `<h2>New submissions (${subs.length})</h2>${subRows ? `<table><thead><tr><th>Repository</th><th>Type</th><th>As</th><th>Licence</th><th>Quick check</th><th>By</th><th>Opened</th></tr></thead><tbody>${subRows}</tbody></table><p class="muted">Open one to approve or reject it.</p>` : '<p class="muted">Nothing is waiting.</p>'}` : ""}
+${recentRows ? `<h2>Recently decided</h2><table><thead><tr><th>Repository</th><th>Decision</th><th>Result</th><th>By</th><th>Date</th></tr></thead><tbody>${recentRows}</tbody></table>` : ""}
+<h2>Waiting for review${subs ? " (old issue forms)" : ""}</h2>
 ${queueError ? `<p class="note">${esc(queueError)}</p>` : issueRows ? `<table><thead><tr><th>Issue</th><th>Title</th><th>By</th><th>Kind</th><th>Checks</th><th>Opened</th></tr></thead><tbody>${issueRows}</tbody></table>` : '<p class="muted">Nothing is waiting.</p>'}
 <h2>Shortcuts</h2>
 <ul class="links">
-<li><a href="/submit">Open the submit form</a></li>
-<li><a href="${esc(REPO_LINK(env.REPO, "/actions/workflows/add-listing.yml"))}" rel="noopener noreferrer">Add a listing</a></li>
+<li><a href="/submit">Open the submit form</a> (as a maintainer, what you submit is published directly after the scan)</li>
+<li><a href="${esc(REPO_LINK(env.REPO, "/actions/workflows/add-listing.yml"))}" rel="noopener noreferrer">Add a listing</a> on GitHub (also the only way to list something whose checks failed)</li>
 <li><a href="${esc(REPO_LINK(env.REPO, "/actions/workflows/remove-listing.yml"))}" rel="noopener noreferrer">Remove a listing</a></li>
 <li><a href="${esc(REPO_LINK(env.REPO, "/actions/workflows/listing-drift.yml"))}" rel="noopener noreferrer">Re-check listings for changes</a></li>
 <li><a href="${esc(REPO_LINK(env.REPO, "/issues?q=is%3Aissue+is%3Aopen+label%3Areport"))}" rel="noopener noreferrer">Reports</a></li>
@@ -95,12 +117,33 @@ ${queueError ? `<p class="note">${esc(queueError)}</p>` : issueRows ? `<table><t
 </ul>`);
 }
 
-export function detailPage({ session, s }) {
+export function detailPage({ session, s, flash, canPublish }) {
   const cs = checks(s.precheck);
   const commitUrl = `${s.repo_url}/commit/${s.commit_sha}`;
+  const defaultText = s.source === "recommended" && s.why ? s.why : s.readme_excerpt;
+  const kindSelect = (sel) => `<select id="kind" name="kind" required>${KIND_OPTIONS.map(([v, l]) => `<option value="${v}"${v === sel ? " selected" : ""}>${l}</option>`).join("")}</select>`;
+  const decide = s.status === "pending"
+    ? `<h2>Decide</h2>
+${canPublish ? "" : '<p class="note">Publishing is not connected yet (the app has no token to start the publish job), so approving is switched off. You can still reject.</p>'}
+<form method="post" action="/admin/submissions/${Number(s.id)}/approve">
+<label for="name">Name on the card</label><input id="name" name="name" type="text" required maxlength="80" value="${esc(s.name)}">
+<label for="kind">Type</label>${kindSelect(s.kind_guess || "plugin")}${s.kind_guess ? "" : '<p class="hint">The file names did not show what this is; choose carefully.</p>'}
+<label for="text">Card text <span class="hint">(up to 400 characters; the README excerpt, or the recommender's note, to start with)</span></label><textarea id="text" name="text" required maxlength="400">${esc(defaultText)}</textarea>
+<p><button type="submit"${canPublish ? "" : " disabled"}>Approve and publish</button> <span class="muted">The repository is scanned again before it is listed; a failed scan stops it.</span></p>
+</form>
+<form method="post" action="/admin/submissions/${Number(s.id)}/reject">
+<label for="note">Reject, with a reason the submitter will see <span class="hint">(up to 300 characters)</span></label><textarea id="note" name="note" required maxlength="300"></textarea>
+<p><button class="ghost" type="submit">Reject</button></p>
+</form>`
+    : `<h2>Decision</h2>
+<dl><dt>Status</dt><dd>${esc(s.status)}${s.decided_by ? ` by @${esc(s.decided_by)} on ${esc(String(s.decided_at).slice(0, 10))}` : ""}</dd>
+${s.status === "approved" ? `<dt>Listed as</dt><dd>${esc(s.final_name)} (${esc(s.final_kind)}): ${esc(s.final_text)}</dd><dt>Publishing</dt><dd>${esc(PUBLISH[s.publish_state] ?? s.publish_state)}${s.publish_note ? `<br><span class="muted">${esc(s.publish_note)}</span>` : ""}</dd>` : ""}
+${s.status === "rejected" ? `<dt>Reason</dt><dd>${esc(s.decision_note)}</dd>` : ""}</dl>
+${s.status === "approved" && s.publish_state === "blocked" ? `<form method="post" action="/admin/submissions/${Number(s.id)}/retry"><p><button type="submit"${canPublish ? "" : " disabled"}>Try publishing again</button></p></form>` : ""}`;
   return page(`${s.name} — Praxikit admin`, `${nav(session)}
 <p class="muted"><a href="/admin">All submissions</a></p>
 <h1>${esc(s.name)} <span class="badge${s.precheck_status === "fail" ? " bad" : s.precheck_status === "flag" ? " warn" : ""}">${status(s.precheck_status)}</span></h1>
+${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
 <dl>
 <dt>Repository</dt><dd><a href="${esc(s.repo_url)}" rel="noopener noreferrer">${esc(s.repo_url)}</a></dd>
 <dt>Created by</dt><dd>${esc(s.owner)} (${esc(s.owner_type)})</dd>
@@ -109,7 +152,6 @@ export function detailPage({ session, s }) {
 <dt>Type (a guess)</dt><dd>${esc(s.kind_guess || "not recognised")}</dd>
 <dt>Licence</dt><dd>${esc(s.license || "none detected")}</dd>
 <dt>Commit looked at</dt><dd><a href="${esc(commitUrl)}" rel="noopener noreferrer"><code>${esc(String(s.commit_sha).slice(0, 7))}</code></a></dd>
-<dt>Status</dt><dd>${esc(s.status)}</dd>
 </dl>
 <h2>README (first part, plain text)</h2>
 ${s.readme_excerpt ? `<blockquote>${esc(s.readme_excerpt)}</blockquote>` : '<p class="muted">No README text could be read.</p>'}
@@ -117,5 +159,6 @@ ${s.readme_url ? `<p><a href="${esc(s.readme_url)}" rel="noopener noreferrer">Vi
 ${s.why ? `<h2>Note from the submitter</h2><blockquote>${esc(s.why)}</blockquote>` : ""}
 <h2>Quick checks</h2>
 <table><thead><tr><th>Check</th><th>Result</th><th>Note</th></tr></thead><tbody>${cs.map((c) => `<tr><td>${esc(c.title)}</td><td>${status(c.status)}</td><td>${esc(c.note)}</td></tr>`).join("")}</tbody></table>
-<p class="muted">These are quick checks from GitHub's own data. The full read-only scan of the code (secrets, auto-run code, network access, hidden instructions) runs when a maintainer approves.</p>`);
+<p class="muted">These are quick checks from GitHub's own data. The full read-only scan of the code (secrets, auto-run code, network access, hidden instructions) runs when you approve.</p>
+${decide}`);
 }
