@@ -18,6 +18,7 @@ put("kits/evil/kit.json", JSON.stringify({
 }));
 put("kits/evil/CHANGELOG.md", `# Changelog\n\n## 1.2.3 — 2026-01-01\n- ${XSS}\n`);
 put("kits/evil/plugin/skills/s/SKILL.md", `---\nname: ${XSS}\ndescription: ${XSS}\n---\nbody\n`);
+for (const n of ["a", "b", "c"]) put(`kits/${n}/kit.json`, JSON.stringify({ name: n, kind: "plugin", collections: ["Planning"], tags: [XSS], version: "0.0.1", promise: "p " + XSS, install: ["/plugin install " + n], limits: ["l"] }));
 put("site/recommended.json", JSON.stringify([{ name: XSS, url: "https://example.com/?a=1&b=2", author: XSS, why: XSS, category: "Skill", added: "2026-11-14" }]));
 
 execFileSync("node", [join(here, "build.mjs"), "--root", root, "--out", out], { stdio: "inherit" });
@@ -27,12 +28,16 @@ const must = (cond, msg) => { if (!cond) failures.push(msg); };
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
-must(htmlFiles.length === 4, `expected index + 2 collections + 1 kit page = 4 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 8, `expected index + 404 + 2 collections + 4 kit pages = 8 html files, got ${htmlFiles.length}`);
 for (const f of htmlFiles) {
   const h = readFileSync(f, "utf8");
-  const stripped = h.replace(/<script>[\s\S]*?<\/script>\s*<\/body>/, "</body>"); // drop our own copy-button script
-  must(!/<script>alert/.test(stripped), `raw <script> payload in ${f}`);
+  // drop only our own inline scripts (marked data-site); any other <script> is a failure
+  const stripped = h.replace(/<script data-site>[\s\S]*?<\/script>/g, "");
+  must(!/<script/i.test(stripped), `unexpected <script> in ${f}`);
   must(!/<img src=x/.test(h), `raw <img> payload in ${f}`);
+  const noValues = stripped.replace(/="[^"]*"/g, '=""'); // attribute values are inert text; look at attribute names only
+  must(!/<[a-z][^>]*\son(error|load|click)=/i.test(noValues), `inline event handler in ${f}`);
+  must(h.includes("Praxikit"), `brand name missing in ${f}`);
 }
 const idx = readFileSync(join(out, "index.html"), "utf8");
 must(idx.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "payload not shown escaped on index");
@@ -40,8 +45,20 @@ must(/href="https:\/\/example\.com\/\?a=1&amp;b=2" rel="noopener noreferrer"/.te
 must(!/href="https:\/\/github\.com[^"]*"(?![^>]*rel=)/.test(idx), "external GitHub link without rel");
 must(existsSync(join(out, "k/evil/index.html")) && existsSync(join(out, "c/planning/index.html")) && existsSync(join(out, "c/design-and-3d/index.html")), "kit or collection pages missing");
 must(!/href="\//.test(idx), "absolute href found; links must be relative");
+must(/data-text="[^"]*&lt;script&gt;/.test(idx) || !/data-text="[^"]*<script/.test(idx), "search data attribute not escaped");
+must(existsSync(join(out, "404.html")), "404.html missing");
 const versions = JSON.parse(readFileSync(join(out, "versions.json"), "utf8"));
 must(versions.evil?.version === "1.2.3", "versions.json does not match manifests");
+
+// few kits: the wide-card layout (no search toolbar) is built and escaped too
+const root2 = mkdtempSync(join(tmpdir(), "praxikit-site2-"));
+mkdirSync(join(root2, "kits", "evil"), { recursive: true });
+writeFileSync(join(root2, "kits", "evil", "kit.json"), JSON.stringify({ name: "evil", kind: "skill", collections: ["Planning"], tags: [XSS], version: "1.2.3", promise: XSS, install: ["/plugin marketplace add x", XSS], limits: ["l"] }));
+execFileSync("node", [join(here, "build.mjs"), "--root", root2, "--out", join(root2, "out")], { stdio: "pipe" });
+const few = readFileSync(join(root2, "out", "index.html"), "utf8");
+must(few.includes("feature") && !few.includes('id="q"'), "few kits should use the wide card and no search box");
+must(!/<img src=x/.test(few) && few.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "wide card is not escaped");
+must(readFileSync(join(out, "index.html"), "utf8").includes('id="q"'), "four or more kits should show search");
 
 // a non-https recommended url must be refused
 put("site/recommended.json", JSON.stringify([{ name: "x", url: "javascript:alert(1)", author: "a", why: "w", category: "Skill", added: "2026-11-14" }]));

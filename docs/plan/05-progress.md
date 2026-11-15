@@ -48,3 +48,6 @@
 
 ## 2026-11-15 — Keel 0.5.0
 - Added the budget guard (`budget.prompt` / `budget.session` caps, footer warns, never blocks) and cost per phase (`phase-cost.mjs`, ledger in `.keel/ledger.json`, called by `/keel:verify`). Covered by `cost.test.mjs` and `status.test.mjs`. Not yet seen live in a fresh install.
+
+## 2026-11-15 — Catalog redesign
+- Rebuilt the site: brand shown as "Praxikit", hero with copy-to-clipboard install steps and stats, wide feature card (search and filters appear from 4 kits), What's new feed from changelogs, How it works, kit pages with install panel, skill/agent tiles, limits and a changelog timeline, dark mode toggle, 404 page, skip link, reduced-motion. Site test now proves the only scripts are ours and covers both layouts. Checked in the browser at desktop and 375px, no horizontal overflow. Package and org slugs stay lowercase.
