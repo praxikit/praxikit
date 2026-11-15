@@ -9,5 +9,16 @@
     "added": "2026-11-15",
     "commit": "78eca85361efb545a4c0f59b6140aef0721c5412",
     "checks": "checks-flagged"
+  },
+  {
+    "name": "marketingskills",
+    "url": "https://github.com/coreyhaines31/marketingskills",
+    "author": "coreyhaines31",
+    "why": "A collection of AI agent skills focused on marketing tasks. Built for technical marketers and founders who want AI coding agents to help with conversion optimization, copywriting, SEO, analytics, and growth engineering. Works with Claude…",
+    "kind": "plugin",
+    "source": "recommended",
+    "added": "2026-11-15",
+    "commit": "1f837447b20bb6f0e72d87b80ece1c221c362c7d",
+    "checks": "checks-flagged"
   }
 ]
