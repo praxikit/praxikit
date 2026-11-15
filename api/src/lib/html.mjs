@@ -23,9 +23,13 @@ blockquote{margin:.5rem 0;padding:.4rem 1rem;border-left:3px solid var(--line);c
 dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:6px 18px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}
 `;
 
+// the stylesheet is cached for an hour, so its address changes whenever its content does
+const hash = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); };
+export const CSS_V = hash(CSS);
+
 export const page = (title, body) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>${esc(title)}</title><link rel="stylesheet" href="/assets/admin.css"></head>
+<meta name="robots" content="noindex,nofollow"><title>${esc(title)}</title><link rel="stylesheet" href="/assets/admin.css?v=${CSS_V}"></head>
 <body><div class="wrap">${body}</div></body></html>`;
 
 const logoutForm = '<form method="post" action="/auth/logout"><button class="ghost" type="submit">Sign out</button></form>';

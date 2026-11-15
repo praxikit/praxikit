@@ -28,7 +28,7 @@ const SUBMISSIONS_PER_DAY = 5, SUBMISSIONS_PER_DAY_MAINTAINER = 30;
 const HEADERS = {
   "Content-Security-Policy": "default-src 'none'; style-src 'self'; img-src https://avatars.githubusercontent.com; form-action 'self' https://github.com; base-uri 'none'; frame-ancestors 'none'",
   "X-Content-Type-Options": "nosniff",
-  "Referrer-Policy": "no-referrer",
+  "Referrer-Policy": "same-origin", // "no-referrer" makes browsers send "Origin: null" on same-origin form posts
   "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
   "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
   "Cross-Origin-Opener-Policy": "same-origin",
@@ -56,7 +56,12 @@ async function sessionOf(request, env) {
 }
 
 /** State-changing requests must come from this app's own origin. */
-const sameOrigin = (request, env) => request.headers.get("Origin") === new URL(env.BASE_URL).origin;
+function sameOrigin(request, env) {
+  const origin = request.headers.get("Origin");
+  if (origin === new URL(env.BASE_URL).origin) return true;
+  // some browsers send "Origin: null" or none on same-origin form posts; Sec-Fetch-Site cannot be set by a web page
+  return (origin === null || origin === "null") && request.headers.get("Sec-Fetch-Site") === "same-origin";
+}
 
 const oneLine = (s, n) => String(s ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 

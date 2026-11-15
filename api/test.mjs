@@ -46,8 +46,8 @@ globalThis.fetch = async (input, init = {}) => {
 };
 
 // ---- helpers
-const call = (path, { method = "GET", cookies = {}, origin, e = env } = {}) => {
-  const headers = new Headers();
+const call = (path, { method = "GET", cookies = {}, origin, e = env, extra = {} } = {}) => {
+  const headers = new Headers(extra);
   const c = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join("; ");
   if (c) headers.set("Cookie", c);
   if (origin) headers.set("Origin", origin);
@@ -159,6 +159,12 @@ must((await call("/api/me")).status === 401, "/api/me without a session is 401")
   const ok = await call("/auth/logout", { method: "POST", cookies: asSession(owner.session), origin: "https://admin.example.dev" });
   must(ok.status === 302 && setCookies(ok).some((c) => c.startsWith("__Host-praxikit-session=;") && /Max-Age=0/.test(c)), "logout from the app clears the session cookie");
   must((await call("/auth/logout", { cookies: asSession(owner.session) })).status === 404, "logout is not available as a GET");
+  // browsers send "Origin: null" (or none) on same-origin form posts in some cases; Sec-Fetch-Site tells them apart from cross-site posts
+  must((await call("/auth/logout", { method: "POST", cookies: asSession(owner.session), origin: "null", extra: { "Sec-Fetch-Site": "same-origin" } })).status === 302, "Origin: null with Sec-Fetch-Site: same-origin is accepted");
+  must((await call("/auth/logout", { method: "POST", cookies: asSession(owner.session), extra: { "Sec-Fetch-Site": "same-origin" } })).status === 302, "no Origin with Sec-Fetch-Site: same-origin is accepted");
+  must((await call("/auth/logout", { method: "POST", cookies: asSession(owner.session), origin: "null" })).status === 403, "Origin: null without a same-origin Sec-Fetch-Site is refused");
+  must((await call("/auth/logout", { method: "POST", cookies: asSession(owner.session), origin: "null", extra: { "Sec-Fetch-Site": "cross-site" } })).status === 403, "Origin: null from a cross-site request is refused");
+  must((await call("/auth/logout", { method: "POST", cookies: asSession(owner.session), origin: "https://evil.example", extra: { "Sec-Fetch-Site": "same-origin" } })).status === 403, "a different Origin is refused even if Sec-Fetch-Site claims same-origin");
 }
 
 // ---- GitHub being down must not break sign-in pages
@@ -174,7 +180,7 @@ issuesMode = "ok";
 for (const path of ["/admin", "/auth/login", "/healthz", "/nope", "/assets/admin.css"]) {
   const r = await call(path);
   const h = r.headers;
-  must(/default-src 'none'/.test(h.get("Content-Security-Policy") ?? "") && /frame-ancestors 'none'/.test(h.get("Content-Security-Policy")) && h.get("X-Content-Type-Options") === "nosniff" && h.get("Referrer-Policy") === "no-referrer" && /max-age/.test(h.get("Strict-Transport-Security") ?? ""), `security headers on ${path}`);
+  must(/default-src 'none'/.test(h.get("Content-Security-Policy") ?? "") && /frame-ancestors 'none'/.test(h.get("Content-Security-Policy")) && h.get("X-Content-Type-Options") === "nosniff" && h.get("Referrer-Policy") === "same-origin" && /max-age/.test(h.get("Strict-Transport-Security") ?? ""), `security headers on ${path}`);
 }
 must((await call("/admin")).headers.get("Cache-Control") === "no-store" && /public/.test((await call("/assets/admin.css")).headers.get("Cache-Control")), "pages are never cached, the stylesheet may be");
 must((await call("/nope")).status === 404 && (await call("/", { method: "GET" })).headers.get("Location") === "/admin", "unknown paths are 404 and the root goes to /admin");
