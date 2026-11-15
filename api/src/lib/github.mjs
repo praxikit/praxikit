@@ -8,11 +8,11 @@ const UA = "praxikit-admin";
 
 const headers = (token) => ({ Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": UA, ...(token ? { Authorization: `Bearer ${token}` } : {}) });
 
-export function authorizeUrl(env, state) {
+export function authorizeUrl(env, state, scope = "read:user read:org") {
   const u = new URL("https://github.com/login/oauth/authorize");
   u.searchParams.set("client_id", env.GITHUB_CLIENT_ID);
   u.searchParams.set("redirect_uri", `${env.BASE_URL.replace(/\/+$/, "")}/auth/callback`); // fixed from config, never from the request
-  u.searchParams.set("scope", "read:user read:org");
+  u.searchParams.set("scope", scope);
   u.searchParams.set("state", state);
   u.searchParams.set("allow_signup", "false");
   return u.toString();

@@ -14,3 +14,10 @@ GITHUB_CLIENT_ID = "Ov23liNkhHqThp3GPNfh"
 ORG = "praxikit"
 TEAM = "maintainers"
 REPO = "praxikit/praxikit"
+
+# Phase 2: the submissions database. After `npx wrangler d1 create praxikit-admin`, uncomment these lines and paste the
+# database_id it prints. (Left commented so a deploy does not fail before the database exists.)
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "praxikit-admin"
+# database_id = "PASTE_THE_DATABASE_ID_HERE"

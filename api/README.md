@@ -1,4 +1,4 @@
-# Praxikit admin API (phase 1: sign in)
+# Praxikit admin API (phases 1 and 2: sign in, and the submit form)
 
 A small Cloudflare Worker with no dependencies. Phase 1 signs people in with GitHub, decides whether they may maintain the catalogue, and shows a read-only admin page. The public catalogue stays a static site on GitHub Pages; only this app needs a login, and the pages are served from this app's own address so the sign-in cookie is first-party.
 
@@ -61,3 +61,29 @@ You need: owner access to the `praxikit` org, and a free Cloudflare account. Nob
 - The pages contain no scripts, and the content security policy forbids them.
 - Every state-changing request must come from the app's own address.
 - Local checks: `node api/test.mjs` runs the whole flow against a fake GitHub.
+
+## Phase 2: the submit form
+
+Anyone with a GitHub account can sign in (asking GitHub only for their username) at `/submit`, paste a public repository link, and send it for review. The app reads the repository's name, owner, licence, latest commit and a plain-text excerpt of the README from GitHub, works out whether the submitter is the author or a recommender (GitHub decides: the repo's owner, or a public member of its organisation, is the author), runs quick checks, and stores the submission in a small database. Maintainers see the queue on `/admin` and each submission's details. Approving still happens on GitHub until phase 3, so the form is **not linked from the public site yet**.
+
+Safety: only `https://github.com/<owner>/<repo>` links are accepted; private repositories are refused; at most 5 submissions per person per day; a repository can be pending only once and is refused if it is already listed; README text is cut down to plain text and never rendered as markup; every value is stored through bound SQL parameters.
+
+### Setup for phase 2
+
+1. Create the database (free):
+   ```bash
+   npx wrangler d1 create praxikit-admin
+   ```
+   It prints a `database_id`. That value is not secret.
+2. In `wrangler.toml`, uncomment the `[[d1_databases]]` block and paste the id.
+3. Create the table:
+   ```bash
+   npx wrangler d1 execute praxikit-admin --remote --file=schema.sql
+   ```
+4. Strongly advised: a read-only GitHub token, so repository lookups do not hit GitHub's shared rate limit. Create a **fine-grained personal access token** with *Public repositories (read-only)* and no extra permissions, then:
+   ```bash
+   npx wrangler secret put GITHUB_TOKEN
+   ```
+5. Redeploy: `npx wrangler deploy`, then open `/submit`.
+
+Checks: `node --no-warnings api/test-submit.mjs` runs the submit flow against a fake GitHub and a real SQLite database.

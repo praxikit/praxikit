@@ -46,3 +46,5 @@ The catalogue has no server and no admin website. GitHub is the admin panel: it 
 ## The admin app (in progress)
 
 `api/` holds a small Cloudflare Worker that signs maintainers in with GitHub (org owners and members of the `maintainers` team). Phase 1 is sign-in and a read-only page; approving, adding and removing move into it in later phases. Setup is in `api/README.md`. The GitHub-side flows described above keep working and stay as the fallback.
+
+Phase 2 adds `/submit` (any GitHub user), `/mine` and, for maintainers, a submissions queue and detail pages on `/admin`. Setup: `api/README.md`. Until phase 3 lets you approve there, new submissions are reviewed by copying them into **Add listing**; the public site still points at the issue forms.
