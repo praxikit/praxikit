@@ -1,5 +1,8 @@
 # Changelog — keel
 
+## 0.6.1 — 2026-11-15
+- Changed: the update link `/keel:status` prints now points at the catalog's Updates page (`/updates/?kit=keel&v=<version>`), which has its own address since the catalog was split into pages. Links printed by 0.6.0 still work; they are redirected.
+
 ## 0.6.0 — 2026-11-15
 - New: `/keel:status` ends with the installed version and a link that fills in the catalog's "Am I up to date?" form for it (`https://praxikit.github.io/praxikit/?kit=keel&v=<version>#updates`). A web page cannot read your installed plugins, so the plugin hands the page your version instead.
 

@@ -141,6 +141,8 @@ const THEME_BOOT = `try{var t=localStorage.getItem("praxikit-theme");if(t==="lig
 const SITE_JS = `
 (function () {
   var root = document.documentElement;
+  // links printed by older Keel versions pointed at the home page; the checker now lives on the Updates page
+  if (document.body.hasAttribute("data-home") && location.search.indexOf("kit=") > -1) { location.replace("updates/" + location.search + "#updates"); return; }
   function copyText(text, done) {
     function fallback() {
       var ta = document.createElement("textarea");
@@ -285,7 +287,8 @@ const SITE_JS = `
 })();
 `;
 
-const page = ({ title, depth, body, description, canonical }) => {
+const page = ({ title, depth, body, description, canonical, home = false, current = "" }) => {
+  const cur = (id) => (id === current ? ' aria-current="page"' : "");
   const up = depth ? "../".repeat(depth) : "./";
   return `<!doctype html>
 <html lang="en">
@@ -305,11 +308,11 @@ ${canonical ? `<link rel="canonical" href="${esc(canonical)}">\n` : ""}<link rel
 <link rel="stylesheet" href="${up}style.css">
 <script data-site>${THEME_BOOT}</script>
 </head>
-<body>
+<body${home ? " data-home" : ""}>
 <a class="skip" href="#main">Skip to content</a>
 <header class="top"><div class="wrap bar">
 <a class="brand" href="${up}" aria-label="Praxikit home">${LOGO}<span>Praxikit</span></a>
-<nav aria-label="Main"><a href="${up}#kits">Kits</a><a href="${up}#updates">Updates</a><a href="${up}#recommended">Recommended</a><a href="${up}#submit">Submit</a><a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
+<nav aria-label="Main"><a href="${up}kits/"${cur("kits")}>Kits</a><a href="${up}updates/"${cur("updates")}>Updates</a><a href="${up}recommended/"${cur("recommended")}>Recommended</a><a href="${up}submit/"${cur("submit")}>Submit</a><a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
 <button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg></button></nav>
 </div></header>
 <main id="main">
@@ -359,16 +362,16 @@ function card(k, up) {
 }
 
 // with only a few kits, search and filters are noise; show each kit as a wide row with its install line
-function featureCard(k) {
+function featureCard(k, up = "./") {
   const bits = [k.adds.skills.length ? plural(k.adds.skills.length, "skill") : "", k.adds.agents.length ? plural(k.adds.agents.length, "agent") : ""].filter(Boolean).join(", ");
   const latest = dateOf(k.changelog[0]?.head);
   const checks = trustChecks(k), passed = checks.filter((c) => c.ok).length;
   return `<li class="card feature" data-card data-groups="all" data-text="${esc(k.name.toLowerCase())}">
 <div class="feature-main"><div class="meta-line">${badge(k)}${latest ? `<span class="ver">updated ${esc(latest)}</span>` : ""}</div>
-<h3><a class="name" href="k/${esc(k.name)}/">${esc(k.name)}</a></h3>
+<h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
 <p class="promise">${esc(k.promise)}</p>
-<p class="muted">${esc(bits)} · <a href="k/${esc(k.name)}/#trust">${passed} of ${checks.length} build checks pass</a> · <a href="k/${esc(k.name)}/#access">what it reads and sends</a></p></div>
-<div class="feature-side"><p class="label">Install, after adding the marketplace</p>${copyCmd(k.install[k.install.length - 1] ?? "")}<p><a class="more" href="k/${esc(k.name)}/">Skills, access and changelog</a></p></div>
+<p class="muted">${esc(bits)} · <a href="${up}k/${esc(k.name)}/#trust">${passed} of ${checks.length} build checks pass</a> · <a href="${up}k/${esc(k.name)}/#access">what it reads and sends</a></p></div>
+<div class="feature-side"><p class="label">Install, after adding the marketplace</p>${copyCmd(k.install[k.install.length - 1] ?? "")}<p><a class="more" href="${up}k/${esc(k.name)}/">Skills, access and changelog</a></p></div>
 </li>`;
 }
 
@@ -401,24 +404,32 @@ ${items.slice(0, 30).map(entry).join("\n")}
 `;
 }
 
-function indexPage(kits, recs) {
-  const cols = [...new Set(kits.flatMap((k) => k.collections))];
-  const kinds = [...new Set(kits.map(kindOf))];
-  const many = kits.length >= 4;
-  const chip = (id, label) => `<button type="button" class="chip" data-chip="${esc(id)}" aria-pressed="${id === "all"}">${esc(label)}</button>`;
-  const chips = [chip("all", "All"), ...kinds.map((x) => chip(slug(x), x)), ...cols.map((c) => chip(slug(c), c))].join("");
+// ---------- routes: home, kits, kits by type, updates, recommended, submit ----------
+const GROUPS = [
+  { id: "plugins", label: "Plugins", kinds: ["plugin"], blurb: "Bundles that add skills, agents and hooks to Claude Code." },
+  { id: "skills", label: "Skills", kinds: ["skill"], blurb: "One task Claude can run on request." },
+  { id: "mcp", label: "MCP configs", kinds: ["mcp"], blurb: "Ready-made connections to tools and data." },
+  { id: "other", label: "Templates and more", kinds: ["template", "adapter", "agent", "hook"], blurb: "Templates, adapters, agents and hooks." },
+];
+const inGroup = (kits, g) => kits.filter((k) => g.kinds.includes(k.kind));
+const listHtml = (list, up) => `<ul class="cards${list.length > 2 ? "" : " few"}" id="kits-list">${list.map((k) => (list.length > 2 ? card(k, up) : featureCard(k, up))).join("")}</ul>`;
 
-  const feed = releaseFeed(kits).slice(0, 5);
-  const feedHtml = feed.map(({ k, e, date, v }) => `<li><div class="feed-meta"><a href="k/${esc(k.name)}/">${esc(k.name)} ${esc(v)}</a>${date ? `<time datetime="${esc(date)}">${esc(date)}</time>` : ""}</div><p>${md(short(e.bullets[0] ?? ""))}</p></li>`).join("");
+function typeNav(kits, up, current) {
+  const item = (href, label, n, id) => `<a href="${href}"${id === current ? ' aria-current="page"' : ""}>${esc(label)} <span class="count">${n}</span></a>`;
+  return `<nav class="typenav" aria-label="Kit types">${item(`${up}kits/`, "All", kits.length, "all")}${GROUPS.map((g) => item(`${up}kits/${g.id}/`, g.label, inGroup(kits, g).length, g.id)).join("")}</nav>`;
+}
 
-  const recHtml = recs.length
-    ? `<ul class="recs">${recs.map((r) => `<li class="card"><div class="meta-line"><span class="kind ext">${esc(r.category)}</span><span class="ver">added ${esc(r.added)}</span></div><h3><a class="name" href="${esc(r.url)}" rel="noopener noreferrer">${esc(r.name)}</a></h3><p class="muted">by ${esc(r.author)}</p><p class="promise">${esc(r.why)}</p></li>`).join("")}</ul>`
-    : `<p class="muted">Nothing listed yet. <a href="${esc(ISSUE("recommend.yml"))}" rel="noopener noreferrer">Recommend something</a> you have used and would vouch for.</p>`;
+const recCard = (r) => `<li class="card"><div class="meta-line"><span class="kind ext">${esc(r.category)}</span><span class="ver">added ${esc(r.added)}</span></div><h3><a class="name" href="${esc(r.url)}" rel="noopener noreferrer">${esc(r.name)}</a></h3><p class="muted">by ${esc(r.author)}</p><p class="promise">${esc(r.why)}</p></li>`;
+const releaseList = (items, up) => items.map(({ k, e, date, v }) => `<li><div class="feed-meta"><a href="${up}k/${esc(k.name)}/">${esc(k.name)} ${esc(v)}</a>${date ? `<time datetime="${esc(date)}">${esc(date)}</time>` : ""}</div><p>${md(short(e.bullets[0] ?? ""))}</p></li>`).join("");
 
-  const demoKit = kits.find((k) => k.preview?.length >= 2);
-  const demo = demoKit ? `<figure class="demo"><figcaption>What ${esc(demoKit.name)} prints in Claude Code</figcaption>${demoKit.preview.slice(0, 2).map((p) => `<pre><code>${esc(p.body)}</code></pre>`).join("")}<p class="muted">${esc(demoKit.preview[1].note ?? "")}</p></figure>` : "";
+function homePage(kits, recs) {
   const first = kits[0];
   const firstDate = dateOf(first?.changelog[0]?.head);
+  const demoKit = kits.find((k) => k.preview?.length >= 2);
+  const demo = demoKit ? `<figure class="demo"><figcaption>What ${esc(demoKit.name)} prints in Claude Code</figcaption>${demoKit.preview.slice(0, 2).map((p) => `<pre><code>${esc(p.body)}</code></pre>`).join("")}<p class="muted">${esc(demoKit.preview[1].note ?? "")}</p></figure>` : "";
+  const featured = kits.slice(0, 3);
+  const latest = releaseFeed(kits).slice(0, 3);
+  const tiles = GROUPS.map((g) => { const n = inGroup(kits, g).length; return `<li><a class="tile-link" href="kits/${g.id}/"><strong>${esc(g.label)}</strong><span class="muted">${esc(g.blurb)}</span><span class="count-line">${n ? plural(n, "kit") : "None yet"}</span></a></li>`; }).join("");
 
   const body = `
 <section class="hero"><div class="wrap hero-in">
@@ -432,41 +443,86 @@ ${first ? `<p class="muted">${esc(first.name)} v${esc(first.version)}${firstDate
 ${demo}
 </div></section>
 
-<section id="kits" class="wrap sec"><div class="sec-head"><h2>Kits</h2><p class="muted" id="count" aria-live="polite">${plural(kits.length, "kit")}</p></div>
-${many ? `<div class="toolbar"><label class="search"><span class="vh">Search kits</span><input id="q" type="search" placeholder="Search kits  ( / )" autocomplete="off" spellcheck="false"></label><div class="chips" role="group" aria-label="Filter kits">${chips}</div></div>` : ""}
-<ul class="cards${many ? "" : " few"}" id="kits-list">${kits.map((k) => (many ? card(k, "./") : featureCard(k))).join("") || ""}</ul>
-${many ? `<div id="none" hidden class="empty"><p><strong>No kit matches.</strong> <button id="clear" class="linklike" type="button">Clear filters</button></p></div>` : ""}
-${kits.length ? "" : '<p class="muted">No kits yet.</p>'}
+<section class="wrap sec"><div class="sec-head"><h2>Featured kits</h2><a class="viewall" href="kits/">View all ${plural(kits.length, "kit")}</a></div>
+${listHtml(featured, "./")}
+<h3 class="sub">Browse by type</h3>
+<ul class="tilegrid">${tiles}</ul>
 </section>
 
-<section id="updates" class="wrap sec"><h2>Updates</h2>
-<div class="updates">
-<div><h3>Am I up to date?</h3><p class="muted">Pick the version you have to see only what changed since. Or run <code>/keel:status</code>, which prints a link that fills this in.</p>${checker(kits) || '<p class="muted">No versioned kits yet.</p>'}</div>
-<div><h3>Latest releases</h3><ul class="feed">${feedHtml || '<li class="muted">No releases yet.</li>'}</ul><p><a href="feed.xml">Subscribe with the release feed</a> (Atom, works in any feed reader).</p></div>
-</div></section>
+<section class="wrap sec"><div class="sec-head"><h2>Latest releases</h2><a class="viewall" href="updates/">Updates and version check</a></div>
+<ul class="feed">${releaseList(latest, "./") || '<li class="muted">No releases yet.</li>'}</ul>
+<p class="muted">Not sure if you are up to date? <a href="updates/">Check your version</a>, or <a href="feed.xml">subscribe to the release feed</a>.</p></section>
 
-<section id="recommended" class="wrap sec"><h2>Recommended</h2>
-<p class="note">Made by other people. Praxikit did not build these and does not promise they are safe; read the source before installing anything.</p>${recHtml}</section>
+<section class="wrap sec"><div class="sec-head"><h2>Recommended</h2><a class="viewall" href="recommended/">${recs.length ? `View all ${recs.length}` : "About this list"}</a></div>
+${recs.length ? `<ul class="recs">${recs.slice(0, 3).map(recCard).join("")}</ul>` : `<p class="muted">Nothing listed yet. These are kits made by other people that a person has read and would point to.</p>`}</section>
 
-<section id="submit" class="wrap sec"><h2>Submit a kit</h2>
-<div class="submit">
-<div><h3>You built one</h3><p>Describe it, link the repository and say what it reads, writes and sends. Free to submit.</p><p><a class="btn" href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Open the submission form</a></p></div>
-<div><h3>You use someone else's</h3><p>Recommend a kit you have used and would vouch for, and say why.</p><p><a class="btn ghost" href="${esc(ISSUE("recommend.yml"))}" rel="noopener noreferrer">Open the recommendation form</a></p></div>
-</div>
-<p class="muted">Both forms open a GitHub issue, so you need a free GitHub account. An automatic check reads the repository without running it and comments what it found, then a person reads every submission before anything is listed. Nothing is listed for payment.</p></section>
+<section class="wrap sec"><div class="submit-band"><div><h2>Built a kit?</h2><p class="muted">Submit it for free. An automatic check reads the repository without running it, then a person reads it before anything is listed.</p></div><a class="btn" href="submit/">Submit a kit</a></div></section>
 
 <section class="wrap sec faq"><h2>Questions</h2>
 <details><summary>What happens when I install a kit?</summary><p>Claude Code copies the kit's files and registers its skills, agents and hooks. Each kit page lists the hooks it runs and what it reads, writes and sends, and the source is in the repository if you want to read it first.</p></details>
-<details><summary>How do updates reach me?</summary><p>Run <code>/plugin marketplace update praxikit</code>, then <code>/reload-plugins</code>. Kits use semantic versions and keep a changelog; the checker above shows what changed since yours.</p></details>
-<details><summary>What happens after I submit a kit?</summary><p>A bot reads the public repository at the commit you linked, without running or installing anything, and comments on your issue: licence, secret-like strings, code that runs automatically, network access, binaries and hidden instructions. It reports what it found and never says a kit is safe. A person then reads the source and decides; a listing is pinned to the commit they reviewed.</p></details>
+<details><summary>How do updates reach me?</summary><p>Run <code>/plugin marketplace update praxikit</code>, then <code>/reload-plugins</code>. Kits use semantic versions and keep a changelog; the <a href="updates/">update checker</a> shows what changed since yours.</p></details>
 <details><summary>What do the build checks on a kit page mean?</summary><p>They are computed from the files when the site is built: the manifest is complete, the changelog matches the version, the scripts contain no network code. They show the kit is consistent. They are not a security audit.</p></details>
 </section>`;
-  return page({ title: "Praxikit — kits for AI coding agents", depth: 0, body, canonical: HOME_URL, description: "Versioned, readable kits for AI coding agents: plugins, skills and templates, each with a changelog and a list of what it reads, writes and sends." });
+  return page({ title: "Praxikit — kits for AI coding agents", depth: 0, body, home: true, canonical: HOME_URL, description: "Versioned, readable kits for AI coding agents: plugins, skills and templates, each with a changelog and a list of what it reads, writes and sends." });
+}
+
+function kitsPage(kits, group) {
+  const list = group ? inGroup(kits, group) : kits;
+  const depth = group ? 2 : 1, up = "../".repeat(depth);
+  const title = group ? group.label : "All kits";
+  const search = kits.length >= 4 ? `<div class="toolbar"><label class="search"><span class="vh">Search kits</span><input id="q" type="search" placeholder="Search kits  ( / )" autocomplete="off" spellcheck="false"></label></div>` : "";
+  const empty = group && !list.length ? `<div class="empty"><p><strong>No ${esc(group.label.toLowerCase())} yet.</strong> <a href="${up}submit/">Submit one</a> or <a href="${up}kits/">see all kits</a>.</p></div>` : "";
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="${up}">Home</a> / ${group ? `<a href="${up}kits/">Kits</a> / ${esc(group.label)}` : "Kits"}</p>
+<div class="sec-head"><h1>${esc(title)}</h1><p class="muted" id="count" aria-live="polite">${plural(list.length, "kit")}</p></div>
+${group ? `<p class="lead">${esc(group.blurb)}</p>` : '<p class="lead">Every kit Praxikit has built. Each has its own page with what it adds, what it reads and sends, and its changelog.</p>'}
+${typeNav(kits, up, group ? group.id : "all")}
+${search}
+<div id="kits">${list.length ? listHtml(list, up) : ""}</div>
+${empty}
+<div id="none" hidden class="empty"><p><strong>No kit matches.</strong></p></div>
+</div>`;
+  return page({ title: `${title} — Praxikit`, depth, body, current: "kits", canonical: `${HOME_URL}kits/${group ? `${group.id}/` : ""}`, description: group ? `${group.label}: ${group.blurb}` : "All Praxikit kits: plugins, skills, MCP configs and templates." });
+}
+
+function updatesPage(kits) {
+  const items = releaseFeed(kits).slice(0, 15);
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Updates</p><h1>Updates</h1>
+<p class="lead">Check whether you are up to date, and see what changed in each release.</p>
+<div class="updates">
+<div><h2>Am I up to date?</h2><p class="muted">Pick the version you have to see only what changed since. Or run <code>/keel:status</code>, which prints a link that fills this in.</p>${checker(kits) || '<p class="muted">No versioned kits yet.</p>'}</div>
+<div><h2>Latest releases</h2><ul class="feed">${releaseList(items, "../") || '<li class="muted">No releases yet.</li>'}</ul><p><a href="../feed.xml">Subscribe with the release feed</a> (Atom, works in any feed reader).</p></div>
+</div></div>`;
+  return page({ title: "Updates — Praxikit", depth: 1, body, current: "updates", canonical: `${HOME_URL}updates/`, description: "Check which version of a Praxikit kit you have and what changed since, or subscribe to the release feed." });
+}
+
+function recommendedPage(recs) {
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Recommended</p><h1>Recommended</h1>
+<p class="lead">Kits made by other people that a person has read and would point to.</p>
+<p class="note">Praxikit did not build these and does not promise they are safe; read the source before installing anything.</p>
+${recs.length ? `<ul class="recs">${recs.map(recCard).join("")}</ul>` : `<div class="empty"><p><strong>Nothing listed yet.</strong> <a href="../submit/#recommend">Recommend a kit</a> you have used and would vouch for.</p></div>`}</div>`;
+  return page({ title: "Recommended — Praxikit", depth: 1, body, current: "recommended", canonical: `${HOME_URL}recommended/`, description: "Kits made by other people that Praxikit points to, with the reason." });
+}
+
+function submitPage() {
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Submit</p><h1>Submit a kit</h1>
+<p class="lead">Free. Both forms open a public GitHub issue, so you need a free GitHub account and should not paste secrets.</p>
+<div class="submit">
+<div id="submit"><h2>You built one</h2><p>Describe it, link the repository and say what it reads, writes and sends.</p><p><a class="btn" href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Open the submission form</a></p></div>
+<div id="recommend"><h2>You use someone else's</h2><p>Recommend a kit you have used and would vouch for, and say why.</p><p><a class="btn ghost" href="${esc(ISSUE("recommend.yml"))}" rel="noopener noreferrer">Open the recommendation form</a></p></div>
+</div>
+<h2 class="sub">What happens next</h2>
+<ol class="flow">
+<li><strong>An automatic check reads the repository.</strong> It reads the public repository at the commit you linked, without running or installing anything, and comments on your issue: licence, secret-like strings, code that runs automatically, network access, binaries and hidden instructions. It reports what it found and never says a kit is safe.</li>
+<li><strong>A person reads the source.</strong> The result is a starting point, not a decision. Only GitHub links can be checked automatically; anything else is reviewed by hand.</li>
+<li><strong>If it is listed,</strong> the listing is pinned to the commit that person reviewed, and the checks run again if the kit changes.</li>
+</ol>
+<p class="muted">Nothing is listed for payment, and listing is not a promise that a kit is safe.</p></div>`;
+  return page({ title: "Submit a kit — Praxikit", depth: 1, body, current: "submit", canonical: `${HOME_URL}submit/`, description: "Submit a kit to Praxikit for free. An automatic read-only check runs, then a person reviews it." });
 }
 
 function collectionPage(c, kits) {
   const list = kits.filter((k) => k.collections.includes(c));
-  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../../">All kits</a> / Collection</p><h1>${esc(c)}</h1><p class="lead">${plural(list.length, "kit")} in this collection.</p><ul class="cards">${list.map((k) => card(k, "../../")).join("")}</ul></div>`;
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../../kits/">All kits</a> / Collection</p><h1>${esc(c)}</h1><p class="lead">${plural(list.length, "kit")} in this collection.</p><ul class="cards">${list.map((k) => card(k, "../../")).join("")}</ul></div>`;
   return page({ title: `${c} — Praxikit`, depth: 2, body, description: `Praxikit kits in the ${c} collection.` });
 }
 
@@ -510,7 +566,7 @@ function kitPage(k) {
   if (k.adds.agents.length) adds.push(`<section><h2>Agents <span class="count">${k.adds.agents.length}</span></h2><ul class="tiles">${k.adds.agents.map((s) => tile(s, "agent")).join("")}</ul></section>`);
   const log = k.changelog.map((e, i) => `<li class="log-item"><div class="log-head"><h3>${esc(e.head)}</h3>${i === 0 ? '<span class="kind">Latest</span>' : ""}</div><ul>${e.bullets.map((b) => `<li>${md(b)}</li>`).join("")}</ul></li>`).join("");
   const latest = dateOf(k.changelog[0]?.head);
-  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../../">All kits</a> / ${esc(kindOf(k))}</p>
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../../kits/">All kits</a> / ${esc(kindOf(k))}</p>
 <h1>${esc(k.name)}</h1>
 <p class="meta-line">${badge(k)}${latest ? `<span>released ${esc(latest)}</span>` : ""}<span>${k.collections.map((c) => `<a href="../../c/${slug(c)}/">${esc(c)}</a>`).join(", ")}</span></p>
 <p class="lead">${esc(k.promise)}</p>
@@ -543,7 +599,12 @@ const recs = loadRecommended();
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 copyFileSync(join(here, "style.css"), join(OUT, "style.css"));
-write("index.html", indexPage(kits, recs));
+write("index.html", homePage(kits, recs));
+write("kits/index.html", kitsPage(kits, null));
+for (const g of GROUPS) write(`kits/${g.id}/index.html`, kitsPage(kits, g));
+write("updates/index.html", updatesPage(kits));
+write("recommended/index.html", recommendedPage(recs));
+write("submit/index.html", submitPage());
 write("404.html", notFoundPage());
 write("feed.xml", atomFeed(kits));
 for (const c of new Set(kits.flatMap((k) => k.collections))) write(`c/${slug(c)}/index.html`, collectionPage(c, kits));

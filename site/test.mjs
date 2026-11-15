@@ -32,7 +32,7 @@ const must = (cond, msg) => { if (!cond) failures.push(msg); };
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
-must(htmlFiles.length === 8, `expected index + 404 + 2 collections + 4 kit pages = 8 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 16, `expected home, 404, kits, 4 type pages, updates, recommended, submit, 2 collections, 4 kit pages = 16 html files, got ${htmlFiles.length}`);
 for (const f of htmlFiles) {
   const h = readFileSync(f, "utf8");
   // drop only our own inline scripts (marked data-site); any other <script> is a failure
@@ -55,8 +55,21 @@ must(existsSync(join(out, "404.html")), "404.html missing");
 const feed = readFileSync(join(out, "feed.xml"), "utf8");
 must(feed.startsWith("<?xml") && feed.includes("<entry>") && !feed.includes("<script>alert") && !feed.includes("<img src=x") && feed.includes("&lt;script&gt;"), "feed.xml missing, not escaped, or empty");
 must(idx.includes('rel="alternate" type="application/atom+xml"'), "feed link missing from the page head");
-must(idx.includes("data-ck-paste") && idx.includes("claude plugin list"), "paste-to-detect box missing from the checker");
-must(idx.includes("template=suggest-kit.yml") && idx.includes("template=recommend.yml"), "submit links should open the issue forms");
+const upd = readFileSync(join(out, "updates/index.html"), "utf8");
+must(upd.includes("data-ck-paste") && upd.includes("claude plugin list") && /data-checker="[^"]*1\.2\.3/.test(upd), "paste-to-detect checker missing from the Updates page");
+const sub = readFileSync(join(out, "submit/index.html"), "utf8");
+must(sub.includes("template=suggest-kit.yml") && sub.includes("template=recommend.yml"), "submit page should open the issue forms");
+// routes: the home page shows a few kits and links on to pages instead of holding everything
+must(idx.includes('href="kits/"') && idx.includes('href="kits/plugins/"') && idx.includes('href="kits/skills/"') && idx.includes('href="kits/mcp/"') && idx.includes('href="kits/other/"'), "home must link to the kits page and each type page");
+must(idx.includes('href="updates/"') && idx.includes('href="recommended/"') && idx.includes('href="submit/"') && idx.includes("<body data-home>"), "home must link to updates, recommended and submit");
+must((idx.match(/<li class="card[ "]/g) ?? []).length <= 3 + 3, "home should show at most three kits (and three recommendations)");
+const kitsAll = readFileSync(join(out, "kits/index.html"), "utf8");
+must(kitsAll.includes('id="q"') && kitsAll.includes('aria-current="page"') && kitsAll.includes('class="typenav"'), "kits page needs search (4+ kits) and the type navigation");
+const plug = readFileSync(join(out, "kits/plugins/index.html"), "utf8"), skl = readFileSync(join(out, "kits/skills/index.html"), "utf8"), mcp = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
+must(plug.includes('href="../../k/a/"') && !plug.includes('href="../../k/evil/"'), "plugins page lists plugin kits only");
+must(skl.includes('href="../../k/evil/"') && !skl.includes('href="../../k/a/"'), "skills page lists skill kits only");
+must(mcp.includes("No mcp configs yet") && mcp.includes("../../submit/"), "an empty type page says so and points to submit");
+for (const f of [kitsAll, plug, mcp, upd, sub, readFileSync(join(out, "recommended/index.html"), "utf8")]) must(!/href="\//.test(f), "absolute href on a route page");
 const kp = readFileSync(join(out, "k/evil/index.html"), "utf8");
 must(kp.includes('role="tablist"') && kp.includes('role="tabpanel"'), "install tabs missing on a kit with installBy");
 must(kp.includes("What you'll see") && kp.includes("What it does on your machine"), "preview or access sections missing");
@@ -75,7 +88,7 @@ execFileSync("node", [join(here, "build.mjs"), "--root", root2, "--out", join(ro
 const few = readFileSync(join(root2, "out", "index.html"), "utf8");
 must(few.includes("feature") && !few.includes('id="q"'), "few kits should use the wide card and no search box");
 must(!/<img src=x/.test(few) && few.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "wide card is not escaped");
-must(readFileSync(join(out, "index.html"), "utf8").includes('id="q"'), "four or more kits should show search");
+must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes("feature") && !readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('id="q"'), "with one kit the kits page shows the wide card and no search");
 
 // a non-https recommended url must be refused
 put("site/recommended.json", JSON.stringify([{ name: "x", url: "javascript:alert(1)", author: "a", why: "w", category: "Skill", added: "2026-11-14" }]));
