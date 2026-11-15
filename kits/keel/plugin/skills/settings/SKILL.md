@@ -10,12 +10,14 @@ Settings live in `.keel/config.json` at the project root. The plugin's own defau
 1. **Show the current state.** Read `${CLAUDE_PLUGIN_ROOT}/defaults.json`, `${CLAUDE_PLUGIN_ROOT}/tiers.json` and `.keel/config.json` (if present). Print one short table: each default on or off, the allowed models, and the model each tier resolves to.
 2. **Ask what to change** with the question tool, only for what the user named. Options:
    - **Sections and footer:** For you, Task list, cost footer, done-check (each on or off), and the task marks: `ascii` (`[x] [>] [ ]`, the default, shows in every terminal) or `emoji` (✅ 🔄 ⬜).
+   - **Budget:** optional dollar caps, `budget.prompt` and `budget.session` (numbers, estimated list-price USD). Past a cap the footer ends with `OVER prompt cap $X`. It only warns; it never stops work. Leave unset for no cap.
    - **Allowed models:** a multi-select from `haiku`, `sonnet`, `opus`, `fable`. These are the models Keel may send tasks to. Claude Code can only route sub-agents to Claude models.
    - **Tiers:** for scout, builder, reviewer and critic, pick a model from the allowed list, or `inherit` to use the session's model.
 3. **Check the result makes sense.** Every tier's model must be in the allowed list (or `inherit`). If not, tell the user which tier and propose a fix; do not save an inconsistent file.
 4. **Write** `.keel/config.json`, keeping keys the user did not touch:
    ```json
    { "defaults": { "forYou": true, "taskList": true, "costFooter": true, "doneCheck": true, "marks": "ascii" },
+     "budget": { "prompt": 1.00, "session": 10.00 },
      "models": ["haiku", "sonnet"],
      "tiers": { "scout": "haiku", "builder": "sonnet", "reviewer": "sonnet", "critic": "inherit" },
      "prices": {} }

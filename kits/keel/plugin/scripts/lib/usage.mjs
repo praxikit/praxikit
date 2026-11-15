@@ -118,14 +118,18 @@ export const fmtTok = (n) => (n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n >= 1e3 ?
 export const fmtUsd = (n) => (n < 0.01 ? "$" + n.toFixed(4) : "$" + n.toFixed(2));
 
 /** The default footer: one line. */
-export function footer(sum) {
+export function footer(sum, budget) {
   const p = totals(sum.prompt), s = totals(sum.session);
   if (!p.calls) return null;
   const inAll = p.input + p.cacheRead + p.cacheWrite;
   const rows = Object.entries(sum.prompt);
   const models = rows.length === 1 ? shortModel(rows[0][0]) : rows.map(([m, r]) => `${shortModel(m)} ${r.unpriced ? "n/a" : fmtUsd(r.cost)}`).join(", ");
   const money = (t) => (t.unpriced ? "≥" : "≈") + fmtUsd(t.cost);
-  return `Keel · ${money(p)} this prompt (${models}) · session ${money(s)} · ${fmtTok(inAll)} in, ${fmtTok(p.output)} out · est.`;
+  const over = [];
+  if (Number(budget?.prompt) > 0 && p.cost > budget.prompt) over.push(`prompt cap ${fmtUsd(budget.prompt)}`);
+  if (Number(budget?.session) > 0 && s.cost > budget.session) over.push(`session cap ${fmtUsd(budget.session)}`);
+  const warn = over.length ? ` · OVER ${over.join(" and ")}` : "";
+  return `Keel · ${money(p)} this prompt (${models}) · session ${money(s)} · ${fmtTok(inAll)} in, ${fmtTok(p.output)} out · est.${warn}`;
 }
 
 /** The full table for /keel:cost. */
@@ -144,6 +148,20 @@ export function table(sum, prices) {
   render("This session (includes sub-agents)", sum.session);
   lines.push(`\nPrices as of ${prices.asOf ?? "unknown"} (${prices.source ?? "no source"}). ${prices.note ?? ""}`);
   return lines.join("\n");
+}
+
+/** All transcripts (main sessions) of a project dir, oldest first. */
+export function projectTranscripts(cwd) {
+  const root = join(homedir(), ".claude", "projects");
+  if (!existsSync(root)) return [];
+  const encoded = String(cwd).replace(/[^A-Za-z0-9]/g, "-");
+  const out = [];
+  for (const d of readdirSync(root).filter((d) => d.toLowerCase() === encoded.toLowerCase())) {
+    let files = [];
+    try { files = readdirSync(join(root, d)).filter((f) => f.endsWith(".jsonl")); } catch { continue; }
+    for (const f of files) out.push({ f: join(root, d, f), t: statSync(join(root, d, f)).mtimeMs });
+  }
+  return out.sort((a, b) => a.t - b.t).map((x) => x.f);
 }
 
 /** Newest transcript for a project dir, for the CLI when no path is given. */

@@ -55,6 +55,11 @@ must(t.unpriced === true && near(t.cost, 2 + 20 + 0.605), "totals sum priced mod
 const line = footer(sum);
 must(/^Keel · ≥\$/.test(line) && line.includes("est.") && !line.includes("\n") && line.length < 170, "footer is one short line and says ≥ when a model is unpriced");
 
+must(!footer(sum, { prompt: 100, session: 100 }).includes("OVER"), "under the caps there is no warning");
+must(footer(sum, { prompt: 1 }).includes("OVER prompt cap $1.00") && !footer(sum, { prompt: 1 }).includes("session cap"), "a passed prompt cap is named");
+must(footer(sum, { prompt: 1, session: 1 }).includes("OVER prompt cap $1.00 and session cap $1.00"), "both caps can be named");
+must(!footer(sum).includes("OVER") && !footer(sum, { prompt: null, session: 0 }).includes("OVER"), "no cap means no warning");
+
 // ---- Stop hook end to end, and the off switch
 const run = (script, payload) => spawnSync("node", [join(plugin, "scripts", script)], { input: JSON.stringify(payload), encoding: "utf8" });
 const proj = join(dir, "proj"); mkdirSync(join(proj, ".keel"), { recursive: true });

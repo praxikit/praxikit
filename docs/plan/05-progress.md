@@ -45,3 +45,6 @@
 
 ## 2026-11-15 — Keel 0.4.0
 - Added `/keel:status` (phases, current checks, open decisions, last entry, cost) and the done-check Stop hook (warns when non-doc files changed and no check-like command ran after). Both covered by `tests/status.test.mjs`, wired into CI. Not yet seen live in a fresh install.
+
+## 2026-11-15 — Keel 0.5.0
+- Added the budget guard (`budget.prompt` / `budget.session` caps, footer warns, never blocks) and cost per phase (`phase-cost.mjs`, ledger in `.keel/ledger.json`, called by `/keel:verify`). Covered by `cost.test.mjs` and `status.test.mjs`. Not yet seen live in a fresh install.

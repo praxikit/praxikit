@@ -19,7 +19,7 @@ const project = typeof payload.cwd === "string" ? payload.cwd : process.cwd();
 try {
   const cfg = loadConfig(pluginRoot, project);
   if (cfg.defaults?.costFooter === false) quiet();
-  const line = footer(summarize(payload.transcript_path, loadPrices(pluginRoot, project)));
+  const line = footer(summarize(payload.transcript_path, loadPrices(pluginRoot, project)), cfg.budget);
   if (line) process.stdout.write(JSON.stringify({ systemMessage: line }) + "\n");
 } catch { /* a footer must never break a session */ }
 process.exit(0);

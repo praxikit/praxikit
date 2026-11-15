@@ -1,5 +1,9 @@
 # Changelog — keel
 
+## 0.5.0 — 2026-11-15
+- New: budget guard. Set `budget.prompt` and/or `budget.session` (estimated USD) in `.keel/config.json`; when a cap is passed the cost footer ends with `OVER prompt cap $X`. Warns only, never stops work. No cap by default.
+- New: cost per phase. `/keel:verify` runs `scripts/phase-cost.mjs` when a phase passes and records its estimated cost in `05-progress.md`, using a ledger in `.keel/ledger.json` (difference between marks, all sessions and sub-agents). The first mark covers all recorded history and says so.
+
 ## 0.4.0 — 2026-11-15
 - New: `/keel:status`. One screen with the phases and where you are, the current phase's goal and checks, open decisions, the last progress entry and the session cost. Read-only.
 - New: done-check. When a prompt changed files (other than docs) and no check-like command ran afterwards, a Stop hook prints one line saying so. A heuristic, never blocks. Turn off with `defaults.doneCheck: false`.

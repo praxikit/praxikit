@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Tests the done-check Stop hook and the /keel:status script. No dependencies.
 // Run from the repo root: node kits/keel/tests/status.test.mjs
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -45,6 +45,23 @@ const st = spawnSync("node", [join(plugin, "scripts", "status.mjs"), "--project"
 must(st.includes("[x] Phase 0") && st.includes("[>] Phase 1") && st.includes("[ ] Phase 2"), "phases show done, in progress, next");
 must(st.includes("Now: Phase 1 — Core") && st.includes("ship the core") && st.includes("npm test") && st.includes("login works"), "current phase shows goal and checks");
 must(st.includes("Cost this session"), "status includes cost");
+
+// ---- phase cost ledger (fake home so no real transcripts are read)
+const home = join(dir, "home"), work = join(dir, "work");
+mkdirSync(work, { recursive: true });
+const pdir = join(home, ".claude", "projects", work.replace(/[^A-Za-z0-9]/g, "-"));
+mkdirSync(pdir, { recursive: true });
+const asst = (id, out) => ({ type: "assistant", timestamp: "2026-11-15T10:00:05.000Z", uuid: id, message: { id, model: "claude-sonnet-5-5", usage: { input_tokens: 0, output_tokens: out } } });
+writeFileSync(join(pdir, "s1.jsonl"), jl([user("2026-11-15T10:00:00.000Z"), asst("a", 1000000)])); // 1M out sonnet = $10
+const pc = () => spawnSync("node", [join(plugin, "scripts", "phase-cost.mjs"), "Phase 1", "--project", work], { encoding: "utf8", env: { ...process.env, HOME: home, USERPROFILE: home } }).stdout;
+let o = pc();
+must(o.includes("$10.00") && o.includes("since tracking began"), `first mark covers all history: ${o}`);
+writeFileSync(join(pdir, "s2.jsonl"), jl([user("2026-11-15T11:00:00.000Z"), asst("b", 500000)])); // +$5
+o = pc();
+must(o.includes("$5.00") && o.includes('since "Phase 1"'), `second mark is the difference: ${o}`);
+const dry = spawnSync("node", [join(plugin, "scripts", "phase-cost.mjs"), "Phase 2", "--project", work, "--dry-run"], { encoding: "utf8", env: { ...process.env, HOME: home, USERPROFILE: home } }).stdout;
+must(dry.includes("$0.0000") || dry.includes("$0.00"), `dry-run shows zero since last mark: ${dry}`);
+must(JSON.parse(readFileSync(join(work, ".keel", "ledger.json"), "utf8")).marks.length === 2, "dry-run writes nothing");
 
 rmSync(dir, { recursive: true, force: true });
 if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }

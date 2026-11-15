@@ -18,4 +18,5 @@ A phase passes on evidence, not on a description.
 5. If files outside the phase's **Files** list changed in this phase (`git diff --stat` against
    the phase's start), list them under the entry and ask whether the phase's list should grow or
    the change should move; this is the drift check.
-6. Report: the status, the failing checks if any, and the next phase's goal.
+6. If the phase is now ✅, record what it cost: run `node "${CLAUDE_PLUGIN_ROOT}/scripts/phase-cost.mjs" "Phase N"` from the project directory and paste its one line into the `05-progress.md` entry. It keeps a ledger in `.keel/ledger.json`; a phase's cost is the difference from the previous mark, and the first call covers all recorded history (the line says so). Do not edit the number. If the user turned the footer off, still record it: this is measurement, not display.
+7. Report: the status, the failing checks if any, the phase's cost, and the next phase's goal.
