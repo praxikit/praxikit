@@ -53,7 +53,7 @@ must(sum.session["claude-sonnet-5-5"].calls === 2, "session counts both prompts'
 const t = totals(sum.prompt);
 must(t.unpriced === true && near(t.cost, 2 + 20 + 0.605), "totals sum priced models and carry the unpriced flag");
 const line = footer(sum);
-must(/^Keel · this prompt:/.test(line) && line.includes("≥ $") && line.includes("estimate") && !line.includes("\n"), "footer is one line and says ≥ when a model is unpriced");
+must(/^Keel · ≥\$/.test(line) && line.includes("est.") && !line.includes("\n") && line.length < 170, "footer is one short line and says ≥ when a model is unpriced");
 
 // ---- Stop hook end to end, and the off switch
 const run = (script, payload) => spawnSync("node", [join(plugin, "scripts", script)], { input: JSON.stringify(payload), encoding: "utf8" });
@@ -65,7 +65,7 @@ r = run("footer.mjs", { transcript_path: main, cwd: proj });
 must(r.status === 0 && r.stdout === "", "costFooter:false silences the footer");
 writeFileSync(join(proj, ".keel", "config.json"), JSON.stringify({ prices: { "claude-mystery-9": { input: 1, cacheWrite5m: 1, cacheWrite1h: 1, cacheRead: 1, output: 1 } } }));
 r = run("footer.mjs", { transcript_path: main, cwd: proj });
-must(r.stdout.includes("≈ $") && !r.stdout.includes("≥"), "a project price override prices the unknown model");
+must(r.stdout.includes("≈$") && !r.stdout.includes("≥"), "a project price override prices the unknown model");
 r = spawnSync("node", [join(plugin, "scripts", "footer.mjs")], { input: "garbage", encoding: "utf8" });
 must(r.status === 0 && r.stdout === "", "garbage stdin is silent");
 r = run("footer.mjs", { transcript_path: join(dir, "missing.jsonl"), cwd: proj });
@@ -75,10 +75,13 @@ must(r.status === 0 && r.stdout === "", "missing transcript is silent");
 const ctx = (cwd) => { const o = run("session-start.mjs", { cwd }).stdout; return o ? JSON.parse(o).hookSpecificOutput.additionalContext : ""; };
 writeFileSync(join(proj, ".keel", "config.json"), "{}");
 let c = ctx(proj);
-must(c.includes("**For you**") && c.includes("**Task list**"), "defaults inject both sections");
+must(c.includes("### For you") && c.includes("### Task list") && c.includes("[x]") && !c.includes("✅"), "defaults inject both sections with ascii marks");
 writeFileSync(join(proj, ".keel", "config.json"), JSON.stringify({ defaults: { taskList: false } }));
 c = ctx(proj);
-must(c.includes("**For you**") && !c.includes("**Task list**"), "taskList:false removes only the task list rule");
+must(c.includes("### For you") && !c.includes("### Task list"), "taskList:false removes only the task list rule");
+writeFileSync(join(proj, ".keel", "config.json"), JSON.stringify({ defaults: { marks: "emoji" } }));
+c = ctx(proj);
+must(c.includes("✅") && c.includes("⬜") && !c.includes("[x]"), "marks:emoji switches the task list marks");
 writeFileSync(join(proj, ".keel", "config.json"), JSON.stringify({ defaults: { forYou: false, taskList: false } }));
 must(ctx(proj) === "", "both off means no injected context");
 

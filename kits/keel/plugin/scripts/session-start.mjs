@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Keel SessionStart hook: injects Keel's standing response format once per session.
- * Reads .keel/config.json "defaults" (forYou, taskList, costFooter). Silent when all are off.
- * The cost footer itself is printed by the Stop hook, not written by the model.
+ * Reads .keel/config.json "defaults" (forYou, taskList, marks, costFooter). Silent when both
+ * sections are off. The cost footer itself is printed by the Stop hook, not written by the model.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -14,15 +14,18 @@ try { payload = JSON.parse(readFileSync(0, "utf8")); } catch { /* use cwd */ }
 const pluginRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const cfg = loadConfig(pluginRoot, typeof payload.cwd === "string" ? payload.cwd : process.cwd());
 const d = cfg.defaults ?? {};
+const forYou = d.forYou !== false, taskList = d.taskList !== false;
+if (!forYou && !taskList) process.exit(0);
 
-const rules = [];
-if (d.forYou !== false)
-  rules.push("**For you**: when the user has something to do (a decision, a command to run, a step outside your tools), end the reply with a section headed **For you**: numbered steps, each detailed enough to follow without asking you again. Leave the section out when there is nothing for them to do.");
-if (d.taskList !== false)
-  rules.push("**Task list**: when the request has more than one step, end the reply with a section headed **Task list**: every task of this request in order, ✅ done, 🔄 in progress, ⬜ next. Leave it out for single-step answers.");
-if (!rules.length) process.exit(0);
-rules.push("Never pad these sections and never repeat them when nothing changed. Do not write token or cost numbers yourself: a Keel hook prints that footer.");
-
-const text = "Keel response format (standing rules from the Keel plugin; the user can change them with /keel:settings):\n- " + rules.join("\n- ");
+const marks = d.marks === "emoji" ? { done: "✅", doing: "🔄", next: "⬜" } : { done: "[x]", doing: "[>]", next: "[ ]" };
+const lines = [
+  "Keel response format (standing rules from the Keel plugin; change them with /keel:settings). Use it when the work has several steps or the user has something to do; a plain question gets a plain answer with no sections.",
+  "Layout, in this order: 1) the result in one or two sentences. 2) the sections below, each only when it applies. 3) nothing after them (a hook prints the cost footer; never write token or cost numbers yourself).",
+];
+if (forYou) lines.push(
+  "### For you — only when the user must act (a decision, a command, a step outside your tools). Numbered. Each step: a bold action, then the exact command or place in code formatting, then `→ expect:` what they should see. Add `(blocks the next step)` where it does. No step the user does not need to do.");
+if (taskList) lines.push(
+  `### Task list — only for multi-step work. One numbered line per task: ${marks.done} done, ${marks.doing} in progress, ${marks.next} next. Keep the same order and wording from reply to reply; keep finished tasks on the list until the whole request is finished; the first ${marks.next} is the next task. Add a task only when it is real.`);
+const text = lines.join("\n");
 process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: text } }) + "\n");
 process.exit(0);

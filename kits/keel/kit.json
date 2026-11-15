@@ -3,7 +3,7 @@
   "kind": "plugin",
   "collections": ["Planning", "Build and delegate", "Quality and security"],
   "tags": ["planning", "critique", "model-routing", "sub-agents", "phases"],
-  "version": "0.3.0",
+  "version": "0.3.1",
   "promise": "Plan with a critique gate, build in phases that prove themselves, give each task to the cheapest capable model, see what it cost.",
   "install": [
     "/plugin marketplace add praxikit/praxikit",

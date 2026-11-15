@@ -1,6 +1,6 @@
 {
   "name": "keel",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Plan with a critique gate, build in phases with acceptance checks, route tasks to the cheapest model that can do them, and re-plan when the idea changes. Keeps a project on course.",
   "author": { "name": "praxikit", "url": "https://github.com/praxikit" },
   "homepage": "https://github.com/praxikit/praxikit",

@@ -1,5 +1,10 @@
 # Changelog — keel
 
+## 0.3.1 — 2026-11-15
+- Changed: a fixed reply layout. The result first, then `### For you` (bold action, exact command, `→ expect:`, `(blocks the next step)`), then `### Task list`. Task order and wording stay stable across replies and finished tasks stay on the list until the request is done. A plain question still gets a plain answer.
+- Changed: task marks default to ASCII `[x] [>] [ ]`, because the emoji marks drew as empty boxes in some terminal fonts. Set `defaults.marks` to `"emoji"` in `.keel/config.json` to get ✅ 🔄 ⬜.
+- Changed: the cost footer is one short line (`Keel · ≈$0.03 this prompt (sonnet 5.5) · session ≈$0.25 · 95.8k in, 1.5k out · est.`) so it no longer wraps.
+
 ## 0.3.0 — 2026-11-15
 - New: a standing response format, injected once per session. Replies end with **For you** (numbered, detailed steps for what only the user can do) and **Task list** (✅ done, 🔄 in progress, ⬜ next) when there is something to show. Left out when empty.
 - New: a one-line token and cost footer after every prompt (Stop hook): tokens in/cached/out, cost per model, session total, labelled as an estimate. Includes sub-agent usage. `/keel:cost` prints the full per-model table.

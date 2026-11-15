@@ -114,9 +114,10 @@ export function footer(sum) {
   const p = totals(sum.prompt), s = totals(sum.session);
   if (!p.calls) return null;
   const inAll = p.input + p.cacheRead + p.cacheWrite;
-  const models = Object.entries(sum.prompt).map(([m, r]) => `${shortModel(m)} ${r.unpriced ? "n/a" : fmtUsd(r.cost)}`).join(", ");
-  const money = (t) => (t.unpriced ? "≥ " : "≈ ") + fmtUsd(t.cost);
-  return `Keel · this prompt: ${fmtTok(inAll)} in (${fmtTok(p.cacheRead)} cached), ${fmtTok(p.output)} out, ${p.calls} call${p.calls === 1 ? "" : "s"} · ${money(p)} (${models}) · session ${money(s)} · estimate`;
+  const rows = Object.entries(sum.prompt);
+  const models = rows.length === 1 ? shortModel(rows[0][0]) : rows.map(([m, r]) => `${shortModel(m)} ${r.unpriced ? "n/a" : fmtUsd(r.cost)}`).join(", ");
+  const money = (t) => (t.unpriced ? "≥" : "≈") + fmtUsd(t.cost);
+  return `Keel · ${money(p)} this prompt (${models}) · session ${money(s)} · ${fmtTok(inAll)} in, ${fmtTok(p.output)} out · est.`;
 }
 
 /** The full table for /keel:cost. */

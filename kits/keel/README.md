@@ -33,7 +33,7 @@ Then, in any project:
 Agents the plugin adds: `keel:critic` (your session's model), `keel:builder` (Sonnet),
 `keel:reviewer` (Sonnet), `keel:scout` (Haiku).
 
-Each prompt ends with a **For you** section (what only you can do, step by step) and a **Task list** (✅ done, 🔄 in progress, ⬜ next) when there is something to show, followed by a one-line token and cost estimate per model. All of it can be switched off in `/keel:settings`.
+Each prompt ends with a **For you** section (what only you can do, step by step) and a **Task list** (`[x]` done, `[>]` in progress, `[ ]` next; emoji marks optional) when there is something to show, followed by a one-line token and cost estimate per model. These are on by default, with nothing to enable; switch any of them off in `/keel:settings`.
 
 A drift hook warns once per session when an edit lands outside the current phase's Files list.
 

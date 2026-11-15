@@ -37,3 +37,8 @@
 - Cross-check against the app: an earlier `cost-state` snapshot of this session showed $2.80 for 11.4M cache-read / 74k out / 227k 1h cache-write tokens; the same tokens at Sonnet 5.5 list prices = $2.795.
 - Checks run locally: `cost.test.mjs` ok (exact dollars for dedupe, Haiku long tier, sub-agent, unpriced model, config switches); drift and site tests ok; `claude plugin validate` passed; `check-kits` ok. The checker caught an unescaped-quote JSON error in `tiers.json` before commit.
 - Not yet verified live: the Stop footer and SessionStart rules inside a fresh installed session (needs 0.3.0 installed).
+
+## 2026-11-15 — Keel 0.3.0 seen live; 0.3.1 layout fixes
+- Owner's installed 0.3.0 (screenshots): the cost footer printed after a prompt; For you and Task list appeared on their own for a multi-step request and not for a one-line request (automatic, nothing to enable).
+- Found: task marks ⬜ drew as empty boxes in the owner's terminal; reply layout varied; footer wrapped to two lines. Claude Code prefixes hook output with "Stop says:", which Keel cannot remove.
+- 0.3.1: fixed layout (result, ### For you, ### Task list), ASCII marks by default (emoji optional), shorter footer. Tests updated and passing.
