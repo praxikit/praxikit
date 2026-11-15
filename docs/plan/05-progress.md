@@ -103,3 +103,7 @@
 ## 2026-11-15 — Admin app deployed (not yet signed in)
 - Deployed `praxikit-admin` to Cloudflare Workers; `/healthz` answers ok. `BASE_URL` and the public OAuth client id are in `api/wrangler.toml`; the client secret and session secret are set only in Cloudflare with `wrangler secret put`. The `maintainers` team exists in the org. The first deploy attempt exposed a Cloudflare token in a pasted terminal screen; it was revoked, and a short-lived replacement was used. Corporate TLS inspection needed `NODE_OPTIONS=--use-system-ca`.
 - Still to do: set the two secrets, redeploy with the client id, first real sign-in, delete the placeholder worker and the API token.
+
+## 2026-11-15 — Admin app phase 1 verified live
+- First real sign-in worked: `@royal-programmer` was recognised as an owner of `praxikit` and saw the admin page (maintainer badge, "owner of praxikit", empty waiting list, shortcuts). Verified for the owner path only. The team-member path and the "signed in but no access" path are covered by `api/test.mjs` against a fake GitHub but have not been exercised with a real second account.
+- Left to the owner: delete the placeholder worker `raspy-rain-a9c7`, delete the Cloudflare API token used for the deploy (it expires on its own after 7 days), consider requiring two-factor for the org.
