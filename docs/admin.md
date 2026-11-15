@@ -36,3 +36,9 @@ The catalogue has no server and no admin website. GitHub is the admin panel: it 
 - To remove a listing: Actions, **Remove listing**, Run workflow, give the repository link and a reason category. It deletes the entry, appends a row to `docs/removals.md` (the public log), commits and redeploys. Only the reason category and a short note are logged.
 - The policy page (`/policy/`) states the response aims: reply within 3 days, remove malicious or leaked-secret listings the day you read the report and within 2 days of it, decide other reports within 14 days. They are aims for one part-time maintainer, not a service level. Keep them true or change the page.
 - There is no second approver yet. Adding one (a collaborator with write access) is the main remaining gap named on the policy page.
+
+## Changed since review
+
+- The `listing-drift` workflow runs daily (and on demand: Actions, **listing-drift**, Run workflow). For each listing it asks the GitHub API whether the repository's default branch has commits after the reviewed one. It does not clone or run anything.
+- Result per listing goes to `site/drift.json` (`same`, `changed` or `unreachable`). The site shows **Changed since review** with a link to the comparison, or **Repository not reachable**. The file, and the site, change only when a status changes. A network or rate-limit failure keeps the previous status.
+- Active repositories will show **Changed since review** quickly. That is the point: it says the code moved on, not that it is bad. When you have read the new code, run **Add listing** with **replace** ticked to record the new reviewed commit; it also re-runs the check.

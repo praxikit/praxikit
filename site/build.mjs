@@ -359,20 +359,30 @@ function checker(kits, only) {
 }
 const badge = (k) => `<span class="kind">${esc(kindOf(k))}</span><span class="ver">v${esc(k.version)}</span>`;
 
+// "same" | "changed" | "unreachable" per listing url, written daily by the listing-drift workflow; unknown values are ignored
+let DRIFT = {};
+function loadDrift() {
+  const f = join(ROOT, "site", "drift.json");
+  if (!existsSync(f)) return {};
+  try { return Object.fromEntries(Object.entries(readJson(f)).filter(([, v]) => ["same", "changed", "unreachable"].includes(v))); } catch { return {}; }
+}
 const SOURCE_LABEL = { community: "Community", recommended: "Recommended" };
 const CHECK_WORDS = { "no-flags-found": "automatic checks found nothing", "checks-flagged": "automatic checks flagged things a person reviewed", "checks-failed": "automatic checks failed, accepted by the admin", "needs-manual-review": "reviewed by hand" };
 
 /** A listing made by someone else: links out to its repository and says what was reviewed. */
 function extCard(l, up) {
   void up;
+  const st = DRIFT[l.url];
+  const drift = st === "changed" ? { badge: '<span class="kind warn">Changed since review</span>', note: ` <a href="${esc(l.url)}/compare/${esc(l.commit)}...HEAD" rel="noopener noreferrer">See what changed</a>.` }
+    : st === "unreachable" ? { badge: '<span class="kind warn">Repository not reachable</span>', note: " It may have been removed or made private." } : { badge: "", note: "" };
   const groups = [slug(KIND_LABEL[l.kind] ?? l.kind), slug(SOURCE_LABEL[l.source])].join(" ");
   const text = [l.name, l.why, l.author, l.kind, l.source].join(" ").toLowerCase();
   return `<li class="card" data-card data-groups="${esc(groups)}" data-text="${esc(text)}">
-<div class="meta-line"><span class="kind ext">${esc(SOURCE_LABEL[l.source])}</span><span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span></div>
+<div class="meta-line"><span class="kind ext">${esc(SOURCE_LABEL[l.source])}</span><span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span>${drift.badge}</div>
 <h3><a class="name" href="${esc(l.url)}" rel="noopener noreferrer">${esc(l.name)}</a></h3>
 <p class="muted">by ${esc(l.author)}, not built by Praxikit</p>
 <p class="promise">${esc(l.why)}</p>
-<div class="card-foot"><span>Reviewed at <code>${esc(l.commit.slice(0, 7))}</code>, ${esc(CHECK_WORDS[l.checks] ?? l.checks)}. Installs follow the author's latest version, which can differ.</span><a class="details" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a></div>
+<div class="card-foot"><span>Reviewed at <code>${esc(l.commit.slice(0, 7))}</code>, ${esc(CHECK_WORDS[l.checks] ?? l.checks)}. Installs follow the author's latest version, which can differ.${drift.note}</span><a class="details" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a></div>
 </li>`;
 }
 
@@ -602,7 +612,7 @@ function policyPage() {
 <li>Kits <strong>built by Praxikit</strong> are ours. We maintain them and ship fixes as new versions.</li>
 <li><strong>Community</strong> and <strong>Recommended</strong> listings are other people's work. We link to the public repository. We do not host, copy or run it.</li>
 <li>A listing means a person read the repository and the automatic result <strong>at one commit</strong>, which each listing shows. It is not an endorsement and not a safety guarantee. The automatic checks are pattern checks and cannot see everything.</li>
-<li><strong>The reviewed commit is not what you install.</strong> Installs come from the author's repository and follow its latest version, so the code you get can be newer than the code that was reviewed. Compare the commit shown with the repository before you install.</li>
+<li><strong>The reviewed commit is not what you install.</strong> Installs come from the author's repository and follow its latest version, so the code you get can be newer than the code that was reviewed. A daily check marks a listing <strong>Changed since review</strong> when its repository has moved on, with a link to what changed. That tells you something changed, not whether it is safe; compare before you install.</li>
 <li>Listing is free. Nothing is listed for payment, and payment never changes a check or a decision.</li>
 <li>A listing needs a licence that lets others use the work, and the submitter confirms they wrote it or have permission.</li>
 <li>We can decline or remove any listing. We try to say why.</li>
@@ -641,6 +651,7 @@ const write = (rel, text) => { const p = join(OUT, rel); mkdirSync(dirname(p), {
 
 const kits = loadKits();
 const listings = loadListings();
+DRIFT = loadDrift();
 const recs = listings.filter((l) => l.source === "recommended");
 // everything that appears in the kit lists: kits built here first, then other people's listings
 const items = [...kits, ...listings.map((l) => ({ ...l, ext: true }))];

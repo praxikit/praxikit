@@ -242,3 +242,5 @@ main { flex: 1 0 auto; width: 100%; }
 .type-row .count-line { margin: 0; padding: 0; white-space: nowrap; }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 1rem 0 0; }
 .details { position: relative; z-index: 1; font-weight: 600; white-space: nowrap; }
+
+.kind.warn { background: var(--warn-bg); color: var(--warn); }

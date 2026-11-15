@@ -1,0 +1,42 @@
+name: listing-drift
+# Once a day, compares each listing's reviewed commit with its repository's current default branch,
+# so the catalogue can say "changed since review". It only asks the GitHub API about public repositories;
+# nothing is cloned or run. site/drift.json changes (and the site redeploys) only when a status changes.
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+permissions: {}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: listings
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check for changes since review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          node scripts/listings.mjs drift --file site/listings.json --out site/drift.json | tee -a "$GITHUB_STEP_SUMMARY"
+          if git diff --quiet -- site/drift.json; then
+            echo "No status changed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/drift.json
+          git commit -m "listings: update changed-since-review statuses"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh workflow run pages.yml --ref main
+          echo "Statuses updated. The site is redeploying." >> "$GITHUB_STEP_SUMMARY"

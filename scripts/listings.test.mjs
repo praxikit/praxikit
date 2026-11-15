@@ -7,7 +7,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseIssue } from "./check-submission.mjs";
-import { entryFromIssue, entryFromDispatch, appendListing, clean } from "./listings.mjs";
+import { entryFromIssue, entryFromDispatch, appendListing, clean, computeDrift } from "./listings.mjs";
 import { validateListing } from "../site/listings.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -92,6 +92,45 @@ must(p.status === 3 && JSON.parse(readFileSync(list, "utf8")).length === 1, "an 
   must(r.status === 4 && JSON.parse(readFileSync(list2, "utf8")).length === 1, "removing something that is not listed is refused and changes nothing");
   r = run("remove", "--url", "https://github.com/o/keep", "--reason", "because", "--file", list2, "--log", log);
   must(r.status === 2, "an unknown reason is refused");
+}
+
+// ---- replace: a re-review swaps the entry in place; without the flag a duplicate is still refused
+{
+  const re = appendListing([good, { ...good, url: "https://github.com/o/other" }], { ...good, commit: "b".repeat(40), checks: "checks-flagged" }, true);
+  must(re.length === 2 && re[0].commit === "b".repeat(40) && re[0].checks === "checks-flagged" && re[1].url === "https://github.com/o/other", "replace swaps the existing entry in place and keeps the others");
+  let still = false; try { appendListing([good], good, false); } catch { still = true; }
+  must(still, "without replace a duplicate is still refused");
+}
+
+// ---- drift: reviewed commit vs the repository's current default branch (gh is faked)
+{
+  const mk = (url, c = SHA) => ({ ...good, url, commit: c });
+  const L = [mk("https://github.com/o/same"), mk("https://github.com/o/moved"), mk("https://github.com/o/gone"), mk("https://github.com/o/rewritten"), mk("https://github.com/o/flaky"), mk("https://github.com/o/limited")];
+  const err = (stderr) => Object.assign(new Error("gh failed"), { stderr });
+  const fake = (args) => {
+    const path = args[1], repo = path.split("/")[2];
+    const isCompare = path.includes("/compare/");
+    if (repo === "gone" && !isCompare) throw err("gh: Not Found (HTTP 404)");
+    if (repo === "flaky") throw err("Post https://api.github.com: net/http: TLS handshake timeout");
+    if (repo === "limited" && isCompare) throw err("gh: API rate limit exceeded (HTTP 403)");
+    if (!isCompare) return "main\n";
+    if (repo === "same") return "0\n";
+    if (repo === "moved") return "7\n";
+    if (repo === "rewritten") throw err("gh: No common ancestor between the commits (HTTP 404)");
+    return "0\n";
+  };
+  const d = computeDrift(L, { "https://github.com/o/flaky": "same", "https://github.com/o/limited": "changed", "https://github.com/o/not-listed-any-more": "changed" }, fake);
+  must(d["https://github.com/o/same"] === "same" && d["https://github.com/o/moved"] === "changed", "same commit is 'same', commits ahead is 'changed'");
+  must(d["https://github.com/o/gone"] === "unreachable", "a repository that returns 404 is 'unreachable'");
+  must(d["https://github.com/o/rewritten"] === "changed", "a reviewed commit that is no longer in history is 'changed'");
+  must(d["https://github.com/o/flaky"] === "same" && d["https://github.com/o/limited"] === "changed", "a network or rate-limit failure keeps the previous answer instead of flipping it");
+  must(!("https://github.com/o/not-listed-any-more" in d), "entries that are no longer listed are dropped");
+  const none = computeDrift([mk("https://github.com/o/flaky")], {}, fake);
+  must(Object.keys(none).length === 0, "a transient failure with no previous answer records nothing");
+  // only validated github.com urls are ever turned into API paths
+  const seen = []; computeDrift([mk("https://evil.example/x/y"), mk("https://github.com/o/ok")], {}, (a) => { seen.push(a[1]); return a[1].includes("/compare/") ? "0" : "main"; });
+  must(seen.every((p) => p.startsWith("repos/o/ok")), "only github.com repositories are queried");
+  must(seen.some((p) => p.includes(`/compare/${SHA}...main`)), "the compare call uses the reviewed commit and the default branch");
 }
 
 // ---- scan step on a link it will not fetch: blocked, no entry, no network

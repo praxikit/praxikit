@@ -36,6 +36,11 @@ on:
         required: false
         type: boolean
         default: false
+      replace:
+        description: It is already listed; replace the entry with this new review
+        required: false
+        type: boolean
+        default: false
 permissions: {}
 jobs:
   scan:
@@ -97,13 +102,18 @@ jobs:
           GH_REPO: ${{ github.repository }}
           STATUS: ${{ needs.scan.outputs.status }}
           DIR: ${{ runner.temp }}/listing
+          REPLACE: ${{ inputs.replace }}
         run: |
           cat "$DIR/comment.md" >> "$GITHUB_STEP_SUMMARY"
           if [ "$STATUS" != "ok" ]; then
             echo "Not listed. The reason is in the job summary."
             exit 1
           fi
-          node scripts/listings.mjs publish --entry "$DIR/entry.json" --file site/listings.json
+          if [ "$REPLACE" = "true" ]; then
+            node scripts/listings.mjs publish --entry "$DIR/entry.json" --file site/listings.json --replace
+          else
+            node scripts/listings.mjs publish --entry "$DIR/entry.json" --file site/listings.json
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add site/listings.json
@@ -111,4 +121,5 @@ jobs:
           git pull --rebase origin main
           git push origin HEAD:main
           gh workflow run pages.yml --ref main
+          if [ "$REPLACE" = "true" ]; then gh workflow run listing-drift.yml --ref main; fi
           echo "Listed. The site is redeploying." >> "$GITHUB_STEP_SUMMARY"

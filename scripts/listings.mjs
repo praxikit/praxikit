@@ -14,6 +14,7 @@
  * Nothing here decides who may approve; the workflows check that before these run.
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseIssue, scanUrl, safe, MARKER } from "./check-submission.mjs";
@@ -61,10 +62,42 @@ export function entryFromDispatch(env, scan, today) {
   return finish(entry, scan, String(env.IN_ALLOW_FAILED) === "true");
 }
 
-/** Returns the list with the entry added; refuses a repository that is already listed. */
-export function appendListing(list, entry) {
-  if (list.some((x) => sameRepo(x.url, entry.url))) throw new Error("already listed");
+/**
+ * Returns the list with the entry added; refuses a repository that is already listed, unless
+ * `replace` is true, in which case the existing entry is replaced in place (a re-review).
+ */
+export function appendListing(list, entry, replace = false) {
+  const at = list.findIndex((x) => sameRepo(x.url, entry.url));
+  if (at >= 0 && !replace) throw new Error("already listed");
+  if (at >= 0) return list.map((x, i) => (i === at ? entry : x));
   return [...list, entry];
+}
+
+/**
+ * Compares each listing's reviewed commit with its repository's current default branch through the
+ * GitHub API. `run(args)` runs `gh` and returns stdout or throws an error with `.stderr`.
+ * Returns { url: "same" | "changed" | "unreachable" }. A transient failure (network, rate limit)
+ * keeps the previous answer instead of flipping a listing.
+ */
+export function computeDrift(list, previous, run) {
+  const gone = (e) => /HTTP 404|Not Found/i.test(String(e?.stderr ?? e?.message ?? ""));
+  const out = {};
+  for (const l of list) {
+    const m = /^https:\/\/github\.com\/([^/]+)\/([^/]+)$/.exec(l.url);
+    if (!m) continue;
+    const [, owner, repo] = m;
+    const keep = () => { if (previous && typeof previous[l.url] === "string") out[l.url] = previous[l.url]; };
+    let branch;
+    try {
+      branch = String(run(["api", `repos/${owner}/${repo}`, "--jq", ".default_branch"])).trim();
+      if (!/^[A-Za-z0-9._/-]{1,100}$/.test(branch)) { keep(); continue; }
+    } catch (e) { if (gone(e)) out[l.url] = "unreachable"; else keep(); continue; }
+    try {
+      const ahead = String(run(["api", `repos/${owner}/${repo}/compare/${l.commit}...${branch}`, "--jq", ".ahead_by"])).trim();
+      if (/^\d+$/.test(ahead)) out[l.url] = ahead === "0" ? "same" : "changed"; else keep();
+    } catch (e) { if (gone(e)) out[l.url] = "changed"; else keep(); } // the reviewed commit is no longer in its history
+  }
+  return out;
 }
 
 export const REASONS = ["malicious", "secret", "licence", "misleading", "unmaintained", "owner-request", "other"];
@@ -118,9 +151,26 @@ function main() {
     if (problems.length) { console.error("refusing to publish: " + problems.join("; ")); process.exit(3); }
     const list = existsSync(listFile) ? JSON.parse(readFileSync(listFile, "utf8")) : [];
     let next;
-    try { next = appendListing(list, entry); } catch (e) { console.error(String(e.message)); process.exit(4); }
+    try { next = appendListing(list, entry, process.argv.includes("--replace")); } catch (e) { console.error(String(e.message)); process.exit(4); }
     writeFileSync(listFile, JSON.stringify(next, null, 2) + "\n");
     console.log(`listed: ${entry.url} at ${entry.commit.slice(0, 7)}`);
+    return;
+  }
+
+  if (cmd === "drift") {
+    const listFile = arg("--file"), outFile = arg("--out");
+    if (!listFile || !outFile) { console.error("drift needs --file and --out"); process.exit(2); }
+    const list = existsSync(listFile) ? JSON.parse(readFileSync(listFile, "utf8")) : [];
+    for (const l of list) if (validateListing(l).length) { console.error("listings.json has an invalid entry; not checking"); process.exit(3); }
+    let previous = {};
+    try { previous = JSON.parse(readFileSync(outFile, "utf8")); } catch { /* first run */ }
+    const run = (args) => execFileSync("gh", args, { encoding: "utf8", timeout: 30_000, stdio: ["ignore", "pipe", "pipe"] });
+    const next = computeDrift(list, previous, run);
+    // stable key order, so the file only changes when a status changes
+    const sorted = Object.fromEntries(Object.entries(next).sort(([a], [b]) => a.localeCompare(b)));
+    writeFileSync(outFile, JSON.stringify(sorted, null, 2) + "\n");
+    const n = Object.values(sorted);
+    console.log(`checked ${list.length} listing(s): ${n.filter((s) => s === "same").length} same, ${n.filter((s) => s === "changed").length} changed, ${n.filter((s) => s === "unreachable").length} unreachable`);
     return;
   }
 

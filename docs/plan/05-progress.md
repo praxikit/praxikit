@@ -90,3 +90,7 @@
 ## 2026-11-15 — First six-seat run (on Praxikit) and what it exposed
 - Ran `/pitch-panel:grill` (one pass) on Praxikit. Verdict Go if (17/25): CTO 4, CMO 2 (Pass), COO 3, PM 2, CFO 3. The devil's advocate found something no earlier review did: listings show the reviewed commit, but installs follow the author's latest version, so the reviewed commit can give false assurance.
 - Fixed the same day: policy and every outside listing card now say installs follow the author's latest version (pitch-panel 0.2.1 also fixes the score total, out of 25 not 30, and the Go rule, which counted six voters when only five vote). Not built: a scheduled check that marks a listing "changed since review" when the repository's latest commit differs from the reviewed one.
+
+## 2026-11-15 — "Changed since review" check
+- Built the check the devil's advocate asked for: `listing-drift` workflow (daily + on demand) compares each listing's reviewed commit with its repository's default branch through the GitHub API (no cloning), writes `site/drift.json` only when a status changes, and the site shows "Changed since review" with a compare link, or "Repository not reachable". Transient failures keep the previous status. **Add listing** gained a `replace` option to record a re-review (it then re-runs the check).
+- Limits: it says the code changed, not whether the change is bad; active repositories will show "changed" quickly; it uses `compare/<reviewed>...HEAD` links that I have not opened on github.com for a changed case.
