@@ -1,5 +1,8 @@
 # Changelog — keel
 
+## 0.6.0 — 2026-11-15
+- New: `/keel:status` ends with the installed version and a link that fills in the catalog's "Am I up to date?" form for it (`https://praxikit.github.io/praxikit/?kit=keel&v=<version>#updates`). A web page cannot read your installed plugins, so the plugin hands the page your version instead.
+
 ## 0.5.1 — 2026-11-15
 - Changed: the manifest now carries examples of what you will see, what the kit reads, writes and sends, and install steps for Cursor and Codex, so the catalog page can show them. No change to how the plugin behaves.
 - New: a test checks that Keel's scripts contain no network or child-process code, because the catalog page says they make no network calls.

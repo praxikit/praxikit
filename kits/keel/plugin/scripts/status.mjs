@@ -13,8 +13,14 @@ const arg = (n) => { const i = process.argv.indexOf(n); return i > -1 ? process.
 const project = resolve(arg("--project") ?? process.cwd());
 const read = (f) => { try { return readFileSync(join(project, "docs", "plan", f), "utf8"); } catch { return null; } };
 
+// The installed version and a link that fills in the catalog's "Am I up to date?" form for it.
+const pluginRootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+let installed = "";
+try { installed = JSON.parse(readFileSync(join(pluginRootDir, ".claude-plugin", "plugin.json"), "utf8")).version ?? ""; } catch { /* no manifest */ }
+const updateLine = /^\d+\.\d+\.\d+$/.test(installed) ? `Keel v${installed}. Check for updates: https://praxikit.github.io/praxikit/?kit=keel&v=${installed}#updates` : "";
+
 const phasesMd = read("03-phases.md");
-if (!phasesMd) { console.log("No docs/plan/03-phases.md here. Run /keel:plan to start a plan."); process.exit(0); }
+if (!phasesMd) { console.log(["No docs/plan/03-phases.md here. Run /keel:plan to start a plan.", updateLine].filter(Boolean).join("\n\n")); process.exit(0); }
 
 const out = [];
 const sections = phasesMd.split(/^## /m).slice(1).filter((s) => /^Phase\s/i.test(s));
@@ -58,4 +64,5 @@ try {
   }
 } catch { /* cost is optional */ }
 
+if (updateLine) out.push("", updateLine);
 console.log(out.join("\n"));

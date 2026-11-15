@@ -45,6 +45,9 @@ const st = spawnSync("node", [join(plugin, "scripts", "status.mjs"), "--project"
 must(st.includes("[x] Phase 0") && st.includes("[>] Phase 1") && st.includes("[ ] Phase 2"), "phases show done, in progress, next");
 must(st.includes("Now: Phase 1 — Core") && st.includes("ship the core") && st.includes("npm test") && st.includes("login works"), "current phase shows goal and checks");
 must(st.includes("Cost this session"), "status includes cost");
+const pv = JSON.parse(readFileSync(join(plugin, ".claude-plugin", "plugin.json"), "utf8")).version;
+must(st.includes(`https://praxikit.github.io/praxikit/?kit=keel&v=${pv}#updates`), "status prints a link that pre-fills the update checker with the installed version");
+must(noPlan.stdout.includes(`v=${pv}`), "the update link is also printed when there is no plan");
 
 // ---- phase cost ledger (fake home so no real transcripts are read)
 const home = join(dir, "home"), work = join(dir, "work");

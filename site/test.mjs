@@ -52,11 +52,18 @@ must(existsSync(join(out, "k/evil/index.html")) && existsSync(join(out, "c/plann
 must(!/href="\//.test(idx), "absolute href found; links must be relative");
 must(/data-text="[^"]*&lt;script&gt;/.test(idx) || !/data-text="[^"]*<script/.test(idx), "search data attribute not escaped");
 must(existsSync(join(out, "404.html")), "404.html missing");
+const feed = readFileSync(join(out, "feed.xml"), "utf8");
+must(feed.startsWith("<?xml") && feed.includes("<entry>") && !feed.includes("<script>alert") && !feed.includes("<img src=x") && feed.includes("&lt;script&gt;"), "feed.xml missing, not escaped, or empty");
+must(idx.includes('rel="alternate" type="application/atom+xml"'), "feed link missing from the page head");
+must(idx.includes("data-ck-paste") && idx.includes("claude plugin list"), "paste-to-detect box missing from the checker");
+must(idx.includes("template=suggest-kit.yml") && idx.includes("template=recommend.yml"), "submit links should open the issue forms");
 const kp = readFileSync(join(out, "k/evil/index.html"), "utf8");
 must(kp.includes('role="tablist"') && kp.includes('role="tabpanel"'), "install tabs missing on a kit with installBy");
 must(kp.includes("What you'll see") && kp.includes("What it does on your machine"), "preview or access sections missing");
 must(kp.includes("<code>x.mjs</code>") && kp.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "hooks list or escaped matcher missing");
 must(/data-checker="[^"]*1\.2\.3/.test(kp), "update checker data missing for the evil kit");
+must(kp.includes('id="trust"') && kp.includes("not a security audit") && /class="(pass|fail)"/.test(kp), "build checks panel missing on the kit page");
+must(kp.includes('class="fail"'), "a failing check (no LICENSE in the fixture) must be shown as failing, not hidden");
 const versions = JSON.parse(readFileSync(join(out, "versions.json"), "utf8"));
 must(versions.evil?.version === "1.2.3", "versions.json does not match manifests");
 

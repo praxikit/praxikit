@@ -13,6 +13,7 @@
  * Our own inline scripts carry a data-site attribute so the test can prove no other script exists.
  */
 import { readFileSync, readdirSync, existsSync, mkdirSync, writeFileSync, rmSync, copyFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -94,11 +95,49 @@ function loadRecommended() {
   return items;
 }
 
+// ---------- build-time facts: commit, trust checks ----------
+function commitInfo() {
+  const sha = process.env.GITHUB_SHA || (() => { try { return execFileSync("git", ["-C", ROOT, "rev-parse", "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { return ""; } })();
+  return /^[0-9a-f]{7,40}$/.test(sha) ? sha : "";
+}
+const SHA = commitInfo();
+const BUILT = new Date().toISOString().slice(0, 10);
+const NET = /\bfetch\s*\(|node:https?|node:net|node:dgram|node:child_process|XMLHttpRequest|WebSocket/;
+function scriptFiles(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? scriptFiles(join(dir, e.name)) : /\.(mjs|js)$/.test(e.name) ? [join(dir, e.name)] : []));
+}
+/** Checks computed from the files at build time. A failing check is shown as failing, never hidden. */
+function trustChecks(k) {
+  const dir = join(ROOT, "kits", k.name);
+  const out = [];
+  const need = ["name", "kind", "collections", "tags", "version", "promise", "install", "limits"];
+  const missing = need.filter((f) => k[f] === undefined || k[f] === "" || (Array.isArray(k[f]) && !k[f].length && f !== "tags"));
+  out.push({ ok: !missing.length, text: missing.length ? `Manifest is missing: ${missing.join(", ")}` : "Manifest has every required field" });
+  out.push({ ok: k.changelog.some((e) => e.head.split(/\s+/)[0] === k.version), text: `Changelog has an entry for v${k.version}` });
+  if (k.kind === "plugin") {
+    const pj = join(dir, "plugin", ".claude-plugin", "plugin.json");
+    let pv = null; try { pv = readJson(pj).version; } catch { /* missing */ }
+    out.push({ ok: pv === k.version, text: pv === k.version ? "Plugin manifest version matches the kit version" : `Plugin manifest version (${pv ?? "missing"}) does not match v${k.version}` });
+    const files = scriptFiles(join(dir, "plugin", "scripts"));
+    const bad = files.filter((f) => NET.test(readFileSync(f, "utf8")));
+    out.push({ ok: !bad.length, text: files.length ? (bad.length ? `Network or process code found in ${bad.length} of ${files.length} scripts` : `${plural(files.length, "script")} scanned: no network or child-process code`) : "No scripts to scan" });
+  }
+  const lic = join(ROOT, "LICENSE");
+  out.push({ ok: existsSync(lic) && /MIT License/.test(readFileSync(lic, "utf8")), text: "MIT licence file at the repository root" });
+  const tdir = join(dir, "tests");
+  const tests = existsSync(tdir) ? readdirSync(tdir).filter((f) => /\.test\.m?js$/.test(f)).length : 0;
+  out.push({ ok: tests > 0, text: tests ? `${plural(tests, "test file")} in the kit; CI runs them on every push` : "No test files" });
+  return out;
+}
+
 // ---------- html pieces ----------
-const LOGO = `<svg class="logo" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M9 8h9a5 5 0 0 1 0 10h-4v6" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 24l4 0" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>`;
-const FAVICON = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#0b6b63"/><path d="M9 8h9a5 5 0 0 1 0 10h-4v6" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
+const LOGO = `<svg class="logo" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="6" fill="var(--accent)"/><path d="M9 8h9a5 5 0 0 1 0 10h-4v6" fill="none" stroke="var(--accent-fg)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const FAVICON = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#0b6b63"/><path d="M9 8h9a5 5 0 0 1 0 10h-4v6" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
+const ISSUE = (t) => `${REPO}/issues/new?template=${t}`;
 
 const THEME_BOOT = `try{var t=localStorage.getItem("praxikit-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}`;
+// No regular expressions in here: this is a template literal, where backslashes would be eaten.
 const SITE_JS = `
 (function () {
   var root = document.documentElement;
@@ -123,8 +162,8 @@ const SITE_JS = `
       });
     });
   });
-  document.querySelectorAll("[data-tabs]").forEach(function (root) {
-    var tabs = [].slice.call(root.querySelectorAll("[role=tab]")), panels = [].slice.call(root.querySelectorAll("[role=tabpanel]"));
+  document.querySelectorAll("[data-tabs]").forEach(function (box) {
+    var tabs = [].slice.call(box.querySelectorAll("[role=tab]")), panels = [].slice.call(box.querySelectorAll("[role=tabpanel]"));
     function show(i) {
       tabs.forEach(function (t, j) { t.setAttribute("aria-selected", String(i === j)); t.tabIndex = i === j ? 0 : -1; });
       panels.forEach(function (p, j) { p.hidden = i !== j; });
@@ -136,39 +175,72 @@ const SITE_JS = `
         if (n < 0) return; n = (n + tabs.length) % tabs.length; show(n); tabs[n].focus(); e.preventDefault();
       });
     });
-    root.querySelector("[role=tablist]").hidden = false;
+    box.querySelector("[role=tablist]").hidden = false;
     show(0);
   });
   document.querySelectorAll("[data-checker]").forEach(function (box) {
     var data; try { data = JSON.parse(box.getAttribute("data-checker")); } catch (e) { return; }
     var kitSel = box.querySelector("[data-ck-kit]"), verSel = box.querySelector("[data-ck-ver]"), out = box.querySelector("[data-ck-out]"), upd = box.querySelector("[data-ck-update]");
-    function kit() { return data[kitSel ? kitSel.value : box.getAttribute("data-kit")]; }
+    var paste = box.querySelector("[data-ck-paste]"), pasteMsg = box.querySelector("[data-ck-pastemsg]");
+    function kitName() { return kitSel ? kitSel.value : box.getAttribute("data-kit"); }
+    function kit() { return data[kitName()]; }
+    function line(parent, tag, text, cls) { var e = document.createElement(tag); e.textContent = text; if (cls) e.className = cls; parent.appendChild(e); return e; }
     function fill() {
       var k = kit(); verSel.textContent = "";
-      var first = document.createElement("option"); first.value = ""; first.textContent = "Choose your version"; verSel.appendChild(first);
+      line(verSel, "option", "Choose your version").value = "";
       if (!k) return;
-      k.versions.forEach(function (v) { var o = document.createElement("option"); o.value = v.v; o.textContent = "v" + v.v + (v.date ? " (" + v.date + ")" : ""); verSel.appendChild(o); });
-      var old = document.createElement("option"); old.value = "older"; old.textContent = "Older, or I don't know"; verSel.appendChild(old);
+      k.versions.forEach(function (v) { line(verSel, "option", "v" + v.v + (v.date ? " (" + v.date + ")" : "")).value = v.v; });
+      line(verSel, "option", "Older, or I don't know").value = "older";
       render();
     }
-    function line(parent, tag, text, cls) { var e = document.createElement(tag); e.textContent = text; if (cls) e.className = cls; parent.appendChild(e); return e; }
     function render() {
       out.textContent = ""; upd.hidden = true;
       var k = kit(); if (!k || !verSel.value) { out.hidden = true; return; }
       out.hidden = false;
       var idx = verSel.value === "older" ? k.versions.length : k.versions.findIndex(function (v) { return v.v === verSel.value; });
-      if (idx === 0) { line(out, "p", "You are up to date: v" + k.versions[0].v + " is the latest.", "ck-ok"); return; }
-      line(out, "p", "Update available: v" + k.versions[0].v + " is the latest" + (idx < k.versions.length ? ", you have v" + verSel.value : "") + ". " + (idx < k.versions.length ? idx + (idx === 1 ? " release" : " releases") + " since yours:" : "Everything since the first release:"), "ck-new");
-      var shown = k.versions.slice(0, idx);
-      shown.forEach(function (v) {
-        var h = line(out, "h4", "v" + v.v + (v.date ? "  ·  " + v.date : ""));
+      if (idx === 0) { line(out, "p", "Up to date: v" + k.versions[0].v + " is the latest.", "ck-ok"); return; }
+      line(out, "p", "v" + k.versions[0].v + " is available" + (idx < k.versions.length ? ", you have v" + verSel.value + ". " + idx + (idx === 1 ? " release" : " releases") + " since:" : ". Everything since the first release:"), "ck-new");
+      k.versions.slice(0, idx).forEach(function (v) {
+        line(out, "h4", "v" + v.v + (v.date ? "  " + v.date : ""));
         var ul = document.createElement("ul"); v.notes.forEach(function (n) { line(ul, "li", n); }); out.appendChild(ul);
       });
       upd.hidden = false;
     }
+    // "claude plugin list" prints "<name>@<marketplace>" then "Version: x.y.z"; find it without a regular expression
+    function versionIn(text, name) {
+      var at = text.indexOf(name + "@"); if (at < 0) return "";
+      var vi = text.indexOf("Version:", at); if (vi < 0) return "";
+      var rest = text.slice(vi + 8).trim(), v = "";
+      for (var i = 0; i < rest.length; i++) { var c = rest.charAt(i); if ((c >= "0" && c <= "9") || c === ".") v += c; else break; }
+      return v;
+    }
+    function fromPaste() {
+      var text = paste.value; pasteMsg.textContent = "";
+      if (!text.trim()) return;
+      var names = Object.keys(data), hit = "", ver = "";
+      for (var i = 0; i < names.length; i++) { var v = versionIn(text, names[i]); if (v) { hit = names[i]; ver = v; break; } }
+      if (!hit) { pasteMsg.textContent = "Could not find a Praxikit kit in that text."; return; }
+      if (kitSel) kitSel.value = hit;
+      fill();
+      var known = data[hit].versions.some(function (x) { return x.v === ver; });
+      verSel.value = known ? ver : "older";
+      pasteMsg.textContent = known ? "Found " + hit + " v" + ver + "." : "Found " + hit + " v" + ver + ", which is not in this changelog, so showing everything.";
+      render();
+    }
     if (kitSel) kitSel.addEventListener("change", fill);
     verSel.addEventListener("change", render);
+    if (paste) paste.addEventListener("input", fromPaste);
     fill();
+    // a link such as ?kit=keel&v=0.5.0 (printed by /keel:status) fills the form
+    try {
+      var qs = new URLSearchParams(location.search), qk = qs.get("kit"), qv = qs.get("v");
+      if (qk && data[qk] && (!box.getAttribute("data-kit") || box.getAttribute("data-kit") === qk)) {
+        if (kitSel) kitSel.value = qk;
+        fill();
+        verSel.value = qv && data[qk].versions.some(function (x) { return x.v === qv; }) ? qv : "older";
+        render();
+      }
+    } catch (e) {}
   });
   var tgl = document.getElementById("theme");
   if (tgl) tgl.addEventListener("click", function () {
@@ -228,7 +300,8 @@ const page = ({ title, depth, body, description, canonical }) => {
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Praxikit">
 <meta name="twitter:card" content="summary">
-${canonical ? `<link rel="canonical" href="${esc(canonical)}">\n` : ""}<link rel="icon" href="${FAVICON}">
+${canonical ? `<link rel="canonical" href="${esc(canonical)}">\n` : ""}<link rel="alternate" type="application/atom+xml" title="Praxikit releases" href="${up}feed.xml">
+<link rel="icon" href="${FAVICON}">
 <link rel="stylesheet" href="${up}style.css">
 <script data-site>${THEME_BOOT}</script>
 </head>
@@ -236,13 +309,13 @@ ${canonical ? `<link rel="canonical" href="${esc(canonical)}">\n` : ""}<link rel
 <a class="skip" href="#main">Skip to content</a>
 <header class="top"><div class="wrap bar">
 <a class="brand" href="${up}" aria-label="Praxikit home">${LOGO}<span>Praxikit</span></a>
-<nav aria-label="Main"><a href="${up}#kits">Kits</a><a href="${up}#whats-new">What's new</a><a href="${up}#update-check">Up to date?</a><a href="${up}#how">How it works</a><a href="${up}#recommended">Recommended</a><a class="gh" href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
+<nav aria-label="Main"><a href="${up}#kits">Kits</a><a href="${up}#updates">Updates</a><a href="${up}#recommended">Recommended</a><a href="${up}#submit">Submit</a><a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
 <button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg></button></nav>
 </div></header>
 <main id="main">
 ${body}
 </main>
-<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>Free, small, readable kits for AI agents. MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${esc(REPO)}/issues/new" rel="noopener noreferrer">Suggest a kit</a><a href="${up}versions.json">versions.json</a></div></div></footer>
+<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>Kits for AI coding agents. MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Submit a kit</a></div></div></footer>
 <script data-site>${SITE_JS}</script>
 </body>
 </html>
@@ -260,94 +333,134 @@ function checker(kits, only) {
   if (!names.length || (only && !data[only])) return "";
   const kitSelect = only ? "" : `<label class="ck-field"><span>Kit</span><select data-ck-kit>${names.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("")}</select></label>`;
   return `<div class="checker" data-checker="${esc(JSON.stringify(data))}"${only ? ` data-kit="${esc(only)}"` : ""}>
+<details class="ck-paste"><summary>Fill this in for me</summary>
+<p class="muted">A web page cannot see what is installed on your machine, so paste the output of <code>claude plugin list</code> and the version is picked for you. The text stays in your browser.</p>
+<textarea data-ck-paste rows="4" spellcheck="false" aria-label="Output of claude plugin list" placeholder="keel@praxikit&#10;  Version: 0.5.0"></textarea>
+<p class="muted" data-ck-pastemsg aria-live="polite"></p></details>
 <div class="ck-row">${kitSelect}<label class="ck-field"><span>Version you have</span><select data-ck-ver></select></label></div>
 <div class="ck-out" data-ck-out hidden aria-live="polite"></div>
 <div data-ck-update hidden><p class="muted">Update with:</p>${copyCmd("/plugin marketplace update praxikit")}<p class="muted">then <code>/reload-plugins</code>.</p></div>
-<p class="muted ck-help">Find your version: run <code>/plugin</code> and open the kit; the version is shown next to its name.</p>
 </div>`;
 }
-const badge = (k) => `<span class="badge kind">${esc(kindOf(k))}</span><span class="ver">v${esc(k.version)}</span>`;
+const badge = (k) => `<span class="kind">${esc(kindOf(k))}</span><span class="ver">v${esc(k.version)}</span>`;
 
 function card(k, up) {
   const skills = k.adds.skills.length, agents = k.adds.agents.length;
-  const bits = [skills ? plural(skills, "skill") : "", agents ? plural(agents, "agent") : ""].filter(Boolean).join(" · ");
+  const bits = [skills ? plural(skills, "skill") : "", agents ? plural(agents, "agent") : ""].filter(Boolean).join(", ");
   const latest = dateOf(k.changelog[0]?.head);
   const groups = [slug(kindOf(k)), ...k.collections.map(slug)].join(" ");
   const text = [k.name, k.promise, ...(k.tags ?? []), ...k.collections, kindOf(k)].join(" ").toLowerCase();
   return `<li class="card" data-card data-groups="${esc(groups)}" data-text="${esc(text)}">
-<div class="card-top">${badge(k)}</div>
+<div class="meta-line">${badge(k)}</div>
 <h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
 <p class="promise">${esc(k.promise)}</p>
-<div class="tags">${(k.tags ?? []).slice(0, 5).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
 <div class="card-foot"><span>${esc(bits)}</span>${latest ? `<span>Updated ${esc(latest)}</span>` : ""}</div>
 </li>`;
 }
 
-// with only a few kits, search and filters are noise; show each kit as a wide card with its install line
+// with only a few kits, search and filters are noise; show each kit as a wide row with its install line
 function featureCard(k) {
-  const bits = [k.adds.skills.length ? plural(k.adds.skills.length, "skill") : "", k.adds.agents.length ? plural(k.adds.agents.length, "agent") : ""].filter(Boolean).join(" · ");
+  const bits = [k.adds.skills.length ? plural(k.adds.skills.length, "skill") : "", k.adds.agents.length ? plural(k.adds.agents.length, "agent") : ""].filter(Boolean).join(", ");
   const latest = dateOf(k.changelog[0]?.head);
+  const checks = trustChecks(k), passed = checks.filter((c) => c.ok).length;
   return `<li class="card feature" data-card data-groups="all" data-text="${esc(k.name.toLowerCase())}">
-<div class="feature-main"><div class="card-top">${badge(k)}${latest ? `<span class="ver">Updated ${esc(latest)}</span>` : ""}</div>
+<div class="feature-main"><div class="meta-line">${badge(k)}${latest ? `<span class="ver">updated ${esc(latest)}</span>` : ""}</div>
 <h3><a class="name" href="k/${esc(k.name)}/">${esc(k.name)}</a></h3>
 <p class="promise">${esc(k.promise)}</p>
-<div class="tags">${(k.tags ?? []).slice(0, 6).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}</div>
-<p class="muted">${esc(bits)}</p></div>
-<div class="feature-side"><p class="label">Install (after adding the marketplace above)</p>${copyCmd(k.install[k.install.length - 1] ?? "")}<p><a class="btn ghost more" href="k/${esc(k.name)}/">Skills, limits and changelog</a></p></div>
+<p class="muted">${esc(bits)} · <a href="k/${esc(k.name)}/#trust">${passed} of ${checks.length} build checks pass</a> · <a href="k/${esc(k.name)}/#access">what it reads and sends</a></p></div>
+<div class="feature-side"><p class="label">Install, after adding the marketplace</p>${copyCmd(k.install[k.install.length - 1] ?? "")}<p><a class="more" href="k/${esc(k.name)}/">Skills, access and changelog</a></p></div>
 </li>`;
+}
+
+function releaseFeed(kits) {
+  return kits.flatMap((k) => k.changelog.map((e) => ({ k, e, date: dateOf(e.head), v: e.head.split(/\s+/)[0] })))
+    .filter((r) => /^\d+\.\d+\.\d+$/.test(r.v))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.v.localeCompare(a.v, undefined, { numeric: true }));
+}
+
+function atomFeed(kits) {
+  const items = releaseFeed(kits);
+  const updated = items[0]?.date ? `${items[0].date}T00:00:00Z` : `${BUILT}T00:00:00Z`;
+  const entry = ({ k, e, date, v }) => `<entry>
+<id>tag:praxikit.github.io,${date || BUILT}:${esc(k.name)}-${esc(v)}</id>
+<title>${esc(k.name)} ${esc(v)}</title>
+<updated>${date || BUILT}T00:00:00Z</updated>
+<link rel="alternate" href="${esc(HOME_URL)}k/${esc(k.name)}/"/>
+<summary type="text">${esc(e.bullets.map((b) => b.replace(/`/g, "")).join("\n"))}</summary>
+</entry>`;
+  return `<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+<id>tag:praxikit.github.io,2026:releases</id>
+<title>Praxikit releases</title>
+<subtitle>New versions of Praxikit kits, from their changelogs.</subtitle>
+<updated>${updated}</updated>
+<link rel="self" href="${esc(HOME_URL)}feed.xml"/>
+<link rel="alternate" href="${esc(HOME_URL)}"/>
+${items.slice(0, 30).map(entry).join("\n")}
+</feed>
+`;
 }
 
 function indexPage(kits, recs) {
   const cols = [...new Set(kits.flatMap((k) => k.collections))];
   const kinds = [...new Set(kits.map(kindOf))];
-  const nSkills = kits.reduce((n, k) => n + k.adds.skills.length, 0);
-  const nAgents = kits.reduce((n, k) => n + k.adds.agents.length, 0);
-  const lastDate = kits.map((k) => dateOf(k.changelog[0]?.head)).filter(Boolean).sort().at(-1) ?? "";
   const many = kits.length >= 4;
   const chip = (id, label) => `<button type="button" class="chip" data-chip="${esc(id)}" aria-pressed="${id === "all"}">${esc(label)}</button>`;
   const chips = [chip("all", "All"), ...kinds.map((x) => chip(slug(x), x)), ...cols.map((c) => chip(slug(c), c))].join("");
 
-  const feed = kits.flatMap((k) => k.changelog.slice(0, 2).map((e) => ({ k, e, date: dateOf(e.head) })))
-    .sort((a, b) => b.date.localeCompare(a.date) || b.e.head.localeCompare(a.e.head)).slice(0, 6);
-  const feedHtml = feed.map(({ k, e, date }) => `<li class="feed-item"><div class="feed-meta"><a href="k/${esc(k.name)}/">${esc(k.name)}</a><span class="ver">${esc(e.head.split(/\s+—\s+/)[0])}</span>${date ? `<time datetime="${esc(date)}">${esc(date)}</time>` : ""}</div><p>${md(short(e.bullets[0] ?? ""))}</p></li>`).join("");
+  const feed = releaseFeed(kits).slice(0, 5);
+  const feedHtml = feed.map(({ k, e, date, v }) => `<li><div class="feed-meta"><a href="k/${esc(k.name)}/">${esc(k.name)} ${esc(v)}</a>${date ? `<time datetime="${esc(date)}">${esc(date)}</time>` : ""}</div><p>${md(short(e.bullets[0] ?? ""))}</p></li>`).join("");
 
   const recHtml = recs.length
-    ? `<ul class="recs">${recs.map((r) => `<li class="card"><div class="card-top"><span class="badge ext">${esc(r.category)}</span></div><h3><a class="name" href="${esc(r.url)}" rel="noopener noreferrer">${esc(r.name)}</a></h3><p class="by">by ${esc(r.author)}</p><p class="promise">${esc(r.why)}</p><p class="meta">Added ${esc(r.added)}</p></li>`).join("")}</ul>`
-    : `<div class="empty"><p><strong>Nothing here yet.</strong> This shelf is for good work by other people that Praxikit did not make.</p><p><a class="btn ghost" href="${esc(REPO)}/issues/new" rel="noopener noreferrer">Recommend something</a></p></div>`;
+    ? `<ul class="recs">${recs.map((r) => `<li class="card"><div class="meta-line"><span class="kind ext">${esc(r.category)}</span><span class="ver">added ${esc(r.added)}</span></div><h3><a class="name" href="${esc(r.url)}" rel="noopener noreferrer">${esc(r.name)}</a></h3><p class="muted">by ${esc(r.author)}</p><p class="promise">${esc(r.why)}</p></li>`).join("")}</ul>`
+    : `<p class="muted">Nothing listed yet. <a href="${esc(ISSUE("recommend.yml"))}" rel="noopener noreferrer">Recommend something</a> you have used and would vouch for.</p>`;
+
+  const demoKit = kits.find((k) => k.preview?.length >= 2);
+  const demo = demoKit ? `<figure class="demo"><figcaption>What ${esc(demoKit.name)} prints in Claude Code</figcaption>${demoKit.preview.slice(0, 2).map((p) => `<pre><code>${esc(p.body)}</code></pre>`).join("")}<p class="muted">${esc(demoKit.preview[1].note ?? "")}</p></figure>` : "";
+  const first = kits[0];
+  const firstDate = dateOf(first?.changelog[0]?.head);
 
   const body = `
 <section class="hero"><div class="wrap hero-in">
-<p class="eyebrow">Free · MIT · every kit versioned</p>
-<h1>Practical kits for building with <span class="hl">AI agents</span>.</h1>
-<p class="lead">Plugins, skills and templates that are small enough to read, versioned so updates reach you, and upfront about what they cannot do.</p>
-<div class="start"><p class="label">1 · Add the marketplace in Claude Code</p>${install(["/plugin marketplace add praxikit/praxikit"])}<p class="label">2 · Install any kit from below, for example</p>${install([kits[0]?.install?.[1] ?? "/plugin install keel@praxikit"])}</div>
-<ul class="stats" aria-label="Catalog at a glance"><li><strong>${kits.length}</strong><span>${kits.length === 1 ? "kit" : "kits"}</span></li><li><strong>${nSkills}</strong><span>skills</span></li><li><strong>${nAgents}</strong><span>agents</span></li>${lastDate ? `<li><strong>${esc(lastDate)}</strong><span>last release</span></li>` : ""}</ul>
+<div class="hero-text">
+<h1>Small, readable kits for AI coding agents.</h1>
+<p class="lead">Plugins, skills and templates for Claude Code, and the same method for Cursor and Codex. Each kit is versioned, has a changelog, and says what it reads, writes and sends.</p>
+<ol class="steps"><li><span class="label">Add the marketplace once, in Claude Code</span>${install(["/plugin marketplace add praxikit/praxikit"])}</li>
+<li><span class="label">Then install a kit, for example</span>${install([first?.install?.[first.install.length - 1] ?? "/plugin install keel@praxikit"])}</li></ol>
+${first ? `<p class="muted">${esc(first.name)} v${esc(first.version)}${firstDate ? `, released ${esc(firstDate)}` : ""}. MIT licence.</p>` : ""}
+</div>
+${demo}
 </div></section>
 
-<section id="kits" class="wrap sec"><div class="sec-head"><h2>Kits built by Praxikit</h2><p class="muted" id="count" aria-live="polite">${plural(kits.length, "kit")}</p></div>
+<section id="kits" class="wrap sec"><div class="sec-head"><h2>Kits</h2><p class="muted" id="count" aria-live="polite">${plural(kits.length, "kit")}</p></div>
 ${many ? `<div class="toolbar"><label class="search"><span class="vh">Search kits</span><input id="q" type="search" placeholder="Search kits  ( / )" autocomplete="off" spellcheck="false"></label><div class="chips" role="group" aria-label="Filter kits">${chips}</div></div>` : ""}
 <ul class="cards${many ? "" : " few"}" id="kits-list">${kits.map((k) => (many ? card(k, "./") : featureCard(k))).join("") || ""}</ul>
-${many ? `<div id="none" hidden class="empty"><p><strong>No kit matches.</strong></p><p><button id="clear" class="btn ghost" type="button">Clear filters</button> <a class="btn ghost" href="${esc(REPO)}/issues/new" rel="noopener noreferrer">Ask for one</a></p></div>` : ""}
-${many ? "" : `<p class="muted soon">Need a different kit? <a href="${esc(REPO)}/issues/new" rel="noopener noreferrer">Ask for one</a>.</p>`}
+${many ? `<div id="none" hidden class="empty"><p><strong>No kit matches.</strong> <button id="clear" class="linklike" type="button">Clear filters</button></p></div>` : ""}
 ${kits.length ? "" : '<p class="muted">No kits yet.</p>'}
 </section>
 
-<section id="whats-new" class="band"><div class="wrap sec"><h2>What's new</h2><p class="muted">Every release is tagged and has a changelog. This is the latest.</p><ul class="feed">${feedHtml || '<li class="muted">No releases yet.</li>'}</ul></div></section>
-
-${checker(kits) ? `<section id="update-check" class="wrap sec"><h2>Am I up to date?</h2><p class="muted">Pick the version you have and see only what changed since.</p>${checker(kits)}</section>` : ""}
-
-<section id="how" class="wrap sec"><h2>How it works</h2>
-<ol class="steps">
-<li><span class="num">1</span><h3>Add once</h3><p>Add the Praxikit marketplace to Claude Code. It is a Git repo; nothing runs until you install a kit.</p></li>
-<li><span class="num">2</span><h3>Install what you need</h3><p>Pick a kit, copy its install line. Each kit page lists the skills, agents and hooks it adds, and its honest limits.</p></li>
-<li><span class="num">3</span><h3>Update with versions</h3><p>Kits follow SemVer and keep a changelog. Run <code>/plugin marketplace update praxikit</code> and your install moves to the new version.</p></li>
-</ol></section>
+<section id="updates" class="wrap sec"><h2>Updates</h2>
+<div class="updates">
+<div><h3>Am I up to date?</h3><p class="muted">Pick the version you have to see only what changed since. Or run <code>/keel:status</code>, which prints a link that fills this in.</p>${checker(kits) || '<p class="muted">No versioned kits yet.</p>'}</div>
+<div><h3>Latest releases</h3><ul class="feed">${feedHtml || '<li class="muted">No releases yet.</li>'}</ul><p><a href="feed.xml">Subscribe with the release feed</a> (Atom, works in any feed reader).</p></div>
+</div></section>
 
 <section id="recommended" class="wrap sec"><h2>Recommended</h2>
-<p class="note">Made by other people. Praxikit has not built or audited these; check anything before you install it.</p>${recHtml}</section>
+<p class="note">Made by other people. Praxikit did not build these and does not promise they are safe; read the source before installing anything.</p>${recHtml}</section>
 
-<section class="cta"><div class="wrap cta-in"><div><h2>Built something useful?</h2><p>Praxikit lists small, readable, free kits. Tell us about yours or ask for one you need.</p></div><a class="btn" href="${esc(REPO)}/issues/new" rel="noopener noreferrer">Suggest a kit</a></div></section>`;
-  return page({ title: "Praxikit — practical kits for AI agents", depth: 0, body, canonical: HOME_URL, description: "Praxikit: practical, free, versioned kits for building with AI agents — plugins, skills, MCP configs and templates." });
+<section id="submit" class="wrap sec"><h2>Submit a kit</h2>
+<div class="submit">
+<div><h3>You built one</h3><p>Describe it, link the repository and say what it reads, writes and sends. Free to submit.</p><p><a class="btn" href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Open the submission form</a></p></div>
+<div><h3>You use someone else's</h3><p>Recommend a kit you have used and would vouch for, and say why.</p><p><a class="btn ghost" href="${esc(ISSUE("recommend.yml"))}" rel="noopener noreferrer">Open the recommendation form</a></p></div>
+</div>
+<p class="muted">Both forms open a GitHub issue, so you need a free GitHub account. A person reads every submission before anything is listed. Nothing is listed for payment.</p></section>
+
+<section class="wrap sec faq"><h2>Questions</h2>
+<details><summary>What happens when I install a kit?</summary><p>Claude Code copies the kit's files and registers its skills, agents and hooks. Each kit page lists the hooks it runs and what it reads, writes and sends, and the source is in the repository if you want to read it first.</p></details>
+<details><summary>How do updates reach me?</summary><p>Run <code>/plugin marketplace update praxikit</code>, then <code>/reload-plugins</code>. Kits use semantic versions and keep a changelog; the checker above shows what changed since yours.</p></details>
+<details><summary>What do the build checks on a kit page mean?</summary><p>They are computed from the files when the site is built: the manifest is complete, the changelog matches the version, the scripts contain no network code. They show the kit is consistent. They are not a security audit.</p></details>
+</section>`;
+  return page({ title: "Praxikit — kits for AI coding agents", depth: 0, body, canonical: HOME_URL, description: "Versioned, readable kits for AI coding agents: plugins, skills and templates, each with a changelog and a list of what it reads, writes and sends." });
 }
 
 function collectionPage(c, kits) {
@@ -372,36 +485,46 @@ function accessBlock(k) {
     parts.push(`<h3>Writes</h3><ul class="access">${k.access.writes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`);
     parts.push(`<h3>Network</h3><p>${esc(k.access.network)}</p><p class="muted">Reads, writes and network are declared by the kit's author. Read the source before you rely on them.</p>`);
   }
-  return parts.length ? `<h2>What it does on your machine</h2>${parts.join("")}` : "";
+  return parts.length ? `<section id="access"><h2>What it does on your machine</h2>${parts.join("")}</section>` : "";
+}
+
+function trustBlock(k) {
+  const checks = trustChecks(k);
+  const short7 = SHA ? SHA.slice(0, 7) : "";
+  const where = SHA ? `commit <a href="${esc(REPO)}/commit/${esc(SHA)}" rel="noopener noreferrer"><code>${esc(short7)}</code></a>, <a href="${esc(REPO)}/commit/${esc(SHA)}/checks" rel="noopener noreferrer">CI results for it</a>` : "a build outside CI, so no commit is shown";
+  return `<section id="trust"><h2>Build checks</h2>
+<ul class="checks">${checks.map((c) => `<li class="${c.ok ? "pass" : "fail"}"><span class="mark" aria-hidden="true">${c.ok ? "✓" : "✗"}</span><span><span class="vh">${c.ok ? "Passed: " : "Failed: "}</span>${esc(c.text)}</span></li>`).join("")}</ul>
+<p class="muted">Computed from the files at ${where}, built ${esc(BUILT)}. These show the kit is consistent. They are not a security audit and do not mean the kit is safe.</p></section>`;
 }
 
 function previewBlock(k) {
   if (!k.preview?.length) return "";
-  return `<h2>What you'll see</h2><div class="previews">${k.preview.map((p) => `<figure class="preview"><figcaption><strong>${esc(p.title)}</strong>${p.note ? `<span class="muted">${esc(p.note)}</span>` : ""}</figcaption><pre><code>${esc(p.body)}</code></pre></figure>`).join("")}</div>`;
+  return `<section><h2>What you'll see</h2><div class="previews">${k.preview.map((p) => `<figure class="preview"><figcaption><strong>${esc(p.title)}</strong>${p.note ? `<span class="muted">${esc(p.note)}</span>` : ""}</figcaption><pre><code>${esc(p.body)}</code></pre></figure>`).join("")}</div></section>`;
 }
 
 function kitPage(k) {
   const tile = (s, label) => `<li class="tile"><span class="tile-kind">${label}</span><strong>${esc(label === "skill" && k.kind === "plugin" ? `/${k.name}:${s.name}` : s.name)}</strong><p>${esc(short(s.description))}</p></li>`;
   const adds = [];
-  if (k.adds.skills.length) adds.push(`<h2>Skills it adds <span class="count">${k.adds.skills.length}</span></h2><ul class="tiles">${k.adds.skills.map((s) => tile(s, "skill")).join("")}</ul>`);
-  if (k.adds.agents.length) adds.push(`<h2>Agents it adds <span class="count">${k.adds.agents.length}</span></h2><ul class="tiles">${k.adds.agents.map((s) => tile(s, "agent")).join("")}</ul>`);
-  const log = k.changelog.map((e, i) => `<li class="log-item"><div class="log-head"><h3>${esc(e.head)}</h3>${i === 0 ? '<span class="badge kind">Latest</span>' : ""}</div><ul>${e.bullets.map((b) => `<li>${md(b)}</li>`).join("")}</ul></li>`).join("");
+  if (k.adds.skills.length) adds.push(`<section><h2>Skills <span class="count">${k.adds.skills.length}</span></h2><ul class="tiles">${k.adds.skills.map((s) => tile(s, "skill")).join("")}</ul></section>`);
+  if (k.adds.agents.length) adds.push(`<section><h2>Agents <span class="count">${k.adds.agents.length}</span></h2><ul class="tiles">${k.adds.agents.map((s) => tile(s, "agent")).join("")}</ul></section>`);
+  const log = k.changelog.map((e, i) => `<li class="log-item"><div class="log-head"><h3>${esc(e.head)}</h3>${i === 0 ? '<span class="kind">Latest</span>' : ""}</div><ul>${e.bullets.map((b) => `<li>${md(b)}</li>`).join("")}</ul></li>`).join("");
   const latest = dateOf(k.changelog[0]?.head);
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../../">All kits</a> / ${esc(kindOf(k))}</p>
 <h1>${esc(k.name)}</h1>
-<p class="meta">${badge(k)}${latest ? `<span>Released ${esc(latest)}</span>` : ""}<span>${k.collections.map((c) => `<a href="../../c/${slug(c)}/">${esc(c)}</a>`).join(", ")}</span></p>
+<p class="meta-line">${badge(k)}${latest ? `<span>released ${esc(latest)}</span>` : ""}<span>${k.collections.map((c) => `<a href="../../c/${slug(c)}/">${esc(c)}</a>`).join(", ")}</span></p>
 <p class="lead">${esc(k.promise)}</p>
 <div class="two">
 <div class="main-col">
 ${previewBlock(k)}
 ${adds.join("\n")}
 ${accessBlock(k)}
-<h2>Honest limits</h2><ul class="limits">${k.limits.map((l) => `<li>${md(l)}</li>`).join("")}</ul>
-<h2>Changelog</h2>${log ? `<ol class="log">${log}</ol>` : '<p class="muted">No changelog.</p>'}
+${trustBlock(k)}
+<section><h2>Honest limits</h2><ul class="limits">${k.limits.map((l) => `<li>${md(l)}</li>`).join("")}</ul></section>
+<section><h2>Changelog</h2>${log ? `<ol class="log">${log}</ol>` : '<p class="muted">No changelog.</p>'}</section>
 </div>
 <aside class="side"><div class="panel"><h2>Install</h2>${installBlock(k)}<p class="muted">Update later (Claude Code):</p>${copyCmd("/plugin marketplace update praxikit")}<p class="muted">then <code>/reload-plugins</code>.</p>
 ${checker([k], k.name) ? `<h2 class="ck-title">Am I up to date?</h2>${checker([k], k.name)}` : ""}
-<p class="side-links"><a class="btn ghost" href="${esc(REPO)}/tree/main/kits/${esc(k.name)}" rel="noopener noreferrer">Source on GitHub</a></p></div></aside>
+<p class="side-links"><a href="${esc(REPO)}/tree/main/kits/${esc(k.name)}" rel="noopener noreferrer">Source on GitHub</a></p></div></aside>
 </div></div>`;
   return page({ title: `${k.name} — Praxikit`, depth: 2, body, description: k.promise });
 }
@@ -421,6 +544,7 @@ mkdirSync(OUT, { recursive: true });
 copyFileSync(join(here, "style.css"), join(OUT, "style.css"));
 write("index.html", indexPage(kits, recs));
 write("404.html", notFoundPage());
+write("feed.xml", atomFeed(kits));
 for (const c of new Set(kits.flatMap((k) => k.collections))) write(`c/${slug(c)}/index.html`, collectionPage(c, kits));
 for (const k of kits) write(`k/${k.name}/index.html`, kitPage(k));
 write("versions.json", JSON.stringify(Object.fromEntries(kits.map((k) => [k.name, { version: k.version, kind: k.kind }])), null, 2) + "\n");

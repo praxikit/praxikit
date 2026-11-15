@@ -1,0 +1,68 @@
+name: Submit a kit
+description: You built a plugin, skill, MCP config or template and want it listed on Praxikit.
+title: "Submit: "
+labels: ["submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. A person reads every submission before anything is listed. Nothing is listed for payment, and listing is not a promise that a kit is safe. Do not paste secrets or private code here; this issue is public.
+  - type: input
+    id: name
+    attributes:
+      label: Kit name
+    validations:
+      required: true
+  - type: input
+    id: repo
+    attributes:
+      label: Repository link
+      description: A public https:// link. We read the source from there.
+      placeholder: https://github.com/you/your-kit
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is it?
+      options: [Plugin, Skill, Agent, Hook, MCP config, Template, Adapter]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What does it do, in two or three sentences?
+    validations:
+      required: true
+  - type: input
+    id: licence
+    attributes:
+      label: Licence
+      description: For example MIT or Apache-2.0. It must let others use it freely.
+    validations:
+      required: true
+  - type: textarea
+    id: access
+    attributes:
+      label: What does it read, write and send?
+      description: Files it reads, files it writes, any network calls or commands it runs. Say "nothing" where that is true.
+    validations:
+      required: true
+  - type: textarea
+    id: limits
+    attributes:
+      label: Honest limits
+      description: What it does not do, or where it can be wrong.
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before you submit
+      options:
+        - label: I wrote this, or I have permission from the author to submit it.
+          required: true
+        - label: It is free to use and contains no secrets.
+          required: true
+        - label: I understand listing is decided by a person and is not a safety guarantee.
+          required: true

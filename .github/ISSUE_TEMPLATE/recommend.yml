@@ -1,0 +1,56 @@
+name: Recommend someone else's kit
+description: A kit you have used and would vouch for, made by someone else.
+title: "Recommend: "
+labels: ["recommendation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Recommended entries are made by other people. Praxikit points to them and says why; it does not promise they are safe. A person reads each one before it is listed. This issue is public.
+  - type: input
+    id: name
+    attributes:
+      label: Name of the kit
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Link
+      description: A public https:// link to the source.
+    validations:
+      required: true
+  - type: input
+    id: author
+    attributes:
+      label: Who made it?
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options: [Plugin, Skill, Agent, Hook, MCP config, Template, Adapter]
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why do you recommend it?
+      description: What you used it for and what it did well. One honest paragraph.
+    validations:
+      required: true
+  - type: textarea
+    id: caveats
+    attributes:
+      label: Anything to watch out for?
+      description: Permissions it asks for, rough edges, things it did that surprised you.
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before you submit
+      options:
+        - label: I have used it myself.
+          required: true
+        - label: I am not paid or otherwise rewarded for recommending it, or I have said so above.
+          required: true
