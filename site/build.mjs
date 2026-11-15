@@ -453,11 +453,12 @@ ${kits.length ? "" : '<p class="muted">No kits yet.</p>'}
 <div><h3>You built one</h3><p>Describe it, link the repository and say what it reads, writes and sends. Free to submit.</p><p><a class="btn" href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Open the submission form</a></p></div>
 <div><h3>You use someone else's</h3><p>Recommend a kit you have used and would vouch for, and say why.</p><p><a class="btn ghost" href="${esc(ISSUE("recommend.yml"))}" rel="noopener noreferrer">Open the recommendation form</a></p></div>
 </div>
-<p class="muted">Both forms open a GitHub issue, so you need a free GitHub account. A person reads every submission before anything is listed. Nothing is listed for payment.</p></section>
+<p class="muted">Both forms open a GitHub issue, so you need a free GitHub account. An automatic check reads the repository without running it and comments what it found, then a person reads every submission before anything is listed. Nothing is listed for payment.</p></section>
 
 <section class="wrap sec faq"><h2>Questions</h2>
 <details><summary>What happens when I install a kit?</summary><p>Claude Code copies the kit's files and registers its skills, agents and hooks. Each kit page lists the hooks it runs and what it reads, writes and sends, and the source is in the repository if you want to read it first.</p></details>
 <details><summary>How do updates reach me?</summary><p>Run <code>/plugin marketplace update praxikit</code>, then <code>/reload-plugins</code>. Kits use semantic versions and keep a changelog; the checker above shows what changed since yours.</p></details>
+<details><summary>What happens after I submit a kit?</summary><p>A bot reads the public repository at the commit you linked, without running or installing anything, and comments on your issue: licence, secret-like strings, code that runs automatically, network access, binaries and hidden instructions. It reports what it found and never says a kit is safe. A person then reads the source and decides; a listing is pinned to the commit they reviewed.</p></details>
 <details><summary>What do the build checks on a kit page mean?</summary><p>They are computed from the files when the site is built: the manifest is complete, the changelog matches the version, the scripts contain no network code. They show the kit is consistent. They are not a security audit.</p></details>
 </section>`;
   return page({ title: "Praxikit — kits for AI coding agents", depth: 0, body, canonical: HOME_URL, description: "Versioned, readable kits for AI coding agents: plugins, skills and templates, each with a changelog and a list of what it reads, writes and sends." });

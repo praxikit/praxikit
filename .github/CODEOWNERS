@@ -1,0 +1,3 @@
+# Changes to the scanner and to the workflows that run it need the owner's review.
+/scripts/check-submission.mjs @royal-programmer
+/.github/ @royal-programmer

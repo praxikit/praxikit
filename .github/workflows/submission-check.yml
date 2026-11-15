@@ -1,0 +1,42 @@
+name: submission-check
+# Reads (never runs) a repository submitted through the issue forms and comments what it found.
+# The script comes from the default branch; nothing from the submitted repository is executed or installed.
+on:
+  issues:
+    types: [opened, edited, reopened]
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: submission-${{ github.event.issue.number }}
+  cancel-in-progress: true
+jobs:
+  scan:
+    if: contains(github.event.issue.labels.*.name, 'submission') || contains(github.event.issue.labels.*.name, 'recommendation')
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read the submitted repository
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/check-submission.mjs --issue-env ISSUE_BODY --out "$RUNNER_TEMP/comment.md" --label-out "$RUNNER_TEMP/label.txt"
+      - name: Comment and label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          label="$(cat "$RUNNER_TEMP/label.txt")"
+          gh issue comment "$ISSUE" --body-file "$RUNNER_TEMP/comment.md" --edit-last --create-if-none
+          for old in no-flags-found checks-flagged checks-failed needs-manual-review; do
+            if [ "$old" != "$label" ]; then gh issue edit "$ISSUE" --remove-label "$old" 2>/dev/null || true; fi
+          done
+          gh issue edit "$ISSUE" --add-label "$label"
