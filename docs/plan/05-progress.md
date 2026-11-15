@@ -113,5 +113,5 @@
 - `node --no-warnings api/test-submit.mjs` (fake GitHub, real SQLite via node:sqlite) in CI. Not run against the real GitHub or D1 yet. Needs the owner to create the D1 database, apply the schema, add the binding and (advised) a read-only token. Unverified: Worker CPU-time headroom for large repo trees on the free plan.
 
 ## 2026-11-15 — Live test of phase 2 found two bugs (fixed)
-- The submit form posted from the real browser was refused: with  browsers send  on same-origin form posts, so the Origin check failed. Fixed by using  and also accepting a missing or null Origin when  (a header a web page cannot set). The fake-browser tests had always sent a proper Origin, so they could not catch it: lesson recorded, the new tests send Origin: null.
+- The submit form posted from the real browser was refused: with `Referrer-Policy: no-referrer` browsers send `Origin: null` on same-origin form posts, so the Origin check failed. Fixed by using `Referrer-Policy: same-origin` and also accepting a missing or null Origin when `Sec-Fetch-Site: same-origin` (a header a web page cannot set). The fake-browser tests had always sent a proper Origin, so they could not catch it; the new tests send `Origin: null`.
 - The form looked unstyled: the stylesheet is cached for an hour and the new rules were not picked up. The stylesheet address now carries a hash of its content.
