@@ -17,7 +17,7 @@ import { signToken, verifyToken, randomToken, safeEqual, parseCookies, cookie } 
 import { authorizeUrl, exchangeCode, getUser, decideRole, listPending } from "./lib/github.mjs";
 import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, precheck, UserError } from "./lib/repo.mjs";
 import { storeFor } from "./lib/store.mjs";
-import { dispatchApprove, syncPublishing, publishingConfigured } from "./lib/publish.mjs";
+import { dispatchApprove, dispatchScan, syncPublishing, syncScans, publishingConfigured } from "./lib/publish.mjs";
 import { CSS, signInPage, messagePage, adminPage, submitPage, minePage, detailPage, FLASH } from "./lib/html.mjs";
 
 const SESSION_COOKIE = "__Host-praxikit-session";
@@ -148,6 +148,9 @@ async function approveRoute(request, env, s, id) {
   if (!name || name.length > 80 || !KINDS.includes(kind) || !text || text.length > 400) return back(base, "bad");
   const row = await store.get(id);
   if (!row || row.status !== "pending") return back(base, "already");
+  // approving needs the full checks to have run, on a commit we can pin the listing to
+  if (row.scan_state !== "done" || !/^[0-9a-f]{12}$/.test(String(row.scan_commit)) || !["no-flags-found", "checks-flagged"].includes(row.scan_label)) return back(base, "needscan");
+  if (row.scan_label === "checks-flagged" && f.get("read") !== "yes") return back(base, "needread");
   if (!(await store.approve(id, { by: s.sub, name, kind, text, at: new Date().toISOString() }))) return back(base, "already");
   const state = await startPublish(env, store, { ...row, final_name: name, final_kind: kind, final_text: text, decided_by: s.sub });
   return back(base, state === "dispatched" ? "approved" : "failed");
@@ -161,6 +164,27 @@ async function rejectRoute(request, env, s, id) {
   const note = oneLine(f.get("note"), 400);
   if (!note || note.length > 300) return back(base, "bad");
   return back(base, (await store.reject(id, { by: s.sub, note, at: new Date().toISOString() })) ? "rejected" : "already");
+}
+
+async function scanRoute(request, env, s, id) {
+  const stop = gate(request, env, s); if (stop) return stop;
+  const store = storeFor(env); const base = `/admin/submissions/${id}`;
+  if (!store) return send(messagePage("Not available", "This app has no database connected.", false), { status: 503 });
+  if (!publishingConfigured(env)) return back(base, "nopublish");
+  const row = await store.get(id);
+  if (!row || row.status !== "pending") return back(base, "already");
+  if (row.scan_state === "running") return back(base, "scanning");
+  const at = new Date().toISOString();
+  await store.setScan(id, { state: "running", at });
+  try { await dispatchScan(env, row); } catch { await store.setScan(id, { state: "failed", at }); return back(base, "scanfail"); }
+  return back(base, "scanstarted");
+}
+
+async function reopenRoute(request, env, s, id) {
+  const stop = gate(request, env, s); if (stop) return stop;
+  const store = storeFor(env); const base = `/admin/submissions/${id}`;
+  if (!store) return send(messagePage("Not available", "This app has no database connected.", false), { status: 503 });
+  try { return back(base, (await store.reopen(id)) ? "reopened" : "already"); } catch (e) { if (/UNIQUE/i.test(String(e?.message))) return back(base, "already"); throw e; }
 }
 
 async function retryRoute(request, env, s, id) {
@@ -251,7 +275,7 @@ async function route(request, env) {
     const store = storeFor(env);
     let recent = [];
     if (store) {
-      try { await syncPublishing(env, store, listed(env)); subs = await store.pending(); recent = await store.recent(); } catch { queueError = queueError || "The submissions database could not be read just now."; }
+      try { await syncPublishing(env, store, listed(env)); await syncScans(env, store); subs = await store.pending(); recent = await store.recent(); } catch { queueError = queueError || "The submissions database could not be read just now."; }
     }
     return send(adminPage({ session: s, env, queue, queueError, subs, recent, flash: flashOf(url) }));
   }
@@ -262,15 +286,15 @@ async function route(request, env) {
     if (!s) return send(signInPage());
     if (s.role !== "admin") return send(messagePage("No access", "Only maintainers can see submissions.", false), { status: 403 });
     const store = storeFor(env);
-    if (store) { try { await syncPublishing(env, store, listed(env)); } catch { /* the page still works without a refresh */ } }
+    if (store) { try { await syncPublishing(env, store, listed(env)); await syncScans(env, store); } catch { /* the page still works without a refresh */ } }
     const row = store ? await store.get(Number(detail[1])) : null;
     return row ? send(detailPage({ session: s, s: row, flash: flashOf(url), canPublish: publishingConfigured(env) })) : send(messagePage("Not found", "There is no such submission.", false), { status: 404 });
   }
 
-  const action = /^\/admin\/submissions\/(\d{1,9})\/(approve|reject|retry)$/.exec(path);
+  const action = /^\/admin\/submissions\/(\d{1,9})\/(approve|reject|retry|scan|reopen)$/.exec(path);
   if (action && method === "POST") {
     const s = await sessionOf(request, env), id = Number(action[1]);
-    return action[2] === "approve" ? approveRoute(request, env, s, id) : action[2] === "reject" ? rejectRoute(request, env, s, id) : retryRoute(request, env, s, id);
+    return { approve: approveRoute, reject: rejectRoute, retry: retryRoute, scan: scanRoute, reopen: reopenRoute }[action[2]](request, env, s, id);
   }
 
   return send(messagePage("Not found", "There is nothing here.", false), { status: 404 });

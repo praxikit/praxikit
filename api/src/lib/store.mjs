@@ -38,6 +38,17 @@ export function d1Store(db) {
       const r = await db.prepare("UPDATE submissions SET publish_state = 'dispatching', publish_note = '' WHERE id = ? AND status = 'approved' AND publish_state = 'blocked'").bind(id).run();
       return Number(r.meta?.changes) === 1;
     },
+    /** Records where the full checks stand. Only a pending submission can be scanned. */
+    async setScan(id, { state, label = "", commit = "", runUrl = "", at = "" }) {
+      const r = await db.prepare("UPDATE submissions SET scan_state = ?, scan_label = ?, scan_commit = ?, scan_run_url = ?, scan_at = ? WHERE id = ? AND status = 'pending'").bind(state, label, commit, runUrl, at, id).run();
+      return Number(r.meta?.changes) === 1;
+    },
+    async scanning(limit = 10) { return (await db.prepare("SELECT * FROM submissions WHERE status = 'pending' AND scan_state = 'running' ORDER BY id LIMIT ?").bind(limit).all()).results ?? []; },
+    /** A publish that was blocked (for instance by a flagged scan) goes back to review so the checks can be read. */
+    async reopen(id) {
+      const r = await db.prepare("UPDATE submissions SET status = 'pending', publish_state = '', publish_note = '', decided_by = '', decided_at = '' WHERE id = ? AND status = 'approved' AND publish_state = 'blocked'").bind(id).run();
+      return Number(r.meta?.changes) === 1;
+    },
     async inFlight(limit = 10) { return (await db.prepare("SELECT * FROM submissions WHERE status = 'approved' AND publish_state IN ('dispatching','dispatched') ORDER BY id LIMIT ?").bind(limit).all()).results ?? []; },
     async byUser(userId, limit = 20) { return (await db.prepare("SELECT * FROM submissions WHERE submitted_by_id = ? ORDER BY id DESC LIMIT ?").bind(userId, limit).all()).results ?? []; },
   };

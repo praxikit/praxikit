@@ -1,0 +1,55 @@
+name: scan-submission
+# Started by the admin app when a maintainer asks for the full checks on a submission, before deciding.
+# It only reads: it clones the public repository without running anything and reports what it finds.
+# The app reads the result from this run's job name ("result <label> <commit>"), and the maintainer reads the
+# full report in the run's summary. The input is untrusted and is validated before anything is fetched.
+run-name: "scan #${{ inputs.submission_id }}"
+on:
+  workflow_dispatch:
+    inputs:
+      submission_id:
+        description: Submission number in the admin app
+        required: true
+        type: string
+      url:
+        description: Repository link, https://github.com/owner/repo
+        required: true
+        type: string
+permissions: {}
+concurrency:
+  group: scan-${{ inputs.submission_id }}
+  cancel-in-progress: true
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    outputs:
+      label: ${{ steps.scan.outputs.label }}
+      commit: ${{ steps.scan.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: scan
+        env:
+          IN_URL: ${{ inputs.url }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          node scripts/check-submission.mjs --url "$IN_URL" --out "$RUNNER_TEMP/report.md" --label-out "$RUNNER_TEMP/label.txt" --commit-out "$RUNNER_TEMP/commit.txt"
+          cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "label=$(cat "$RUNNER_TEMP/label.txt")" >> "$GITHUB_OUTPUT"
+          echo "commit=$(cat "$RUNNER_TEMP/commit.txt")" >> "$GITHUB_OUTPUT"
+  report:
+    needs: scan
+    # the admin app reads this job's name to learn the result and the commit that was checked
+    name: result ${{ needs.scan.outputs.label }} ${{ needs.scan.outputs.commit }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: echo "Checks finished. The full report is in the summary of the scan job."

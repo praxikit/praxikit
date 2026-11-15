@@ -115,3 +115,26 @@ Safety: approving, rejecting and retrying need a maintainer, a request from this
 4. Try it with a submission you actually want listed. Approving publishes it for real. Watch the *Actions* tab for a run called `approve #N`.
 
 Checks: `node --no-warnings api/test-approve.mjs` covers approving, rejecting, retrying, blocked and refused jobs, stale sign-ins and direct publishing.
+
+## Phase 3b: the full checks come before the decision
+
+A submission can no longer be approved blind. On its page, **Run the full checks** starts the `scan-submission` workflow on GitHub (read-only: it clones the public repository without running anything). When it finishes, the page shows the result and a link to the full report (open the *scan* job's Summary). **Approve and publish** unlocks only after the checks have run:
+
+- *Found nothing to look at*: approve.
+- *Found things to look at*: open the report, then tick the box saying you read it, then approve.
+- *Failed* or *could not be read automatically*: it cannot be approved. Reject it, or wait for the submitter to fix it.
+
+An approval is pinned to the commit the checks ran on. If the repository changes before the publish job runs, publishing stops and the checks must be run again. A maintainer's own submission at `/submit` still publishes directly, but only if the checks find nothing to look at; otherwise it is Blocked, and **Back to review** puts it on the normal path.
+
+The scan report is also quieter: network commands and `eval` in ordinary documentation are counted but not flagged; code, and the files that instruct an agent (SKILL.md, agents, commands, rules), are. Credential-looking strings in test or example files are a flag for a person to check; provider-shaped keys always fail.
+
+### Setup for phase 3b
+
+1. Pull and add the new columns to your existing database, **once**:
+   ```bash
+   npx wrangler d1 execute praxikit-admin --remote --file=migrations/0003_scan.sql
+   ```
+2. Redeploy: `npx wrangler deploy`. The same dispatch token covers the new workflow (it needs no extra permission).
+3. Open a pending submission, click **Run the full checks**, wait for it, read the result, then decide.
+
+Checks: `node --no-warnings api/test-approve.mjs` covers the scan flow, the pin to the checked commit, clean-only direct publishing, retries and reopening.

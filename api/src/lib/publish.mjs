@@ -20,7 +20,9 @@ export async function dispatchApprove(env, s) {
   try {
     r = await fetch(`${API}/repos/${env.REPO}/actions/workflows/${WORKFLOW}/dispatches`, {
       method: "POST", headers: hdr(env.GITHUB_DISPATCH_TOKEN),
-      body: JSON.stringify({ ref: "main", inputs: { submission_id: String(s.id), url: s.repo_url, name: s.final_name, kind: s.final_kind, source: s.source, author: s.owner, why: s.final_text, decided_by: s.decided_by } }),
+      body: JSON.stringify({ ref: "main", inputs: { submission_id: String(s.id), url: s.repo_url, name: s.final_name, kind: s.final_kind, source: s.source, author: s.owner, why: s.final_text, decided_by: s.decided_by,
+        // a listing approved after reading the checks is pinned to the commit they ran on; a direct publish has no reader, so it must come out clean
+        expected_commit: /^[0-9a-f]{12}$/.test(String(s.scan_commit ?? "")) ? s.scan_commit : "", require_clean: /^[0-9a-f]{12}$/.test(String(s.scan_commit ?? "")) ? "false" : "true" } }),
     });
   } catch { throw new UserError("GitHub could not be reached, so the publish job did not start."); }
   if (r.status !== 204) throw new UserError(r.status === 401 || r.status === 403 || r.status === 404 ? "GitHub refused to start the publish job. The app's token may be missing, expired or lacking the Actions permission." : "GitHub could not start the publish job.");
@@ -65,6 +67,63 @@ export async function syncPublishing(env, store, listed) {
     if (run.conclusion === "success" && (await listed(s.repo_key))) { await store.setPublish(s.id, "listed", run.url); changed++; }
     else if (run.conclusion === "success") continue; // finished, but the live list has not caught up yet
     else { await store.setPublish(s.id, "blocked", `The publish job stopped, most often because the automatic scan failed. Details: ${run.url}`); changed++; }
+  }
+  return changed;
+}
+
+// ---- the full checks, run before a decision
+
+const SCAN_WORKFLOW = "scan-submission.yml";
+const JOB = /^result (no-flags-found|checks-flagged|checks-failed|needs-manual-review) ([0-9a-f]{12}|none)$/;
+
+/** Starts the read-only scan for one submission. Throws UserError if GitHub refuses. */
+export async function dispatchScan(env, s) {
+  if (!publishingConfigured(env)) throw new UserError("Checks are not connected yet: the app has no token to start the check job.");
+  let r;
+  try { r = await fetch(`${API}/repos/${env.REPO}/actions/workflows/${SCAN_WORKFLOW}/dispatches`, { method: "POST", headers: hdr(env.GITHUB_DISPATCH_TOKEN), body: JSON.stringify({ ref: "main", inputs: { submission_id: String(s.id), url: s.repo_url } }) }); }
+  catch { throw new UserError("GitHub could not be reached, so the check job did not start."); }
+  if (r.status !== 204) throw new UserError("GitHub could not start the check job. The app's token may be missing, expired or lacking the Actions permission.");
+}
+
+/** Latest scan run per submission number: Map(id -> { runId, status, conclusion, created, url }). */
+export async function scanRuns(env) {
+  const out = new Map();
+  try {
+    const r = await fetch(`${API}/repos/${env.REPO}/actions/workflows/${SCAN_WORKFLOW}/runs?event=workflow_dispatch&per_page=30`, { headers: hdr(env.GITHUB_DISPATCH_TOKEN) });
+    if (!r.ok) return out;
+    for (const run of ((await r.json()).workflow_runs ?? []).slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))) {
+      const m = /^scan #(\d{1,9})$/.exec(String(run.display_title ?? run.name ?? ""));
+      if (m && Number.isInteger(run.id)) out.set(Number(m[1]), { runId: run.id, status: String(run.status ?? ""), conclusion: String(run.conclusion ?? ""), created: String(run.created_at ?? ""), url: `https://github.com/${env.REPO}/actions/runs/${run.id}` });
+    }
+  } catch { /* unreadable: the state stays "running" and is checked again next time */ }
+  return out;
+}
+
+/** The result job's name carries the outcome: "result <label> <12-character commit>". */
+export async function scanResult(env, runId) {
+  try {
+    const r = await fetch(`${API}/repos/${env.REPO}/actions/runs/${runId}/jobs?per_page=10`, { headers: hdr(env.GITHUB_DISPATCH_TOKEN) });
+    if (!r.ok) return null;
+    for (const j of (await r.json()).jobs ?? []) { const m = JOB.exec(String(j.name ?? "")); if (m) return { label: m[1], commit: m[2] === "none" ? "" : m[2] }; }
+  } catch { /* fall through */ }
+  return null;
+}
+
+/** Moves running scans forward. Returns the number of rows changed. */
+export async function syncScans(env, store) {
+  const rows = await store.scanning();
+  if (!rows.length || !publishingConfigured(env)) return 0;
+  const runs = await scanRuns(env);
+  let changed = 0;
+  for (const s of rows) {
+    const run = runs.get(s.id);
+    // only a run that started after this scan was requested counts (an older run for the same submission must not answer for it)
+    const mine = run && Date.parse(run.created) >= Date.parse(s.scan_at) - 60_000;
+    if (!mine) { if (Date.now() - Date.parse(s.scan_at) > 15 * 60_000) { await store.setScan(s.id, { state: "failed", at: s.scan_at }); changed++; } continue; }
+    if (run.status !== "completed") continue;
+    const res = run.conclusion === "success" ? await scanResult(env, run.runId) : null;
+    await store.setScan(s.id, res ? { state: "done", label: res.label, commit: res.commit, runUrl: run.url, at: s.scan_at } : { state: "failed", runUrl: run.url, at: s.scan_at });
+    changed++;
   }
   return changed;
 }

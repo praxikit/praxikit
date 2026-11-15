@@ -18,7 +18,7 @@ button.ghost,.btn.ghost{background:transparent;color:var(--accent)}
 table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line)}th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);font-size:.93rem;vertical-align:top}th{color:var(--muted);font-weight:600}
 ul.links{padding-left:1.2rem}ul.links li{margin:.35rem 0}
 label{display:block;font-weight:600;margin:1rem 0 .3rem}input[type=text],input[type=url],textarea{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
-textarea{min-height:5rem;resize:vertical}select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}button[disabled]{opacity:.5;cursor:not-allowed}.hint{font-weight:400;color:var(--muted);font-size:.88rem}
+textarea{min-height:5rem;resize:vertical}select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}button[disabled]{opacity:.5;cursor:not-allowed}label.check{font-weight:400;display:flex;gap:8px;align-items:center}.hint{font-weight:400;color:var(--muted);font-size:.88rem}
 blockquote{margin:.5rem 0;padding:.4rem 1rem;border-left:3px solid var(--line);color:var(--muted)}
 dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:6px 18px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}
 `;
@@ -78,6 +78,12 @@ export const FLASH = {
   nopublish: "Publishing is not connected yet: the app has no token to start the publish job. Nothing was changed.",
   failed: "Approved, but GitHub would not start the publish job. You can try again from this page.",
   direct: "Saved, and since you are a maintainer it is being published now (after the usual scan).",
+  needscan: "Run the full checks first. Approving is only possible after they have run and found nothing that blocks it.",
+  needread: "Tick the box to confirm you have opened and read the full report: this one has things to look at.",
+  scanning: "The checks are already running. Reload in a minute.",
+  scanstarted: "The full checks have started on GitHub. Reload in a minute or two.",
+  scanfail: "GitHub would not start the check job. Try again.",
+  reopened: "Back in review. Run the full checks and read them before approving.",
   held: "Saved for review. It could not be published directly (no recognisable type, a failed quick check, or your sign-in is older than 30 minutes); open it to decide.",
 };
 const PUBLISH = {
@@ -96,13 +102,13 @@ export function minePage({ session, rows, flash }) {
 export function adminPage({ session, env, queue, queueError, subs, recent, flash }) {
   const via = session.via === "owner" ? `an owner of ${esc(env.ORG)}` : `a member of ${esc(env.ORG)}/${esc(env.TEAM)}`;
   const issueRows = queue.map((q) => `<tr><td><a href="${esc(REPO_LINK(env.REPO, `/issues/${q.number}`))}" rel="noopener noreferrer">#${q.number}</a></td><td>${esc(q.title)}</td><td>${esc(q.by)}</td><td>${esc(q.label)}</td><td>${esc(q.checks || "waiting")}</td><td>${esc(q.created)}</td></tr>`).join("");
-  const subRows = (subs ?? []).map((s) => `<tr><td><a href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a><br><span class="muted">${esc(s.owner)}</span></td><td>${esc(s.kind_guess || "?")}</td><td>${esc(s.source)}</td><td>${esc(s.license || "none")}</td><td>${status(s.precheck_status)}</td><td>${esc(s.submitted_by)}</td><td>${esc(String(s.created_at).slice(0, 10))}</td></tr>`).join("");
+  const subRows = (subs ?? []).map((s) => `<tr><td><a href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a><br><span class="muted">${esc(s.owner)}</span></td><td>${esc(s.kind_guess || "?")}</td><td>${esc(s.source)}</td><td>${esc(s.license || "none")}</td><td>${status(s.precheck_status)}</td><td>${esc(s.scan_state === "done" ? (s.scan_label === "no-flags-found" ? "nothing found" : s.scan_label === "checks-flagged" ? "read the report" : s.scan_label) : s.scan_state === "running" ? "running" : s.scan_state === "failed" ? "did not finish" : "not run")}</td><td>${esc(s.submitted_by)}</td><td>${esc(String(s.created_at).slice(0, 10))}</td></tr>`).join("");
   const recentRows = (recent ?? []).map((s) => `<tr><td><a href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a></td><td>${esc(s.status)}</td><td>${esc(s.status === "approved" ? (PUBLISH[s.publish_state] ?? s.publish_state) : s.status === "rejected" ? s.decision_note : "")}</td><td>${esc(s.decided_by)}</td><td>${esc(String(s.decided_at).slice(0, 10))}</td></tr>`).join("");
   return page("Admin — Praxikit", `${nav(session)}
 <h1>Catalogue admin</h1>
 <p class="muted">You can maintain the catalogue because you are ${via}.</p>
 ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
-${subs ? `<h2>New submissions (${subs.length})</h2>${subRows ? `<table><thead><tr><th>Repository</th><th>Type</th><th>As</th><th>Licence</th><th>Quick check</th><th>By</th><th>Opened</th></tr></thead><tbody>${subRows}</tbody></table><p class="muted">Open one to approve or reject it.</p>` : '<p class="muted">Nothing is waiting.</p>'}` : ""}
+${subs ? `<h2>New submissions (${subs.length})</h2>${subRows ? `<table><thead><tr><th>Repository</th><th>Type</th><th>As</th><th>Licence</th><th>Quick check</th><th>Full checks</th><th>By</th><th>Opened</th></tr></thead><tbody>${subRows}</tbody></table><p class="muted">Open one to approve or reject it.</p>` : '<p class="muted">Nothing is waiting.</p>'}` : ""}
 ${recentRows ? `<h2>Recently decided</h2><table><thead><tr><th>Repository</th><th>Decision</th><th>Result</th><th>By</th><th>Date</th></tr></thead><tbody>${recentRows}</tbody></table>` : ""}
 <h2>Waiting for review${subs ? " (old issue forms)" : ""}</h2>
 ${queueError ? `<p class="note">${esc(queueError)}</p>` : issueRows ? `<table><thead><tr><th>Issue</th><th>Title</th><th>By</th><th>Kind</th><th>Checks</th><th>Opened</th></tr></thead><tbody>${issueRows}</tbody></table>` : '<p class="muted">Nothing is waiting.</p>'}
@@ -117,19 +123,40 @@ ${queueError ? `<p class="note">${esc(queueError)}</p>` : issueRows ? `<table><t
 </ul>`);
 }
 
+const SCAN_TEXT = {
+  "no-flags-found": "The full checks found nothing to look at.",
+  "checks-flagged": "The full checks found things to look at. Open the full report and read it before approving.",
+  "checks-failed": "The full checks failed. This cannot be approved. Reject it with a reason, or ask the submitter to fix it and submit again.",
+  "needs-manual-review": "The checks could not read this repository automatically. It cannot be approved from here.",
+};
+const SCAN_OK = ["no-flags-found", "checks-flagged"];
+
 export function detailPage({ session, s, flash, canPublish }) {
   const cs = checks(s.precheck);
   const commitUrl = `${s.repo_url}/commit/${s.commit_sha}`;
   const defaultText = s.source === "recommended" && s.why ? s.why : s.readme_excerpt;
   const kindSelect = (sel) => `<select id="kind" name="kind" required>${KIND_OPTIONS.map(([v, l]) => `<option value="${v}"${v === sel ? " selected" : ""}>${l}</option>`).join("")}</select>`;
+  const scanned = s.scan_state === "done" && /^[0-9a-f]{12}$/.test(s.scan_commit) && SCAN_OK.includes(s.scan_label);
+  const flagged = s.scan_label === "checks-flagged";
+  const report = s.scan_run_url ? `<a href="${esc(s.scan_run_url)}" rel="noopener noreferrer">Open the full report</a> (on GitHub: open the <em>scan</em> job, then its Summary)` : "";
+  const scanPanel = s.status !== "pending" ? "" : `<h2>Full checks</h2>
+${s.scan_state === "running" ? '<p class="note">Running on GitHub. Reload this page in a minute.</p>'
+    : s.scan_state === "done" ? `<p class="${s.scan_label === "no-flags-found" ? "ok" : "note"}">${esc(SCAN_TEXT[s.scan_label] ?? s.scan_label)} <span class="muted">Checked at commit <code>${esc(s.scan_commit || "unknown")}</code>.</span></p><p>${report}</p>`
+    : s.scan_state === "failed" ? `<p class="note">The check job did not complete.${s.scan_run_url ? ` <a href="${esc(s.scan_run_url)}" rel="noopener noreferrer">See the run</a>.` : ""} Run it again.</p>`
+    : '<p class="muted">Not run yet. Run the full read-only checks, read the result, then decide. Approving is only possible after they have run.</p>'}
+${s.scan_state === "running" ? "" : `<form method="post" action="/admin/submissions/${Number(s.id)}/scan"><p><button type="submit"${canPublish ? "" : " disabled"}>${s.scan_state ? "Run the full checks again" : "Run the full checks"}</button></p></form>`}`;
+  const approveOk = canPublish && scanned;
   const decide = s.status === "pending"
-    ? `<h2>Decide</h2>
-${canPublish ? "" : '<p class="note">Publishing is not connected yet (the app has no token to start the publish job), so approving is switched off. You can still reject.</p>'}
+    ? `${scanPanel}
+<h2>Decide</h2>
+${canPublish ? "" : '<p class="note">Publishing is not connected yet (the app has no token to start GitHub jobs), so checks and approving are switched off. You can still reject.</p>'}
+${scanned ? "" : '<p class="muted">Approving unlocks after the full checks have run and found nothing that blocks it.</p>'}
 <form method="post" action="/admin/submissions/${Number(s.id)}/approve">
 <label for="name">Name on the card</label><input id="name" name="name" type="text" required maxlength="80" value="${esc(s.name)}">
 <label for="kind">Type</label>${kindSelect(s.kind_guess || "plugin")}${s.kind_guess ? "" : '<p class="hint">The file names did not show what this is; choose carefully.</p>'}
 <label for="text">Card text <span class="hint">(up to 400 characters; the README excerpt, or the recommender's note, to start with)</span></label><textarea id="text" name="text" required maxlength="400">${esc(defaultText)}</textarea>
-<p><button type="submit"${canPublish ? "" : " disabled"}>Approve and publish</button> <span class="muted">The repository is scanned again before it is listed; a failed scan stops it.</span></p>
+${flagged ? '<label class="check"><input type="checkbox" name="read" value="yes" required> I have opened and read the full report above</label>' : ""}
+<p><button type="submit"${approveOk ? "" : " disabled"}>Approve and publish</button> <span class="muted">It is listed at the commit that was checked. If the repository changes first, publishing stops and the checks must be run again.</span></p>
 </form>
 <form method="post" action="/admin/submissions/${Number(s.id)}/reject">
 <label for="note">Reject, with a reason the submitter will see <span class="hint">(up to 300 characters)</span></label><textarea id="note" name="note" required maxlength="300"></textarea>
@@ -137,9 +164,10 @@ ${canPublish ? "" : '<p class="note">Publishing is not connected yet (the app ha
 </form>`
     : `<h2>Decision</h2>
 <dl><dt>Status</dt><dd>${esc(s.status)}${s.decided_by ? ` by @${esc(s.decided_by)} on ${esc(String(s.decided_at).slice(0, 10))}` : ""}</dd>
-${s.status === "approved" ? `<dt>Listed as</dt><dd>${esc(s.final_name)} (${esc(s.final_kind)}): ${esc(s.final_text)}</dd><dt>Publishing</dt><dd>${esc(PUBLISH[s.publish_state] ?? s.publish_state)}${s.publish_note ? `<br><span class="muted">${esc(s.publish_note)}</span>` : ""}</dd>` : ""}
+${s.status === "approved" ? `<dt>Listed as</dt><dd>${esc(s.final_name)} (${esc(s.final_kind)}): ${esc(s.final_text)}</dd><dt>Publishing</dt><dd>${esc(PUBLISH[s.publish_state] ?? s.publish_state)}${s.publish_note ? `<br><span class="muted">${esc(s.publish_note)}</span>` : ""}</dd>${s.scan_commit ? `<dt>Checks read at</dt><dd><code>${esc(s.scan_commit)}</code> (${esc(s.scan_label)})</dd>` : ""}` : ""}
 ${s.status === "rejected" ? `<dt>Reason</dt><dd>${esc(s.decision_note)}</dd>` : ""}</dl>
-${s.status === "approved" && s.publish_state === "blocked" ? `<form method="post" action="/admin/submissions/${Number(s.id)}/retry"><p><button type="submit"${canPublish ? "" : " disabled"}>Try publishing again</button></p></form>` : ""}`;
+${s.status === "approved" && s.publish_state === "blocked" ? `<form method="post" action="/admin/submissions/${Number(s.id)}/retry"><p><button type="submit"${canPublish ? "" : " disabled"}>Try publishing again</button></p></form>
+<form method="post" action="/admin/submissions/${Number(s.id)}/reopen"><p><button class="ghost" type="submit">Back to review</button> <span class="muted">Run the full checks, read them, and approve with the report in front of you.</span></p></form>` : ""}`;
   return page(`${s.name} — Praxikit admin`, `${nav(session)}
 <p class="muted"><a href="/admin">All submissions</a></p>
 <h1>${esc(s.name)} <span class="badge${s.precheck_status === "fail" ? " bad" : s.precheck_status === "flag" ? " warn" : ""}">${status(s.precheck_status)}</span></h1>
@@ -159,6 +187,6 @@ ${s.readme_url ? `<p><a href="${esc(s.readme_url)}" rel="noopener noreferrer">Vi
 ${s.why ? `<h2>Note from the submitter</h2><blockquote>${esc(s.why)}</blockquote>` : ""}
 <h2>Quick checks</h2>
 <table><thead><tr><th>Check</th><th>Result</th><th>Note</th></tr></thead><tbody>${cs.map((c) => `<tr><td>${esc(c.title)}</td><td>${status(c.status)}</td><td>${esc(c.note)}</td></tr>`).join("")}</tbody></table>
-<p class="muted">These are quick checks from GitHub's own data. The full read-only scan of the code (secrets, auto-run code, network access, hidden instructions) runs when you approve.</p>
+<p class="muted">These are quick checks from GitHub's own data. The full read-only scan of the code is a separate step below.</p>
 ${decide}`);
 }

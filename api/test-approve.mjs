@@ -48,6 +48,10 @@ let LISTED = []; // repository urls in the fake live catalogue
 let RUNS = [];
 let dispatchMode = "ok";
 const dispatches = [];
+const scanDispatches = [];
+let SCAN_RUNS = [];
+const JOBS = {};
+let scanDispatchMode = "ok";
 globalThis.fetch = async (input, init = {}) => {
   const u = new URL(typeof input === "string" ? input : input.url);
   const auth = String(init.headers?.Authorization ?? "");
@@ -65,6 +69,13 @@ globalThis.fetch = async (input, init = {}) => {
     dispatches.push({ auth, body: JSON.parse(init.body) });
     return dispatchMode === "ok" ? new Response(null, { status: 204 }) : json({ message: "Resource not accessible" }, 403);
   }
+  if (p === "/repos/praxikit/praxikit/actions/workflows/scan-submission.yml/dispatches" && init.method === "POST") {
+    scanDispatches.push({ auth, body: JSON.parse(init.body) });
+    return scanDispatchMode === "ok" ? new Response(null, { status: 204 }) : json({ message: "Resource not accessible" }, 403);
+  }
+  if (p === "/repos/praxikit/praxikit/actions/workflows/scan-submission.yml/runs") return json({ workflow_runs: SCAN_RUNS });
+  const jobsMatch = /^\/repos\/praxikit\/praxikit\/actions\/runs\/(\d+)\/jobs$/.exec(p);
+  if (jobsMatch) return json({ jobs: JOBS[jobsMatch[1]] ?? [] });
   if (p === "/repos/praxikit/praxikit/actions/workflows/approve-submission.yml/runs") return json({ workflow_runs: RUNS });
   const m = /^\/repos\/([^/]+)\/([^/]+)(\/.*)?$/.exec(p);
   if (!m) return json({}, 404);
@@ -104,6 +115,17 @@ const submit = async (session, url, why = "") => note(await call("/submit", { me
 const act = async (session, id, what, form = {}, extra = {}) => note(await call(`/admin/submissions/${id}/${what}`, { method: "POST", cookies: session, origin: OK, form, ...extra }));
 const approveForm = (over = {}) => ({ name: "Good kit", kind: "plugin", text: "Does a useful thing for agents.", ...over });
 
+let runSeq = 7000;
+/** Pretends the scan job finished. The result is carried by the result job's name. */
+const finishScan = async (id, { label = "no-flags-found", commit = SHA.slice(0, 12), conclusion = "success", jobName } = {}) => {
+  const runId = ++runSeq;
+  SCAN_RUNS = SCAN_RUNS.filter((r) => r.display_title !== `scan #${id}`).concat([{ id: runId, display_title: `scan #${id}`, status: "completed", conclusion, created_at: new Date().toISOString() }]);
+  JOBS[runId] = [{ name: "scan" }, { name: jobName ?? `result ${label} ${commit}` }];
+  await call(`/admin/submissions/${id}`, { cookies: owner });
+  return runId;
+};
+const runScan = async (id, opts) => { const r = await act(owner, id, "scan"); await finishScan(id, opts); return r; };
+
 const owner = await signIn("good-owner");
 const carol = await signIn("u-carol", "user");
 const dave = await signIn("u-dave", "user"); // carol reaches her daily limit of five submissions, so later cases use dave
@@ -115,6 +137,7 @@ const good = byKey("alice/good");
 const detail = await (await note(await call(`/admin/submissions/${good.id}`, { cookies: owner }))).text();
 must(detail.includes('action="/admin/submissions/' + good.id + '/approve"') && detail.includes('value="Good"') === false && detail.includes('name="name"') && detail.includes('<option value="plugin" selected>') && detail.includes("Used it for weeks."), "the detail page offers Approve with name, type (preselected from the guess) and the card text");
 must(detail.includes('action="/admin/submissions/' + good.id + '/reject"') && detail.includes("Reject"), "and a Reject form");
+must(detail.includes("Run the full checks") && detail.includes("Not run yet") && /<button type="submit" disabled>Approve and publish/.test(detail), "before the checks have run, Approve is switched off and the page says to run them");
 
 // ---- who may decide, and how
 const noToken = { ...env }; delete noToken.GITHUB_DISPATCH_TOKEN;
@@ -137,14 +160,50 @@ for (const [label, over] of [["bad type", { kind: "malware" }], ["empty name", {
 }
 
 // ---- approving
-r = await act(owner, good.id, "approve", approveForm({ name: "Edited name", kind: "skill", text: "<script>alert(1)</script> Edited card text." }));
+// ---- the full checks come first
+r = await act(owner, good.id, "approve", approveForm());
+must(r.headers.get("Location").endsWith("?m=needscan") && byKey("alice/good").status === "pending" && dispatches.length === 0, "approving before the checks have run is refused");
+for (const [label, who, extra] of [["a plain user", carol, {}], ["a stale sign-in", await sessionWithAge(31), {}], ["no Origin", owner, { origin: "" }]]) {
+  const res = label === "no Origin" ? await call(`/admin/submissions/${good.id}/scan`, { method: "POST", cookies: who }) : await act(who, good.id, "scan");
+  must([401, 403].includes(res.status) && scanDispatches.length === 0 && byKey("alice/good").scan_state === "", `${label} cannot start the checks`);
+}
+{
+  const e = { ...env }; delete e.GITHUB_DISPATCH_TOKEN;
+  must((await act(owner, good.id, "scan", {}, { e })).headers.get("Location").endsWith("?m=nopublish") && scanDispatches.length === 0, "with no token the checks cannot be started");
+}
+scanDispatchMode = "forbidden";
+r = await act(owner, good.id, "scan");
+must(r.headers.get("Location").endsWith("?m=scanfail") && byKey("alice/good").scan_state === "failed", "if GitHub refuses to start the checks, the state says so and they can be run again");
+scanDispatchMode = "ok";
+r = await act(owner, good.id, "scan");
+must(r.headers.get("Location").endsWith("?m=scanstarted") && byKey("alice/good").scan_state === "running" && scanDispatches.length === 2, "starting the checks marks them running");
+must(scanDispatches.at(-1).auth === `Bearer ${DISPATCH}` && scanDispatches.at(-1).body.inputs.submission_id === String(good.id) && scanDispatches.at(-1).body.inputs.url === "https://github.com/alice/good" && Object.keys(scanDispatches.at(-1).body.inputs).length === 2, "the check job gets only the submission number and the repository link");
+r = await act(owner, good.id, "scan");
+must(r.headers.get("Location").endsWith("?m=scanning") && scanDispatches.length === 2, "asking again while they run does not start a second job");
+// a finished run from before this request must not answer for it
+SCAN_RUNS = [{ id: 6999, display_title: `scan #${good.id}`, status: "completed", conclusion: "success", created_at: new Date(Date.now() - 3600_000).toISOString() }]; JOBS[6999] = [{ name: "result no-flags-found aaaaaaaaaaaa" }];
+await call(`/admin/submissions/${good.id}`, { cookies: owner });
+must(byKey("alice/good").scan_state === "running", "an older run for the same submission does not answer for a new request");
+SCAN_RUNS = [{ id: 7000, display_title: `scan #${good.id}`, status: "in_progress", conclusion: null, created_at: new Date().toISOString() }];
+await call(`/admin/submissions/${good.id}`, { cookies: owner });
+must(byKey("alice/good").scan_state === "running", "a run still in progress leaves it running");
+await finishScan(good.id, { label: "checks-flagged" });
+const scanRow = byKey("alice/good");
+must(scanRow.scan_state === "done" && scanRow.scan_label === "checks-flagged" && scanRow.scan_commit === SHA.slice(0, 12) && scanRow.scan_run_url.startsWith("https://github.com/praxikit/praxikit/actions/runs/"), "a finished run is read from its result job: label, commit and the report link");
+{
+  const t2 = await (await note(await call(`/admin/submissions/${good.id}`, { cookies: owner }))).text();
+  must(t2.includes("found things to look at") && t2.includes("Open the full report") && t2.includes('name="read"') && !/<button type="submit" disabled>Approve and publish/.test(t2), "a flagged result shows the report link and a read-it box, and unlocks Approve");
+}
+r = await act(owner, good.id, "approve", approveForm());
+must(r.headers.get("Location").endsWith("?m=needread") && byKey("alice/good").status === "pending" && dispatches.length === 0, "a flagged result cannot be approved without confirming the report was read");
+r = await act(owner, good.id, "approve", approveForm({ name: "Edited name", kind: "skill", text: "<script>alert(1)</script> Edited card text.", read: "yes" }));
 must(r.status === 303 && r.headers.get("Location").endsWith("?m=approved"), `a valid approval is accepted, got ${r.status} ${r.headers.get("Location")}`);
 let row = byKey("alice/good");
 must(row.status === "approved" && row.decided_by === "ratul" && row.final_name === "Edited name" && row.final_kind === "skill" && row.final_text.includes("Edited card text") && row.publish_state === "dispatched", "the decision records who, and what the maintainer confirmed (not what the submitter guessed)");
 must(dispatches.length === 1 && dispatches[0].auth === `Bearer ${DISPATCH}`, "the publish job is started once, with the dedicated token (not the read-only one)");
 {
   const d = dispatches[0].body;
-  must(d.ref === "main" && d.inputs.submission_id === String(good.id) && d.inputs.url === "https://github.com/alice/good" && d.inputs.name === "Edited name" && d.inputs.kind === "skill" && d.inputs.source === "recommended" && d.inputs.author === "alice" && d.inputs.why.includes("Edited card text") && d.inputs.decided_by === "ratul" && !("allow_failed" in d.inputs), "the workflow gets exactly the confirmed fields, and no way to skip the scan");
+  must(d.ref === "main" && d.inputs.submission_id === String(good.id) && d.inputs.url === "https://github.com/alice/good" && d.inputs.name === "Edited name" && d.inputs.kind === "skill" && d.inputs.source === "recommended" && d.inputs.author === "alice" && d.inputs.why.includes("Edited card text") && d.inputs.decided_by === "ratul" && d.inputs.expected_commit === SHA.slice(0, 12) && d.inputs.require_clean === "false" && !("allow_failed" in d.inputs), "the workflow gets exactly the confirmed fields, pinned to the commit whose checks were read, and no way to skip the scan");
 }
 r = await act(owner, good.id, "approve", approveForm());
 must(r.headers.get("Location").endsWith("?m=already") && dispatches.length === 1, "approving twice is refused and does not start a second job");
@@ -167,6 +226,7 @@ must((await (await call("/mine", { cookies: carol })).text()).includes("Listed")
 // ---- blocked jobs and retry
 await submit(carol, "https://github.com/alice/third");
 const third = byKey("alice/third");
+await runScan(third.id);
 await act(owner, third.id, "approve", approveForm({ name: "Third" }));
 RUNS = [{ id: 9002, display_title: `approve #${third.id}`, status: "completed", conclusion: "failure", created_at: "2026-11-15T11:00:00Z" }];
 const blockedHtml = await (await note(await call(`/admin/submissions/${third.id}`, { cookies: owner }))).text();
@@ -183,6 +243,7 @@ must(r.status === 403, "a plain user cannot retry");
 // ---- a job that was never started
 await submit(carol, "https://github.com/alice/fourth");
 const fourth = byKey("alice/fourth");
+await runScan(fourth.id);
 await act(owner, fourth.id, "approve", approveForm({ name: "Fourth" }));
 D1.raw.prepare("UPDATE submissions SET publish_state = 'dispatching', decided_at = ? WHERE id = ?").run(new Date(Date.now() - 5 * 60000).toISOString(), fourth.id);
 await call("/admin", { cookies: owner });
@@ -196,6 +257,7 @@ must(byKey("alice/fourth").publish_state === "blocked" && /did not start/.test(b
 await submit(carol, "https://github.com/alice/fifth");
 const fifth = byKey("alice/fifth");
 dispatchMode = "forbidden";
+await runScan(fifth.id);
 r = await act(owner, fifth.id, "approve", approveForm({ name: "Fifth" }));
 row = byKey("alice/fifth");
 must(r.headers.get("Location").endsWith("?m=failed") && row.status === "approved" && row.publish_state === "blocked" && /token|permission/.test(row.publish_note) && !row.publish_note.includes(DISPATCH), "if GitHub refuses, the submission is Blocked with a plain reason and a retry is offered");
@@ -225,7 +287,7 @@ must(rows().filter((x) => x.repo_key === "alice/reject").length === 2, "after a 
 const before = dispatches.length;
 r = await submit(owner, "https://github.com/alice/direct");
 row = byKey("alice/direct");
-must(r.headers.get("Location") === "/mine?ok=direct" && row.status === "approved" && row.decided_by === "ratul" && row.final_kind === "skill" && row.publish_state === "dispatched" && dispatches.length === before + 1 && dispatches.at(-1).body.inputs.decided_by === "ratul", "a maintainer's submission is approved and sent to the publish job directly");
+must(r.headers.get("Location") === "/mine?ok=direct" && row.status === "approved" && row.decided_by === "ratul" && row.final_kind === "skill" && row.publish_state === "dispatched" && dispatches.length === before + 1 && dispatches.at(-1).body.inputs.decided_by === "ratul" && dispatches.at(-1).body.inputs.require_clean === "true" && dispatches.at(-1).body.inputs.expected_commit === "", "a maintainer's submission is approved and sent to the publish job directly");
 must((await (await call("/mine?ok=direct", { cookies: owner })).text()).includes("being published now"), "and says so");
 const held = [["a stale sign-in", await sessionWithAge(31), "https://github.com/alice/direct2"], ["no recognisable type", owner, "https://github.com/alice/unknown"], ["a failed quick check", owner, "https://github.com/alice/nolicence"]];
 for (const [label, who, url] of held) {
@@ -241,6 +303,48 @@ for (const [label, who, url] of held) {
   must(byKey("alice/xss").status === "pending" && dispatches.length === n, "without a dispatch token a maintainer's submission is held, not lost");
 }
 must(byKey("alice/direct") && (await submit(dave, "https://github.com/alice/second")).headers.get("Location") === "/mine?ok=1" && byKey("alice/second").status === "pending", "an ordinary submitter's submission is never published directly");
+
+// ---- a retry keeps the pin; a direct publish stays clean-only
+{
+  await act(owner, third.id, "retry");
+  D1.raw.prepare("UPDATE submissions SET publish_state = 'blocked' WHERE id = ?").run(byKey("alice/direct").id);
+  await act(owner, byKey("alice/direct").id, "retry");
+  must(dispatches.at(-1).body.inputs.require_clean === "true" && dispatches.at(-1).body.inputs.expected_commit === "", "retrying a direct publish keeps it clean-only");
+  D1.raw.prepare("UPDATE submissions SET publish_state = 'blocked' WHERE id = ?").run(third.id);
+  await act(owner, third.id, "retry");
+  must(dispatches.at(-1).body.inputs.expected_commit === SHA.slice(0, 12) && dispatches.at(-1).body.inputs.require_clean === "false", "retrying an approval keeps the pin to the commit whose checks were read");
+}
+
+// ---- back to review: a blocked direct publish goes through the normal path
+{
+  const id = byKey("alice/direct").id;
+  D1.raw.prepare("UPDATE submissions SET publish_state = 'blocked', publish_note = 'The publish job stopped.' WHERE id = ?").run(id);
+  const page = await (await call(`/admin/submissions/${id}`, { cookies: owner })).text();
+  must(page.includes("Back to review") && page.includes("Try publishing again"), "a blocked publish offers both a retry and a way back to review");
+  must((await act(carol, id, "reopen")).status === 403 && byKey("alice/direct").status === "approved", "a plain user cannot reopen");
+  const r2 = await act(owner, id, "reopen");
+  row = byKey("alice/direct");
+  must(r2.headers.get("Location").endsWith("?m=reopened") && row.status === "pending" && row.publish_state === "" && row.decided_by === "", "reopening puts it back in review");
+  must((await act(owner, id, "reopen")).headers.get("Location").endsWith("?m=already"), "only a blocked publish can be reopened");
+  must((await act(owner, id, "approve", approveForm())).headers.get("Location").endsWith("?m=needscan"), "after reopening, the checks must be run before approving");
+}
+
+// ---- checks that fail, cannot be read, or did not finish
+{
+  const nonok = [["failed", { label: "checks-failed" }], ["could not be read", { label: "needs-manual-review", commit: "none" }]];
+  await submit(dave, "https://github.com/alice/xss");
+  const id = byKey("alice/xss").id;
+  for (const [label, opts] of nonok) {
+    await runScan(id, opts);
+    must(byKey("alice/xss").scan_state === "done" && (await act(owner, id, "approve", approveForm())).headers.get("Location").endsWith("?m=needscan"), `a scan that ${label} cannot be approved`);
+  }
+  await runScan(id, { conclusion: "failure" });
+  must(byKey("alice/xss").scan_state === "failed", "a check job that crashed is reported as not finished");
+  await runScan(id, { jobName: "result looks-great ../../etc" });
+  must(byKey("alice/xss").scan_state === "failed", "a result job name that is not exactly what we expect is not trusted");
+  await runScan(id, { label: "no-flags-found" });
+  must(byKey("alice/xss").scan_label === "no-flags-found" && !(await (await call(`/admin/submissions/${id}`, { cookies: owner })).text()).includes('name="read"'), "a clean result needs no read-it box");
+}
 
 // ---- flashes are fixed strings, never echoed
 {

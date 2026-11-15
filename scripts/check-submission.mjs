@@ -107,17 +107,19 @@ const isExecutableMagic = (b) => (b.length >= 2 && b[0] === 0x4d && b[1] === 0x5
 
 // Patterns are built from parts so this file does not itself look like a leaked secret.
 const SECRETS = [
-  ["AWS access key id", /\bAKIA[0-9A-Z]{16}\b/],
-  ["GitHub token", /\bgh[pousr]_[A-Za-z0-9]{36,}\b/],
-  ["GitHub fine-grained token", /\bgithub_pat_[A-Za-z0-9_]{50,}\b/],
-  ["Slack token", /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/],
-  ["private key block", new RegExp("-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE " + "KEY-----")],
-  ["Google API key", /\bAIza[0-9A-Za-z_-]{35}\b/],
-  ["Anthropic API key", new RegExp("\\bsk-ant-" + "[A-Za-z0-9_-]{20,}")],
-  ["OpenAI-style API key", new RegExp("\\bsk-" + "[A-Za-z0-9]{32,}\\b")],
-  ["Stripe live key", new RegExp("\\bsk_" + "live_[0-9a-zA-Z]{20,}")],
+  ["AWS access key id", /\bAKIA[0-9A-Z]{16}\b/, true],
+  ["GitHub token", /\bgh[pousr]_[A-Za-z0-9]{36,}\b/, true],
+  ["GitHub fine-grained token", /\bgithub_pat_[A-Za-z0-9_]{50,}\b/, true],
+  ["Slack token", /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/, true],
+  ["private key block", new RegExp("-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE " + "KEY-----"), true],
+  ["Google API key", /\bAIza[0-9A-Za-z_-]{35}\b/, true],
+  ["Anthropic API key", new RegExp("\\bsk-ant-" + "[A-Za-z0-9_-]{20,}"), true],
+  ["OpenAI-style API key", new RegExp("\\bsk-" + "[A-Za-z0-9]{32,}\\b"), true],
+  ["Stripe live key", new RegExp("\\bsk_" + "live_[0-9a-zA-Z]{20,}"), true],
   ["hard-coded credential", /\b(?:api[_-]?key|secret|token|passwd|password)\b\s*[:=]\s*["'][A-Za-z0-9/+_-]{20,}["']/i],
 ];
+const PLACEHOLDER = /example|xxxx|your[_-]|placeholder|dummy|fake|changeme|sample/i;
+const TESTISH = /(^|\/)(tests?|__tests__|spec|fixtures?|examples?|samples?|mocks?|docs?)\/|\.(test|spec)\.[a-z]+$|(^|\/)test[-_.][^\/]*$/i;
 const NETWORK = [
   ["fetch call", /\bfetch\s*\(/], ["node http(s)", /node:https?|require\(\s*["']https?["']\s*\)/], ["XMLHttpRequest or WebSocket", /XMLHttpRequest|\bnew WebSocket\s*\(/],
   ["curl or wget", /\b(?:curl|wget)\s+-?\S/], ["PowerShell web request", /Invoke-WebRequest|Invoke-RestMethod/],
@@ -141,7 +143,10 @@ export function scanDir(root, declared = "") {
   const { files, symlinks, bytes, truncated } = walk(root);
   const R = { files: files.length, bytes, checks: [] };
   const add = (id, title, status, notes = []) => R.checks.push({ id, title, status, notes });
-  const hits = { secrets: [], network: [], exec: [], injection: [], long: [] };
+  // Network and process patterns are counted separately for code, for files that instruct an agent
+  // (SKILL.md, agents, commands, rules) and for ordinary documentation. Only the first two are findings:
+  // a README that shows `curl` in an example is not the kit calling the network.
+  const hits = { secrets: [], secretsSoft: [], netCode: [], netInstr: [], netDocs: 0, execCode: [], execInstr: [], execDocs: 0, injection: [], long: [] };
   const binaries = [];
   const hooks = []; const installScripts = []; let manifestKind = [];
 
@@ -153,14 +158,22 @@ export function scanDir(root, declared = "") {
     let text; try { text = readFileSync(p, "utf8"); } catch { continue; }
     const lines = text.split("\n");
     const isCode = CODE_EXT.has(ext), isMd = ext === ".md" || ext === ".mdx" || name === ".cursorrules";
+    const instr = isMd && (name === "SKILL.md" || name === ".cursorrules" || ["AGENTS.md", "CLAUDE.md", "GEMINI.md"].includes(name) || /(^|\/)(agents|commands|skills|prompts|\.claude)\//.test(f.rel));
+    const bucket = isCode ? "Code" : instr ? "Instr" : "Docs";
     lines.forEach((full, i) => {
       const ln = full.length > LIMITS.lineScan ? full.slice(0, LIMITS.lineScan) : full; // keep regex work bounded
       const at = `${safe(f.rel, 60)}:${i + 1}`;
       if (full.length > 2000 && isCode) hits.long.push(at);
-      for (const [label, re] of SECRETS) if (re.test(ln)) { hits.secrets.push(`${at} (${label})`); break; }
+      for (const [label, re, strong] of SECRETS) {
+        const m = re.exec(ln);
+        if (!m || PLACEHOLDER.test(m[0])) continue;
+        // a loose "token = '...'" match in a test or example file is usually a fake; provider-shaped keys never get that pass
+        if (!strong && TESTISH.test(f.rel)) hits.secretsSoft.push(`${at} (${label})`); else hits.secrets.push(`${at} (${label})`);
+        break;
+      }
       if (isCode || isMd) {
-        for (const [label, re] of NETWORK) if (re.test(ln)) { hits.network.push(`${at} (${label})`); break; }
-        for (const [label, re] of EXEC) if (re.test(ln)) { hits.exec.push(`${at} (${label})`); break; }
+        for (const [label, re] of NETWORK) if (re.test(ln)) { if (bucket === "Docs") hits.netDocs++; else hits[`net${bucket}`].push(`${at} (${label})`); break; }
+        for (const [label, re] of EXEC) if (re.test(ln)) { if (bucket === "Docs") hits.execDocs++; else hits[`exec${bucket}`].push(`${at} (${label})`); break; }
       }
       if (isMd) for (const [label, re] of INJECTION) if (re.test(ln)) { hits.injection.push(`${at} (${label})`); break; }
     });
@@ -192,17 +205,23 @@ export function scanDir(root, declared = "") {
   add("licence", "Licence", licFile ? (lic ? "pass" : "flag") : "fail", [licFile ? (lic ? `${safe(licFile, 40)} looks like ${lic}` : `${safe(licFile, 40)} is present but not a licence this check recognises`) : "No LICENSE or COPYING file. Listing requires a licence that lets others use the kit."]);
 
   // secrets (values are never shown)
-  add("secrets", "Secret-like strings", hits.secrets.length ? "fail" : "pass", hits.secrets.length ? [`${hits.secrets.length} match(es), values hidden:`, ...hits.secrets.slice(0, LIMITS.shown)] : ["No matches for common key and token patterns. This is a basic pattern check, not a full secret scan."]);
+  add("secrets", "Secret-like strings", hits.secrets.length ? "fail" : hits.secretsSoft.length ? "flag" : "pass",
+    hits.secrets.length ? [`${hits.secrets.length} match(es), values hidden:`, ...hits.secrets.slice(0, LIMITS.shown)]
+      : hits.secretsSoft.length ? [`${hits.secretsSoft.length} credential-looking string(s) in test or example files, values hidden. They are usually fakes; a person should confirm:`, ...hits.secretsSoft.slice(0, LIMITS.shown)]
+      : ["No matches for common key and token patterns. This is a basic pattern check, not a full secret scan."]);
 
   // hooks and install scripts: code that runs without being asked
   add("autorun", "Runs automatically", hooks.length || installScripts.length ? "flag" : "pass", hooks.length || installScripts.length ? [...hooks.map((h) => `hook: ${h}`), ...installScripts].slice(0, LIMITS.shown + 4) : ["No hooks or install-time scripts found."]);
 
   // network and process execution
   const wantsNone = /\b(?:nothing|none|no network|no network calls)\b/i.test(String(declared).slice(0, 2000));
-  const netNotes = hits.network.length ? [`${hits.network.length} line(s) that look like network access:`, ...hits.network.slice(0, LIMITS.shown)] : ["No network access patterns found."];
-  if (hits.network.length && wantsNone) netNotes.push("The submission said it sends nothing. That does not match these lines; a person should look.");
-  add("network", "Network access", hits.network.length ? "flag" : "pass", netNotes);
-  add("exec", "Runs other programs or code", hits.exec.length ? "flag" : "pass", hits.exec.length ? [`${hits.exec.length} line(s):`, ...hits.exec.slice(0, LIMITS.shown)] : ["No process-execution or eval patterns found."]);
+  const docsNote = (n, what) => (n ? [`${n} mention(s) of ${what} in documentation files. Not counted as findings: documentation often shows examples.`] : []);
+  const netNotes = hits.netCode.length ? [`${hits.netCode.length} line(s) in code that look like network access:`, ...hits.netCode.slice(0, LIMITS.shown)] : ["No network access patterns in code."];
+  if ((hits.netCode.length || hits.netInstr.length) && wantsNone) netNotes.push("The submission said it sends nothing. That does not match the lines found; a person should look.");
+  add("network", "Network access in code", hits.netCode.length ? "flag" : "pass", [...netNotes, ...docsNote(hits.netDocs, "network commands")]);
+  add("exec", "Runs other programs or code, in code", hits.execCode.length ? "flag" : "pass", hits.execCode.length ? [`${hits.execCode.length} line(s) in code:`, ...hits.execCode.slice(0, LIMITS.shown), ...docsNote(hits.execDocs, "running programs or eval")] : ["No process-execution or eval patterns in code.", ...docsNote(hits.execDocs, "running programs or eval")]);
+  const instrHits = [...hits.netInstr, ...hits.execInstr];
+  add("instructions", "Commands in agent instructions", instrHits.length ? "flag" : "pass", instrHits.length ? [`${instrHits.length} line(s) in skill, agent, command or rules files that tell an agent to use the network or run programs:`, ...instrHits.slice(0, LIMITS.shown)] : ["None found in skill, agent, command or rules files."]);
 
   // oddities
   const odd = [];
@@ -260,8 +279,8 @@ export function scanUrl(text, declared = "") {
 // ---------- command line ----------
 async function main() {
   const arg = (n) => { const i = process.argv.indexOf(n); return i > -1 ? process.argv[i + 1] : undefined; };
-  const out = arg("--out"), labelOut = arg("--label-out");
-  const emit = ({ text, label }) => { if (out) writeFileSync(out, text + "\n"); else console.log(text); if (labelOut) writeFileSync(labelOut, label + "\n"); else console.error(`label: ${label}`); };
+  const out = arg("--out"), labelOut = arg("--label-out"), commitOut = arg("--commit-out");
+  const emit = ({ text, label, sha }) => { if (commitOut) writeFileSync(commitOut, (/^[0-9a-f]{40}$/.test(String(sha ?? "")) ? String(sha).slice(0, 12) : "none") + "\n"); if (out) writeFileSync(out, text + "\n"); else console.log(text); if (labelOut) writeFileSync(labelOut, label + "\n"); else console.error(`label: ${label}`); };
 
   let declared = "", url = arg("--url"), dir = arg("--dir");
   const envName = arg("--issue-env");
@@ -277,7 +296,7 @@ async function main() {
     const kb = repoSizeKb(r.owner, r.repo);
     if (kb !== null && kb > LIMITS.repoKb) return emit(renderRefusal({ why: `repository is about ${Math.round(kb / 1000)} MB, over the ${LIMITS.repoKb / 1000} MB limit for automatic checks` })); tmp = mkdtempSync(join(tmpdir(), "praxikit-sub-")); dir = join(tmp, "repo"); try { sha = cloneRepo(r.clone, dir); } catch (e) { rmSync(tmp, { recursive: true, force: true }); return emit({ label: "checks-failed", text: [MARKER, "### Automated checks", "", `Could not fetch ${safe(r.page, 90)} (${safe(String(e.stderr ?? e.message).split("\n")[0], 100)}). Is the repository public? Edit the issue to run the checks again.`].join("\n") }); } }
   if (!dir || !existsSync(dir)) { console.error("Give --issue-env, --url or --dir"); process.exit(2); }
-  try { emit(renderComment({ page, sha, result: scanDir(dir, declared), declared })); } finally { if (tmp) rmSync(tmp, { recursive: true, force: true }); }
+  try { emit({ ...renderComment({ page, sha, result: scanDir(dir, declared), declared }), sha }); } finally { if (tmp) rmSync(tmp, { recursive: true, force: true }); }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) await main();

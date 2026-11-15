@@ -50,3 +50,5 @@ The catalogue has no server and no admin website. GitHub is the admin panel: it 
 Phase 2 adds `/submit` (any GitHub user), `/mine` and, for maintainers, a submissions queue and detail pages on `/admin`. Setup: `api/README.md`. Until phase 3 lets you approve there, new submissions are reviewed by copying them into **Add listing**; the public site still points at the issue forms.
 
 Phase 3 moves approving and rejecting into the app (`/admin/submissions/N`). The app only starts the `approve-submission` workflow; the label flow, **Add listing** and **Remove listing** still work and remain the fallback.
+
+Phase 3b: approving is only possible after the full checks have run (button on the submission page), and the approval is pinned to the commit they ran on. Direct publishing by a maintainer needs a result with nothing to look at.

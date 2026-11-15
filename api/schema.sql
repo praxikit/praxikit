@@ -28,7 +28,12 @@ CREATE TABLE IF NOT EXISTS submissions (
   publish_note TEXT NOT NULL DEFAULT '',
   final_name TEXT NOT NULL DEFAULT '',      -- what the maintainer confirmed at approval
   final_kind TEXT NOT NULL DEFAULT '',
-  final_text TEXT NOT NULL DEFAULT ''
+  final_text TEXT NOT NULL DEFAULT '',
+  scan_state TEXT NOT NULL DEFAULT '',      -- '', running, done, failed: the full checks run before a decision (phase 3b)
+  scan_label TEXT NOT NULL DEFAULT '',      -- no-flags-found, checks-flagged, checks-failed or needs-manual-review
+  scan_commit TEXT NOT NULL DEFAULT '',     -- the first 12 characters of the commit the checks ran on
+  scan_run_url TEXT NOT NULL DEFAULT '',    -- where the full report is
+  scan_at TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS one_pending_per_repo ON submissions (repo_key) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS by_user_time ON submissions (submitted_by_id, created_at);

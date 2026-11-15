@@ -41,6 +41,16 @@ on:
         description: GitHub login of the maintainer who approved it
         required: true
         type: string
+      expected_commit:
+        description: The commit whose checks the maintainer read; the listing is refused if the repository has moved on (leave empty for none)
+        required: false
+        default: ""
+        type: string
+      require_clean:
+        description: Only publish if the checks found nothing to look at (used for direct publishing, where nobody reads them first)
+        required: false
+        default: false
+        type: boolean
 permissions: {}
 jobs:
   scan:
@@ -66,6 +76,8 @@ jobs:
           IN_AUTHOR: ${{ inputs.author }}
           IN_WHY: ${{ inputs.why }}
           IN_ALLOW_FAILED: "false"
+          IN_EXPECT_COMMIT: ${{ inputs.expected_commit }}
+          IN_REQUIRE_CLEAN: ${{ inputs.require_clean }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |

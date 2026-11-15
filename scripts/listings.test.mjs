@@ -59,6 +59,20 @@ must(!entryFromDispatch(env, failed, "2026-11-15").ok, "failed checks block an a
 must(entryFromDispatch({ ...env, IN_ALLOW_FAILED: "true" }, failed, "2026-11-15").ok, "failed checks can be accepted explicitly by the admin");
 must(!entryFromDispatch({ ...env, IN_KIND: "nope" }, scanOk, "2026-11-15").ok, "an invalid kind is refused for admins too");
 
+// ---- approving what was reviewed, and clean-only direct publishing
+{
+  const withCommit = { ...scanOk, sha: "1f837447b20bb6f0e72d87b80ece1c221c362c7d" };
+  must(entryFromDispatch({ ...env, IN_EXPECT_COMMIT: "1f837447b20b" }, withCommit, "2026-11-15").ok, "the repository still at the reviewed commit (a 12-character prefix) is listed");
+  const moved = entryFromDispatch({ ...env, IN_EXPECT_COMMIT: "abcdef012345" }, withCommit, "2026-11-15");
+  must(!moved.ok && /changed since the checks that were reviewed/.test(moved.reason), "a repository that moved on since the reviewed checks is refused");
+  must(!entryFromDispatch({ ...env, IN_EXPECT_COMMIT: "not-a-sha!" }, withCommit, "2026-11-15").ok, "a malformed expected commit is refused");
+  must(entryFromDispatch({ ...env, IN_EXPECT_COMMIT: "" }, withCommit, "2026-11-15").ok, "no expected commit means no pin");
+  const flagged = { ...scanOk, label: "checks-flagged" };
+  must(!entryFromDispatch({ ...env, IN_REQUIRE_CLEAN: "true" }, flagged, "2026-11-15").ok, "direct publishing refuses a result with anything to look at");
+  must(entryFromDispatch({ ...env, IN_REQUIRE_CLEAN: "true" }, scanOk, "2026-11-15").ok, "direct publishing accepts a result with nothing found");
+  must(entryFromDispatch({ ...env, IN_REQUIRE_CLEAN: "false" }, flagged, "2026-11-15").ok, "an approval after the checks were read may publish a flagged result");
+}
+
 // ---- duplicates
 let dup = false; try { appendListing([good], { ...good, url: "https://github.com/O/R" }); } catch { dup = true; }
 must(dup, "the same repository cannot be listed twice, whatever its case");

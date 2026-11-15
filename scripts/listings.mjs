@@ -59,6 +59,12 @@ export function entryFromDispatch(env, scan, today) {
     name: clean(env.IN_NAME, 80), url: scan.page ?? "", author: clean(env.IN_AUTHOR, 80), why: clean(env.IN_WHY, 400),
     kind: clean(env.IN_KIND, 20), source: clean(env.IN_SOURCE, 20), added: today, commit: scan.sha ?? "", checks: scan.label ?? "needs-manual-review",
   };
+  // approving what was reviewed: the repository must still be at the commit whose checks the maintainer read
+  const expect = clean(env.IN_EXPECT_COMMIT, 40).toLowerCase();
+  if (expect && !/^[0-9a-f]{7,40}$/.test(expect)) return blocked("the commit the checks were run on is not valid", scan.text ?? scan.refusal?.text ?? "");
+  if (expect && !scan.refusal && !String(scan.sha ?? "").startsWith(expect)) return blocked("the repository changed since the checks that were reviewed. Run the checks again and read them before approving", scan.text);
+  // direct publishing has no human reading the result, so only a result with nothing to look at may go through
+  if (String(env.IN_REQUIRE_CLEAN) === "true" && !scan.refusal && scan.label !== "no-flags-found") return blocked("the checks found things for a person to read, so it cannot be published without that review", scan.text);
   return finish(entry, scan, String(env.IN_ALLOW_FAILED) === "true");
 }
 
