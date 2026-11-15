@@ -220,7 +220,16 @@ const SITE_JS = `
       var text = paste.value; pasteMsg.textContent = "";
       if (!text.trim()) return;
       var names = Object.keys(data), hit = "", ver = "";
-      for (var i = 0; i < names.length; i++) { var v = versionIn(text, names[i]); if (v) { hit = names[i]; ver = v; break; } }
+      // "claude plugin list --json" prints an array of { id: "name@marketplace", version, ... }
+      try {
+        var arr = JSON.parse(text);
+        if (Array.isArray(arr)) arr.forEach(function (it) {
+          if (hit || !it || typeof it.id !== "string" || typeof it.version !== "string") return;
+          var nm = it.id.split("@")[0];
+          if (data[nm]) { hit = nm; ver = it.version; }
+        });
+      } catch (e) {}
+      for (var i = 0; !hit && i < names.length; i++) { var v = versionIn(text, names[i]); if (v) { hit = names[i]; ver = v; } }
       if (!hit) { pasteMsg.textContent = "Could not find a Praxikit kit in that text."; return; }
       if (kitSel) kitSel.value = hit;
       fill();
@@ -337,7 +346,7 @@ function checker(kits, only) {
   const kitSelect = only ? "" : `<label class="ck-field"><span>Kit</span><select data-ck-kit>${names.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("")}</select></label>`;
   return `<div class="checker" data-checker="${esc(JSON.stringify(data))}"${only ? ` data-kit="${esc(only)}"` : ""}>
 <details class="ck-paste"><summary>Fill this in for me</summary>
-<p class="muted">A web page cannot see what is installed on your machine, so paste the output of <code>claude plugin list</code> and the version is picked for you. The text stays in your browser.</p>
+<p class="muted">A web page cannot see what is installed on your machine, so paste the output of <code>claude plugin list</code> (or <code>claude plugin list --json</code>) and the version is picked for you. The text stays in your browser.</p>
 <textarea data-ck-paste rows="4" spellcheck="false" aria-label="Output of claude plugin list" placeholder="keel@praxikit&#10;  Version: 0.5.0"></textarea>
 <p class="muted" data-ck-pastemsg aria-live="polite"></p></details>
 <div class="ck-row">${kitSelect}<label class="ck-field"><span>Version you have</span><select data-ck-ver></select></label></div>
@@ -357,21 +366,7 @@ function card(k, up) {
 <div class="meta-line">${badge(k)}</div>
 <h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
 <p class="promise">${esc(k.promise)}</p>
-<div class="card-foot"><span>${esc(bits)}</span>${latest ? `<span>Updated ${esc(latest)}</span>` : ""}</div>
-</li>`;
-}
-
-// with only a few kits, search and filters are noise; show each kit as a wide row with its install line
-function featureCard(k, up = "./") {
-  const bits = [k.adds.skills.length ? plural(k.adds.skills.length, "skill") : "", k.adds.agents.length ? plural(k.adds.agents.length, "agent") : ""].filter(Boolean).join(", ");
-  const latest = dateOf(k.changelog[0]?.head);
-  const checks = trustChecks(k), passed = checks.filter((c) => c.ok).length;
-  return `<li class="card feature" data-card data-groups="all" data-text="${esc(k.name.toLowerCase())}">
-<div class="feature-main"><div class="meta-line">${badge(k)}${latest ? `<span class="ver">updated ${esc(latest)}</span>` : ""}</div>
-<h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
-<p class="promise">${esc(k.promise)}</p>
-<p class="muted">${esc(bits)} · <a href="${up}k/${esc(k.name)}/#trust">${passed} of ${checks.length} build checks pass</a> · <a href="${up}k/${esc(k.name)}/#access">what it reads and sends</a></p></div>
-<div class="feature-side"><p class="label">Install, after adding the marketplace</p>${copyCmd(k.install[k.install.length - 1] ?? "")}<p><a class="more" href="${up}k/${esc(k.name)}/">Skills, access and changelog</a></p></div>
+<div class="card-foot"><span>${esc(bits)}${bits && latest ? " · " : ""}${latest ? `updated ${esc(latest)}` : ""}</span><a class="details" href="${up}k/${esc(k.name)}/">View details</a></div>
 </li>`;
 }
 
@@ -412,7 +407,7 @@ const GROUPS = [
   { id: "other", label: "Templates and more", noun: "templates, adapters, agents or hooks", kinds: ["template", "adapter", "agent", "hook"], blurb: "Templates, adapters, agents and hooks." },
 ];
 const inGroup = (kits, g) => kits.filter((k) => g.kinds.includes(k.kind));
-const listHtml = (list, up) => `<ul class="cards${list.length > 2 ? "" : " few"}" id="kits-list">${list.map((k) => (list.length > 2 ? card(k, up) : featureCard(k, up))).join("")}</ul>`;
+const listHtml = (list, up) => `<ul class="cards" id="kits-list">${list.map((k) => card(k, up)).join("")}</ul>`;
 
 function typeNav(kits, up, current) {
   const item = (href, label, n, id) => `<a href="${href}"${id === current ? ' aria-current="page"' : ""}>${esc(label)} <span class="count">${n}</span></a>`;
@@ -423,35 +418,24 @@ const recCard = (r) => `<li class="card"><div class="meta-line"><span class="kin
 const releaseList = (items, up) => items.map(({ k, e, date, v }) => `<li><div class="feed-meta"><a href="${up}k/${esc(k.name)}/">${esc(k.name)} ${esc(v)}</a>${date ? `<time datetime="${esc(date)}">${esc(date)}</time>` : ""}</div><p>${md(short(e.bullets[0] ?? ""))}</p></li>`).join("");
 
 function homePage(kits, recs) {
-  const first = kits[0];
-  const firstDate = dateOf(first?.changelog[0]?.head);
-  const demoKit = kits.find((k) => k.preview?.length >= 2);
-  const demo = demoKit ? `<figure class="demo"><figcaption>What ${esc(demoKit.name)} prints in Claude Code</figcaption>${demoKit.preview.slice(0, 2).map((p) => `<pre><code>${esc(p.body)}</code></pre>`).join("")}<p class="muted">${esc(demoKit.preview[1].note ?? "")}</p></figure>` : "";
   const featured = kits.slice(0, 3);
-  const latest = releaseFeed(kits).slice(0, 3);
-  const tiles = GROUPS.map((g) => { const n = inGroup(kits, g).length; return `<li><a class="tile-link" href="kits/${g.id}/"><strong>${esc(g.label)}</strong><span class="muted">${esc(g.blurb)}</span><span class="count-line">${n ? plural(n, "kit") : "None yet"}</span></a></li>`; }).join("");
+  const rows = GROUPS.map((g) => { const n = inGroup(kits, g).length; return `<li><a class="type-row" href="kits/${g.id}/"><span><strong>${esc(g.label)}</strong><span class="muted">${esc(g.blurb)}</span></span><span class="count-line">${n ? plural(n, "kit") : "None yet"}</span></a></li>`; }).join("");
 
   const body = `
 <section class="hero"><div class="wrap hero-in">
 <div class="hero-text">
-<h1>Small, readable kits for AI coding agents.</h1>
-<p class="lead">Plugins, skills and templates for Claude Code, and the same method for Cursor and Codex. Each kit is versioned, has a changelog, and says what it reads, writes and sends.</p>
-<ol class="steps"><li><span class="label">Add the marketplace once, in Claude Code</span>${install(["/plugin marketplace add praxikit/praxikit"])}</li>
-<li><span class="label">Then install a kit, for example</span>${install([first?.install?.[first.install.length - 1] ?? "/plugin install keel@praxikit"])}</li></ol>
-${first ? `<p class="muted">${esc(first.name)} v${esc(first.version)}${firstDate ? `, released ${esc(firstDate)}` : ""}. MIT licence.</p>` : ""}
+<h1>A catalogue of kits for AI coding agents.</h1>
+<p class="lead">Plugins, skills, MCP configs and templates. Each has a version, a changelog and a plain list of what it reads, writes and sends.</p>
+<ol class="steps"><li><span class="label">1. Add the marketplace once, in Claude Code</span>${install(["/plugin marketplace add praxikit/praxikit"])}</li>
+<li><span class="label">2. Open a kit and copy its install line</span></li></ol>
+<p class="actions"><a class="btn" href="kits/">Browse all kits</a><a class="btn ghost" href="submit/">Submit a kit</a></p>
 </div>
-${demo}
+<div class="hero-types"><h2 class="sub">Browse by type</h2><ul class="typelist">${rows}</ul></div>
 </div></section>
 
 <section class="wrap sec"><div class="sec-head"><h2>Featured kits</h2><a class="viewall" href="kits/">View all ${plural(kits.length, "kit")}</a></div>
 ${listHtml(featured, "./")}
-<h3 class="sub">Browse by type</h3>
-<ul class="tilegrid">${tiles}</ul>
 </section>
-
-<section class="wrap sec"><div class="sec-head"><h2>Latest releases</h2><a class="viewall" href="updates/">Updates and version check</a></div>
-<ul class="feed">${releaseList(latest, "./") || '<li class="muted">No releases yet.</li>'}</ul>
-<p class="muted">Not sure if you are up to date? <a href="updates/">Check your version</a>, or <a href="feed.xml">subscribe to the release feed</a>.</p></section>
 
 <section class="wrap sec"><div class="sec-head"><h2>Recommended</h2><a class="viewall" href="recommended/">${recs.length ? `View all ${recs.length}` : "About this list"}</a></div>
 ${recs.length ? `<ul class="recs">${recs.slice(0, 3).map(recCard).join("")}</ul>` : `<p class="muted">Nothing listed yet. These are kits made by other people that a person has read and would point to.</p>`}</section>
@@ -460,10 +444,10 @@ ${recs.length ? `<ul class="recs">${recs.slice(0, 3).map(recCard).join("")}</ul>
 
 <section class="wrap sec faq"><h2>Questions</h2>
 <details><summary>What happens when I install a kit?</summary><p>Claude Code copies the kit's files and registers its skills, agents and hooks. Each kit page lists the hooks it runs and what it reads, writes and sends, and the source is in the repository if you want to read it first.</p></details>
-<details><summary>How do updates reach me?</summary><p>Run <code>/plugin marketplace update praxikit</code>, then <code>/reload-plugins</code>. Kits use semantic versions and keep a changelog; the <a href="updates/">update checker</a> shows what changed since yours.</p></details>
+<details><summary>How do updates reach me?</summary><p>Run <code>/plugin marketplace update praxikit</code>, then <code>/reload-plugins</code>. Kits use semantic versions and keep a changelog; the <a href="updates/">updates page</a> shows what changed since your version.</p></details>
 <details><summary>What do the build checks on a kit page mean?</summary><p>They are computed from the files when the site is built: the manifest is complete, the changelog matches the version, the scripts contain no network code. They show the kit is consistent. They are not a security audit.</p></details>
 </section>`;
-  return page({ title: "Praxikit — kits for AI coding agents", depth: 0, body, home: true, canonical: HOME_URL, description: "Versioned, readable kits for AI coding agents: plugins, skills and templates, each with a changelog and a list of what it reads, writes and sends." });
+  return page({ title: "Praxikit — a catalogue of kits for AI coding agents", depth: 0, body, home: true, canonical: HOME_URL, description: "A catalogue of versioned, readable kits for AI coding agents: plugins, skills, MCP configs and templates, each with a changelog and a list of what it reads, writes and sends." });
 }
 
 function kitsPage(kits, group) {

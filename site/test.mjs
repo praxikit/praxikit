@@ -86,9 +86,9 @@ mkdirSync(join(root2, "kits", "evil"), { recursive: true });
 writeFileSync(join(root2, "kits", "evil", "kit.json"), JSON.stringify({ name: "evil", kind: "skill", collections: ["Planning"], tags: [XSS], version: "1.2.3", promise: XSS, install: ["/plugin marketplace add x", XSS], limits: ["l"] }));
 execFileSync("node", [join(here, "build.mjs"), "--root", root2, "--out", join(root2, "out")], { stdio: "pipe" });
 const few = readFileSync(join(root2, "out", "index.html"), "utf8");
-must(few.includes("feature") && !few.includes('id="q"'), "few kits should use the wide card and no search box");
-must(!/<img src=x/.test(few) && few.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "wide card is not escaped");
-must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes("feature") && !readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('id="q"'), "with one kit the kits page shows the wide card and no search");
+must(few.includes('class="card"') && !few.includes('id="q"'), "few kits show cards and no search box");
+must(!/<img src=x/.test(few) && few.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "card is not escaped");
+must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes("View details") && !readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('id="q"'), "with one kit the kits page shows a card with View details and no search");
 
 // a non-https recommended url must be refused
 put("site/recommended.json", JSON.stringify([{ name: "x", url: "javascript:alert(1)", author: "a", why: "w", category: "Skill", added: "2026-11-14" }]));

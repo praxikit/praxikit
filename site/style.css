@@ -229,3 +229,15 @@ button.done { background: var(--accent); color: var(--accent-fg); border-color: 
 .flow { padding-left: 1.2rem; max-width: 72ch; }
 .flow li { margin: .6rem 0; }
 .page-head .sec-head h1 { margin-bottom: .5rem; }
+
+/* neutral home: type list beside the intro, explicit "View details" */
+.hero-types .sub { margin-top: 0; }
+.typelist { list-style: none; padding: 0; margin: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+.typelist li + li { border-top: 1px solid var(--line); }
+.type-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 13px 16px; color: var(--fg); text-decoration: none; }
+.type-row:hover { background: var(--bg2); }
+.type-row > span:first-child { display: flex; flex-direction: column; min-width: 0; }
+.type-row .muted { font-size: .88rem; }
+.type-row .count-line { margin: 0; padding: 0; white-space: nowrap; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 1rem 0 0; }
+.details { position: relative; z-index: 1; font-weight: 600; white-space: nowrap; }
