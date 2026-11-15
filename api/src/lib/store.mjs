@@ -24,8 +24,8 @@ export function d1Store(db) {
     async pending(limit = 100) { return (await db.prepare("SELECT * FROM submissions WHERE status = 'pending' ORDER BY id DESC LIMIT ?").bind(limit).all()).results ?? []; },
     async recent(limit = 15) { return (await db.prepare("SELECT * FROM submissions WHERE status <> 'pending' ORDER BY id DESC LIMIT ?").bind(limit).all()).results ?? []; },
     /** Approving is one atomic step: it only succeeds while the submission is still pending. Returns true if it did. */
-    async approve(id, { by, name, kind, text, at }) {
-      const r = await db.prepare("UPDATE submissions SET status = 'approved', decided_by = ?, decided_at = ?, final_name = ?, final_kind = ?, final_text = ?, publish_state = 'dispatching', publish_note = '' WHERE id = ? AND status = 'pending'").bind(by, at, name, kind, text, id).run();
+    async approve(id, { by, name, kind, text, at, pick = false, note = "" }) {
+      const r = await db.prepare("UPDATE submissions SET status = 'approved', decided_by = ?, decided_at = ?, final_name = ?, final_kind = ?, final_text = ?, final_pick = ?, final_note = ?, publish_state = 'dispatching', publish_note = '' WHERE id = ? AND status = 'pending'").bind(by, at, name, kind, text, pick ? 1 : 0, pick ? note : "", id).run();
       return Number(r.meta?.changes) === 1;
     },
     async reject(id, { by, note, at }) {

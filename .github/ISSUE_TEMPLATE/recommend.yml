@@ -1,12 +1,12 @@
-name: Recommend someone else's kit
-description: A kit you have used and would vouch for, made by someone else.
-title: "Recommend: "
+name: Suggest someone else's kit
+description: A kit made by someone else that you found or use.
+title: "Suggest: "
 labels: ["recommendation"]
 body:
   - type: markdown
     attributes:
       value: |
-        Recommended entries are made by other people. Praxikit points to them and says why; it does not promise they are safe. A person reads each one before it is listed. This issue is public.
+        Suggested kits are made by other people. They are listed after the automatic checks and a read-through by a person. Listing is not an endorsement and not a promise that a kit is safe; a kit becomes one of the owner's picks only if the owner uses it. This issue is public.
   - type: input
     id: name
     attributes:

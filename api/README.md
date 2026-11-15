@@ -138,3 +138,15 @@ The scan report is also quieter: network commands and `eval` in ordinary documen
 3. Open a pending submission, click **Run the full checks**, wait for it, read the result, then decide.
 
 Checks: `node --no-warnings api/test-approve.mjs` covers the scan flow, the pin to the checked commit, clean-only direct publishing, retries and reopening.
+
+## Picks (the owner's own list)
+
+The approve form has an **I use this kit** tick and a **How I use it** note (up to 200 characters). A ticked kit is published as one of **My picks** with that note on its card; without the tick it is simply **Listed**. Direct publishing by a maintainer never marks a pick. The publish workflow receives `pick` and `note`, and the entry validator refuses a pick without a note or a note without a pick.
+
+### Setup for picks
+
+1. Pull and add the two new columns to your existing database, **once**:
+   ```bash
+   npx wrangler d1 execute praxikit-admin --remote --file=migrations/0004_picks.sql
+   ```
+2. Redeploy: `npx wrangler deploy`.

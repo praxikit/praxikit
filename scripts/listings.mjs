@@ -58,6 +58,8 @@ export function entryFromDispatch(env, scan, today) {
   const entry = {
     name: clean(env.IN_NAME, 80), url: scan.page ?? "", author: clean(env.IN_AUTHOR, 80), why: clean(env.IN_WHY, 400),
     kind: clean(env.IN_KIND, 20), source: clean(env.IN_SOURCE, 20), added: today, commit: scan.sha ?? "", checks: scan.label ?? "needs-manual-review",
+    // "I use this": the owner's pick, with a note on how
+    ...(String(env.IN_PICK) === "true" ? { pick: true, note: clean(env.IN_NOTE, 200) } : {}),
   };
   // approving what was reviewed: the repository must still be at the commit whose checks the maintainer read
   const expect = clean(env.IN_EXPECT_COMMIT, 40).toLowerCase();

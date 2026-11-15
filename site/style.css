@@ -244,3 +244,7 @@ main { flex: 1 0 auto; width: 100%; }
 .details { position: relative; z-index: 1; font-weight: 600; white-space: nowrap; }
 
 .kind.warn { background: var(--warn-bg); color: var(--warn); }
+
+.kind.pick { background: var(--accent); color: var(--accent-fg); }
+.kind.own { background: var(--bg2); color: var(--muted); border: 1px solid var(--line); }
+.pick-note { margin: 0 0 .7rem; padding: 8px 12px; background: var(--accent-bg); border-left: 3px solid var(--accent); border-radius: 4px; font-size: .93rem; }

@@ -19,7 +19,7 @@ on:
         type: choice
         options: [plugin, skill, mcp, template, adapter, agent, hook]
       source:
-        description: "recommended = made by someone else, you vouch for it. community = made by the person who submitted it."
+        description: "recommended = suggested by someone else. community = submitted by its author. (To show it as one of your picks, tick the pick box below instead.)"
         required: true
         type: choice
         options: [recommended, community]
@@ -31,6 +31,16 @@ on:
         description: One honest sentence on what it is or why you list it
         required: true
         type: string
+      pick:
+        description: I use this kit (shown as a pick, with the note below)
+        required: false
+        type: boolean
+        default: false
+      note:
+        description: One line on how you use it (needed for a pick)
+        required: false
+        type: string
+        default: ""
       allow_failed:
         description: List it even if the automatic checks failed
         required: false
@@ -66,6 +76,8 @@ jobs:
           IN_AUTHOR: ${{ inputs.author }}
           IN_WHY: ${{ inputs.why }}
           IN_ALLOW_FAILED: ${{ inputs.allow_failed }}
+          IN_PICK: ${{ inputs.pick }}
+          IN_NOTE: ${{ inputs.note }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |

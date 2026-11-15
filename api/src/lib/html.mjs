@@ -74,7 +74,7 @@ export const FLASH = {
   retried: "Trying again. The publish job has started.",
   already: "That submission was already decided.",
   stale: "For safety, sign in again before approving or rejecting (your sign-in is older than 30 minutes).",
-  bad: "Check the fields: a name up to 80 characters, a type from the list, and card text up to 400 characters. A rejection needs a reason up to 300 characters.",
+  bad: "Check the fields: a name up to 80 characters, a type from the list, card text up to 400 characters, and, if you tick that you use it, a note of up to 200 characters. A rejection needs a reason up to 300 characters.",
   nopublish: "Publishing is not connected yet: the app has no token to start the publish job. Nothing was changed.",
   failed: "Approved, but GitHub would not start the publish job. You can try again from this page.",
   direct: "Saved, and since you are a maintainer it is being published now (after the usual scan).",
@@ -155,6 +155,8 @@ ${scanned ? "" : '<p class="muted">Approving unlocks after the full checks have 
 <label for="name">Name on the card</label><input id="name" name="name" type="text" required maxlength="80" value="${esc(s.name)}">
 <label for="kind">Type</label>${kindSelect(s.kind_guess || "plugin")}${s.kind_guess ? "" : '<p class="hint">The file names did not show what this is; choose carefully.</p>'}
 <label for="text">Card text <span class="hint">(up to 400 characters; the README excerpt, or the recommender's note, to start with)</span></label><textarea id="text" name="text" required maxlength="400">${esc(defaultText)}</textarea>
+<label class="check"><input type="checkbox" name="pick" value="yes"> I use this kit (list it as one of my picks)</label>
+<label for="pick_note">How I use it <span class="hint">(one line, up to 200 characters; needed if you ticked the box above, and shown on the card)</span></label><input id="pick_note" name="pick_note" type="text" maxlength="200">
 ${flagged ? '<label class="check"><input type="checkbox" name="read" value="yes" required> I have opened and read the full report above</label>' : ""}
 <p><button type="submit"${approveOk ? "" : " disabled"}>Approve and publish</button> <span class="muted">It is listed at the commit that was checked. If the repository changes first, publishing stops and the checks must be run again.</span></p>
 </form>
@@ -164,7 +166,7 @@ ${flagged ? '<label class="check"><input type="checkbox" name="read" value="yes"
 </form>`
     : `<h2>Decision</h2>
 <dl><dt>Status</dt><dd>${esc(s.status)}${s.decided_by ? ` by @${esc(s.decided_by)} on ${esc(String(s.decided_at).slice(0, 10))}` : ""}</dd>
-${s.status === "approved" ? `<dt>Listed as</dt><dd>${esc(s.final_name)} (${esc(s.final_kind)}): ${esc(s.final_text)}</dd><dt>Publishing</dt><dd>${esc(PUBLISH[s.publish_state] ?? s.publish_state)}${s.publish_note ? `<br><span class="muted">${esc(s.publish_note)}</span>` : ""}</dd>${s.scan_commit ? `<dt>Checks read at</dt><dd><code>${esc(s.scan_commit)}</code> (${esc(s.scan_label)})</dd>` : ""}` : ""}
+${s.status === "approved" ? `<dt>Listed as</dt><dd>${esc(s.final_name)} (${esc(s.final_kind)}): ${esc(s.final_text)}</dd>${s.final_pick ? `<dt>My pick</dt><dd>${esc(s.final_note)}</dd>` : ""}<dt>Publishing</dt><dd>${esc(PUBLISH[s.publish_state] ?? s.publish_state)}${s.publish_note ? `<br><span class="muted">${esc(s.publish_note)}</span>` : ""}</dd>${s.scan_commit ? `<dt>Checks read at</dt><dd><code>${esc(s.scan_commit)}</code> (${esc(s.scan_label)})</dd>` : ""}` : ""}
 ${s.status === "rejected" ? `<dt>Reason</dt><dd>${esc(s.decision_note)}</dd>` : ""}</dl>
 ${s.status === "approved" && s.publish_state === "blocked" ? `<form method="post" action="/admin/submissions/${Number(s.id)}/retry"><p><button type="submit"${canPublish ? "" : " disabled"}>Try publishing again</button></p></form>
 <form method="post" action="/admin/submissions/${Number(s.id)}/reopen"><p><button class="ghost" type="submit">Back to review</button> <span class="muted">Run the full checks, read them, and approve with the report in front of you.</span></p></form>` : ""}`;

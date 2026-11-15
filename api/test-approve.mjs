@@ -346,6 +346,30 @@ must(byKey("alice/direct") && (await submit(dave, "https://github.com/alice/seco
   must(byKey("alice/xss").scan_label === "no-flags-found" && !(await (await call(`/admin/submissions/${id}`, { cookies: owner })).text()).includes('name="read"'), "a clean result needs no read-it box");
 }
 
+// ---- "I use this": a pick needs a note, and travels to the workflow
+{
+  const id = byKey("alice/xss").id;
+  must(dispatches.every((d) => d.body.inputs.pick === "false" && d.body.inputs.note === "" || d.body.inputs.pick === "true"), "approvals without the tick send pick=false and no note");
+  for (const [label, over] of [["a pick with no note", { pick: "yes", pick_note: "" }], ["a pick with a blank note", { pick: "yes", pick_note: "   " }], ["a pick with a long note", { pick: "yes", pick_note: "n".repeat(201) }]]) {
+    const res = await act(owner, id, "approve", approveForm(over));
+    must(res.headers.get("Location").endsWith("?m=bad") && byKey("alice/xss").status === "pending", `${label} is refused and nothing changes`);
+  }
+  const n = dispatches.length;
+  const res = await act(owner, id, "approve", approveForm({ name: "Xss kit", pick: "yes", pick_note: "I use it\nfor card text checks." }));
+  const row2 = byKey("alice/xss");
+  must(res.headers.get("Location").endsWith("?m=approved") && row2.final_pick === 1 && row2.final_note === "I use it for card text checks." && dispatches.length === n + 1, "a pick with a note is approved, the note cleaned to one line");
+  const inp = dispatches.at(-1).body.inputs;
+  must(inp.pick === "true" && inp.note === "I use it for card text checks.", "the workflow receives the pick flag and the note");
+  const page = await (await call(`/admin/submissions/${id}`, { cookies: owner })).text();
+  must(page.includes("My pick") && page.includes("I use it for card text checks."), "the decision shows that it is a pick, with the note");
+  const plainRes = await act(owner, byKey("alice/second").id, "approve", approveForm({ pick: "no", pick_note: "ignored when not ticked" }));
+  must(plainRes.headers.get("Location").endsWith("?m=needscan"), "(a submission with no checks yet still cannot be approved)");
+  await runScan(byKey("alice/second").id);
+  await act(owner, byKey("alice/second").id, "approve", approveForm({ name: "Second", pick_note: "ignored when not ticked" }));
+  const inp2 = dispatches.at(-1).body.inputs;
+  must(inp2.pick === "false" && inp2.note === "" && byKey("alice/second").final_note === "", "without the tick, any note is dropped");
+}
+
 // ---- flashes are fixed strings, never echoed
 {
   const t = await (await note(await call(`/admin/submissions/${good.id}?m=%3Cscript%3Ealert(1)%3C/script%3E`, { cookies: owner }))).text();

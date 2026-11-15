@@ -5,7 +5,7 @@
  *   node site/build.mjs [--root <repo dir>] [--out <dir>]
  *
  * Reads  <root>/kits/<name>/{kit.json,CHANGELOG.md,plugin/skills,plugin/agents}
- *        <root>/site/recommended.json
+ *        <root>/site/listings.json, site/drift.json
  * Writes <out>/index.html, 404.html, c/<collection>/index.html, k/<kit>/index.html, versions.json, style.css
  *
  * Every string that comes from a manifest or data file goes through esc(). Links are relative so the
@@ -85,7 +85,7 @@ function loadKits() {
       return { ...k, changelog: existsSync(cl) ? parseChangelog(readFileSync(cl, "utf8")) : [], adds: listAdds(dir), hooks: listHooks(dir) };
     }).sort((a, b) => a.name.localeCompare(b.name));
 }
-/** Community and recommended entries from site/listings.json. A bad entry stops the build. */
+/** Other people's kits (listed, or marked as the owner's picks) from site/listings.json. A bad entry stops the build. */
 function loadListings() {
   const f = join(ROOT, "site", "listings.json");
   if (!existsSync(f)) return [];
@@ -299,7 +299,7 @@ const SITE_JS = `
 })();
 `;
 
-const page = ({ title, depth, body, description, canonical, home = false, current = "" }) => {
+const page = ({ title, depth, body, description, canonical, home = false, current = "", head = "" }) => {
   const cur = (id) => (id === current ? ' aria-current="page"' : "");
   const up = depth ? "../".repeat(depth) : "./";
   return `<!doctype html>
@@ -316,6 +316,7 @@ const page = ({ title, depth, body, description, canonical, home = false, curren
 <meta property="og:site_name" content="Praxikit">
 <meta name="twitter:card" content="summary">
 ${canonical ? `<link rel="canonical" href="${esc(canonical)}">\n` : ""}<link rel="alternate" type="application/atom+xml" title="Praxikit releases" href="${up}feed.xml">
+${head}
 <link rel="icon" href="${FAVICON}">
 <link rel="stylesheet" href="${up}style.css">
 <script data-site>${THEME_BOOT}</script>
@@ -324,7 +325,7 @@ ${canonical ? `<link rel="canonical" href="${esc(canonical)}">\n` : ""}<link rel
 <a class="skip" href="#main">Skip to content</a>
 <header class="top"><div class="wrap bar">
 <a class="brand" href="${up}" aria-label="Praxikit home">${LOGO}<span>Praxikit</span></a>
-<nav aria-label="Main"><a href="${up}kits/"${cur("kits")}>Kits</a><a href="${up}updates/"${cur("updates")}>Updates</a><a href="${up}recommended/"${cur("recommended")}>Recommended</a><a href="${up}submit/"${cur("submit")}>Submit</a><a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
+<nav aria-label="Main"><a href="${up}kits/"${cur("kits")}>Kits</a><a href="${up}updates/"${cur("updates")}>Updates</a><a href="${up}picks/"${cur("picks")}>Picks</a><a href="${up}submit/"${cur("submit")}>Submit</a><a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
 <button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg></button></nav>
 </div></header>
 <main id="main">
@@ -357,7 +358,7 @@ function checker(kits, only) {
 <div data-ck-update hidden><p class="muted">Update with:</p>${copyCmd("/plugin marketplace update praxikit")}<p class="muted">then <code>/reload-plugins</code>.</p></div>
 </div>`;
 }
-const badge = (k) => `<span class="kind">${esc(kindOf(k))}</span><span class="ver">v${esc(k.version)}</span>`;
+const badge = (k) => `<span class="kind own">Built by Praxikit</span><span class="kind">${esc(kindOf(k))}</span><span class="ver">v${esc(k.version)}</span>`;
 
 // "same" | "changed" | "unreachable" per listing url, written daily by the listing-drift workflow; unknown values are ignored
 let DRIFT = {};
@@ -366,7 +367,8 @@ function loadDrift() {
   if (!existsSync(f)) return {};
   try { return Object.fromEntries(Object.entries(readJson(f)).filter(([, v]) => ["same", "changed", "unreachable"].includes(v))); } catch { return {}; }
 }
-const SOURCE_LABEL = { community: "Community", recommended: "Recommended" };
+// who put it forward: shown small, as context. It does not decide whether it is a pick.
+const SOURCE_LABEL = { community: "submitted by its author", recommended: "suggested by someone else" };
 const CHECK_WORDS = { "no-flags-found": "automatic checks found nothing", "checks-flagged": "automatic checks flagged things a person reviewed", "checks-failed": "automatic checks failed, accepted by the admin", "needs-manual-review": "reviewed by hand" };
 
 /** A listing made by someone else: links out to its repository and says what was reviewed. */
@@ -375,13 +377,14 @@ function extCard(l, up) {
   const st = DRIFT[l.url];
   const drift = st === "changed" ? { badge: '<span class="kind warn">Changed since review</span>', note: ` <a href="${esc(l.url)}/compare/${esc(l.commit)}...HEAD" rel="noopener noreferrer">See what changed</a>.` }
     : st === "unreachable" ? { badge: '<span class="kind warn">Repository not reachable</span>', note: " It may have been removed or made private." } : { badge: "", note: "" };
-  const groups = [slug(KIND_LABEL[l.kind] ?? l.kind), slug(SOURCE_LABEL[l.source])].join(" ");
+  const groups = [slug(KIND_LABEL[l.kind] ?? l.kind), l.pick ? "picks" : "listed"].join(" ");
   const text = [l.name, l.why, l.author, l.kind, l.source].join(" ").toLowerCase();
   return `<li class="card" data-card data-groups="${esc(groups)}" data-text="${esc(text)}">
-<div class="meta-line"><span class="kind ext">${esc(SOURCE_LABEL[l.source])}</span><span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span>${drift.badge}</div>
+<div class="meta-line">${l.pick ? '<span class="kind pick">My pick</span>' : '<span class="kind ext">Listed</span>'}<span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span>${drift.badge}</div>
 <h3><a class="name" href="${esc(l.url)}" rel="noopener noreferrer">${esc(l.name)}</a></h3>
-<p class="muted">by ${esc(l.author)}, not built by Praxikit</p>
+<p class="muted">by ${esc(l.author)}, not built by Praxikit. ${esc(SOURCE_LABEL[l.source])[0].toUpperCase() + esc(SOURCE_LABEL[l.source]).slice(1)}.</p>
 <p class="promise">${esc(l.why)}</p>
+${l.pick ? `<p class="pick-note"><strong>How I use it:</strong> ${esc(l.note)}</p>` : ""}
 <div class="card-foot"><span>Reviewed at <code>${esc(l.commit.slice(0, 7))}</code>, ${esc(CHECK_WORDS[l.checks] ?? l.checks)}. Installs follow the author's latest version, which can differ.${drift.note}</span><a class="details" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a></div>
 </li>`;
 }
@@ -448,7 +451,7 @@ function typeNav(kits, up, current) {
 const recCard = (r) => extCard(r, "./");
 const releaseList = (items, up) => items.map(({ k, e, date, v }) => `<li><div class="feed-meta"><a href="${up}k/${esc(k.name)}/">${esc(k.name)} ${esc(v)}</a>${date ? `<time datetime="${esc(date)}">${esc(date)}</time>` : ""}</div><p>${md(short(e.bullets[0] ?? ""))}</p></li>`).join("");
 
-function homePage(kits, recs) {
+function homePage(kits, picks) {
   const featured = kits.slice(0, 3);
   const rows = GROUPS.map((g) => { const n = inGroup(kits, g).length; return `<li><a class="type-row" href="kits/${g.id}/"><span><strong>${esc(g.label)}</strong><span class="muted">${esc(g.blurb)}</span></span><span class="count-line">${n ? plural(n, "kit") : "None yet"}</span></a></li>`; }).join("");
 
@@ -468,8 +471,8 @@ function homePage(kits, recs) {
 ${listHtml(featured, "./")}
 </section>
 
-<section class="wrap sec"><div class="sec-head"><h2>Recommended</h2><a class="viewall" href="recommended/">${recs.length ? `View all ${recs.length}` : "About this list"}</a></div>
-${recs.length ? `<ul class="recs">${recs.slice(0, 3).map(recCard).join("")}</ul>` : `<p class="muted">Nothing listed yet. These are kits made by other people that a person has read and would point to.</p>`}</section>
+<section class="wrap sec"><div class="sec-head"><h2>My picks</h2><a class="viewall" href="picks/">${picks.length ? `View all ${picks.length}` : "About picks"}</a></div>
+${picks.length ? `<ul class="recs">${picks.slice(0, 3).map(recCard).join("")}</ul>` : `<p class="muted">Nothing here yet. Picks are kits made by other people that the owner has actually used, each with a note on how.</p>`}</section>
 
 <section class="wrap sec"><div class="submit-band"><div><h2>Built a kit?</h2><p class="muted">Submit it for free. An automatic check reads the repository without running it, then a person reads it before anything is listed.</p></div><a class="btn" href="submit/">Submit a kit</a></div></section>
 
@@ -510,12 +513,18 @@ function updatesPage(kits) {
   return page({ title: "Updates — Praxikit", depth: 1, body, current: "updates", canonical: `${HOME_URL}updates/`, description: "Check which version of a Praxikit kit you have and what changed since, or subscribe to the release feed." });
 }
 
-function recommendedPage(recs) {
-  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Recommended</p><h1>Recommended</h1>
-<p class="lead">Kits made by other people that a person has read and would point to.</p>
+function picksPage(picks) {
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Picks</p><h1>My picks</h1>
+<p class="lead">Kits made by other people that the owner has actually used, each with a note on how. Everything else in the catalogue is just <em>listed</em>: scanned and read by a person, but not necessarily used.</p>
 <p class="note">Praxikit did not build these and does not promise they are safe; read the source before installing anything.</p>
-${recs.length ? `<ul class="recs">${recs.map(recCard).join("")}</ul>` : `<div class="empty"><p><strong>Nothing listed yet.</strong> <a href="../submit/#recommend">Recommend a kit</a> you have used and would vouch for.</p></div>`}</div>`;
-  return page({ title: "Recommended — Praxikit", depth: 1, body, current: "recommended", canonical: `${HOME_URL}recommended/`, description: "Kits made by other people that Praxikit points to, with the reason." });
+${picks.length ? `<ul class="recs">${picks.map(recCard).join("")}</ul>` : `<div class="empty"><p><strong>Nothing here yet.</strong> Picks appear when the owner marks a kit as used. You can <a href="../submit/">suggest a kit</a>; it is listed after the checks and a read-through.</p></div>`}</div>`;
+  return page({ title: "My picks — Praxikit", depth: 1, body, current: "picks", canonical: `${HOME_URL}picks/`, description: "Kits by other people that the owner uses, with a note on how." });
+}
+
+/** The old address of the picks page: a plain redirect, so links that were shared keep working. */
+function movedPage() {
+  const body = `<div class="wrap sec page-head"><h1>This page moved</h1><p class="lead">It is now <a href="../picks/">My picks</a>.</p></div>`;
+  return page({ title: "Moved — Praxikit", depth: 1, body, current: "picks", canonical: `${HOME_URL}picks/`, description: "This page moved to My picks.", head: '<meta http-equiv="refresh" content="0; url=../picks/">' });
 }
 
 function submitPage() {
@@ -523,7 +532,7 @@ function submitPage() {
 <p class="lead">Free. Both forms open a public GitHub issue, so you need a free GitHub account and should not paste secrets.</p>
 <div class="submit">
 <div id="submit"><h2>You built one</h2><p>Describe it, link the repository and say what it reads, writes and sends.</p><p><a class="btn" href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Open the submission form</a></p></div>
-<div id="recommend"><h2>You use someone else's</h2><p>Recommend a kit you have used and would vouch for, and say why.</p><p><a class="btn ghost" href="${esc(ISSUE("recommend.yml"))}" rel="noopener noreferrer">Open the recommendation form</a></p></div>
+<div id="recommend"><h2>You found someone else's</h2><p>Suggest a kit made by someone else, and say why. It is listed after the checks and a read-through. It becomes one of the owner's picks only if the owner uses it.</p><p><a class="btn ghost" href="${esc(ISSUE("recommend.yml"))}" rel="noopener noreferrer">Open the suggestion form</a></p></div>
 </div>
 <h2 class="sub">What happens next</h2>
 <ol class="flow">
@@ -610,7 +619,7 @@ function policyPage() {
 <h2>What a listing means</h2>
 <ul>
 <li>Kits <strong>built by Praxikit</strong> are ours. We maintain them and ship fixes as new versions.</li>
-<li><strong>Community</strong> and <strong>Recommended</strong> listings are other people's work. We link to the public repository. We do not host, copy or run it.</li>
+<li><strong>Listed</strong> kits and <strong>picks</strong> are other people's work. We link to the public repository. We do not host, copy or run it. A <em>pick</em> is a kit the owner has used, with a note on how; a <em>listed</em> kit was scanned and read by a person, and is not necessarily used.</li>
 <li>A listing means a person read the repository and the automatic result <strong>at one commit</strong>, which each listing shows. It is not an endorsement and not a safety guarantee. The automatic checks are pattern checks and cannot see everything.</li>
 <li><strong>The reviewed commit is not what you install.</strong> Installs come from the author's repository and follow its latest version, so the code you get can be newer than the code that was reviewed. A daily check marks a listing <strong>Changed since review</strong> when its repository has moved on, with a link to what changed. That tells you something changed, not whether it is safe; compare before you install.</li>
 <li>Listing is free. Nothing is listed for payment, and payment never changes a check or a decision.</li>
@@ -652,17 +661,18 @@ const write = (rel, text) => { const p = join(OUT, rel); mkdirSync(dirname(p), {
 const kits = loadKits();
 const listings = loadListings();
 DRIFT = loadDrift();
-const recs = listings.filter((l) => l.source === "recommended");
+const picks = listings.filter((l) => l.pick);
 // everything that appears in the kit lists: kits built here first, then other people's listings
 const items = [...kits, ...listings.map((l) => ({ ...l, ext: true }))];
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 copyFileSync(join(here, "style.css"), join(OUT, "style.css"));
-write("index.html", homePage(items, recs));
+write("index.html", homePage(items, picks));
 write("kits/index.html", kitsPage(items, null));
 for (const g of GROUPS) write(`kits/${g.id}/index.html`, kitsPage(items, g));
 write("updates/index.html", updatesPage(kits));
-write("recommended/index.html", recommendedPage(recs));
+write("picks/index.html", picksPage(picks));
+write("recommended/index.html", movedPage());
 write("submit/index.html", submitPage());
 write("policy/index.html", policyPage());
 write("404.html", notFoundPage());
@@ -671,4 +681,4 @@ for (const c of new Set(kits.flatMap((k) => k.collections))) write(`c/${slug(c)}
 for (const k of kits) write(`k/${k.name}/index.html`, kitPage(k));
 write("versions.json", JSON.stringify(Object.fromEntries(kits.map((k) => [k.name, { version: k.version, kind: k.kind }])), null, 2) + "\n");
 write(".nojekyll", "");
-console.log(`built ${kits.length} kit(s), ${listings.length} listing(s) (${recs.length} recommended) -> ${OUT}`);
+console.log(`built ${kits.length} kit(s), ${listings.length} listing(s) (${picks.length} picks) -> ${OUT}`);

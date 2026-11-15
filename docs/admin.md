@@ -52,3 +52,9 @@ Phase 2 adds `/submit` (any GitHub user), `/mine` and, for maintainers, a submis
 Phase 3 moves approving and rejecting into the app (`/admin/submissions/N`). The app only starts the `approve-submission` workflow; the label flow, **Add listing** and **Remove listing** still work and remain the fallback.
 
 Phase 3b: approving is only possible after the full checks have run (button on the submission page), and the approval is pinned to the commit they ran on. Direct publishing by a maintainer needs a result with nothing to look at.
+
+## Picks and listed kits
+
+The public catalogue has three kinds of entry. **Built by Praxikit** kits are the ones in `kits/`. **My picks** are other people's kits that you actually use: the approve form in the app has an "I use this kit" tick and a one-line "How I use it" note, and the card shows both. Everything else is just **Listed**: scanned and read by a person, not necessarily used, and never called recommended. Who put it forward ("submitted by its author" or "suggested by someone else") is shown small and does not change the tier.
+
+To turn an existing listing into a pick (or to change its note), run **Add listing** on GitHub with the same repository link, **replace** ticked, **pick** ticked and the note filled in. The old address `/recommended/` redirects to `/picks/`.

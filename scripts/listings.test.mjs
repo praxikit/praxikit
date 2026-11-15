@@ -28,6 +28,18 @@ for (const [label, bad] of [
   ["bad date", { ...good, added: "yesterday" }], ["extra field", { ...good, html: "<script>" }], ["bad issue", { ...good, issue: -1 }], ["not an object", null],
 ]) must(validateListing(bad).length > 0, `refused: ${label}`);
 
+// ---- picks: the owner uses it, and says how
+must(validateListing({ ...good, pick: true, note: "I use it for browser tests every week." }).length === 0, "a pick with a note validates");
+for (const [label, bad] of [["pick without a note", { ...good, pick: true }], ["pick with an empty note", { ...good, pick: true, note: " " }], ["pick with a long note", { ...good, pick: true, note: "x".repeat(201) }], ["pick that is not true", { ...good, pick: "yes", note: "n" }], ["pick: false", { ...good, pick: false }], ["note without a pick", { ...good, note: "n" }], ["note with a control character", { ...good, pick: true, note: "a\u0000b" }]])
+  must(validateListing(bad).length > 0, `refused: ${label}`);
+{
+  const withPick = entryFromDispatch({ IN_NAME: "Tool", IN_URL: "x", IN_AUTHOR: "me", IN_WHY: "Because.", IN_KIND: "plugin", IN_SOURCE: "community", IN_PICK: "true", IN_NOTE: "I use it\nevery day." }, scanOk, "2026-11-15");
+  must(withPick.ok && withPick.entry.pick === true && withPick.entry.note === "I use it every day.", "a pick passes through with its note cleaned to one line");
+  must(!entryFromDispatch({ IN_NAME: "Tool", IN_URL: "x", IN_AUTHOR: "me", IN_WHY: "Because.", IN_KIND: "plugin", IN_SOURCE: "community", IN_PICK: "true", IN_NOTE: "" }, scanOk, "2026-11-15").ok, "a pick without a note is refused");
+  const plain = entryFromDispatch({ IN_NAME: "Tool", IN_URL: "x", IN_AUTHOR: "me", IN_WHY: "Because.", IN_KIND: "plugin", IN_SOURCE: "community", IN_PICK: "false", IN_NOTE: "ignored" }, scanOk, "2026-11-15");
+  must(plain.ok && !("pick" in plain.entry) && !("note" in plain.entry), "without the pick flag, the note is dropped");
+}
+
 // ---- recommendation form -> entry
 const recForm = parseIssue("### Name of the kit\n\nPlaywright MCP\n\n### Link\n\nhttps://github.com/o/r\n\n### Who made it?\n\nMicrosoft\n\n### Category\n\nMCP config\n\n### Why do you recommend it?\n\nBrowser automation for agents.\n\nIt worked well.\n");
 const r1 = entryFromIssue(recForm, "opener", 7, scanOk, "2026-11-15");

@@ -145,14 +145,15 @@ async function approveRoute(request, env, s, id) {
   if (!publishingConfigured(env)) return back(base, "nopublish");
   let f; try { f = await request.formData(); } catch { return back(base, "bad"); }
   const name = oneLine(f.get("name"), 100), kind = String(f.get("kind") ?? ""), text = oneLine(f.get("text"), 500);
-  if (!name || name.length > 80 || !KINDS.includes(kind) || !text || text.length > 400) return back(base, "bad");
+  const pick = f.get("pick") === "yes", pickNote = pick ? oneLine(f.get("pick_note"), 300) : "";
+  if (!name || name.length > 80 || !KINDS.includes(kind) || !text || text.length > 400 || (pick && (!pickNote || pickNote.length > 200))) return back(base, "bad");
   const row = await store.get(id);
   if (!row || row.status !== "pending") return back(base, "already");
   // approving needs the full checks to have run, on a commit we can pin the listing to
   if (row.scan_state !== "done" || !/^[0-9a-f]{12}$/.test(String(row.scan_commit)) || !["no-flags-found", "checks-flagged"].includes(row.scan_label)) return back(base, "needscan");
   if (row.scan_label === "checks-flagged" && f.get("read") !== "yes") return back(base, "needread");
-  if (!(await store.approve(id, { by: s.sub, name, kind, text, at: new Date().toISOString() }))) return back(base, "already");
-  const state = await startPublish(env, store, { ...row, final_name: name, final_kind: kind, final_text: text, decided_by: s.sub });
+  if (!(await store.approve(id, { by: s.sub, name, kind, text, at: new Date().toISOString(), pick, note: pickNote }))) return back(base, "already");
+  const state = await startPublish(env, store, { ...row, final_name: name, final_kind: kind, final_text: text, final_pick: pick ? 1 : 0, final_note: pickNote, decided_by: s.sub });
   return back(base, state === "dispatched" ? "approved" : "failed");
 }
 

@@ -24,7 +24,11 @@ export function validateListing(l) {
   if (typeof l.commit !== "string" || !/^[0-9a-f]{40}$/.test(l.commit)) e.push("commit must be the 40-character commit that was reviewed");
   if (!CHECK_LABELS.includes(l.checks)) e.push(`checks must be one of ${CHECK_LABELS.join(", ")}`);
   if (l.issue !== undefined && !(Number.isInteger(l.issue) && l.issue > 0)) e.push("issue must be a positive integer");
-  const known = new Set(["name", "url", "author", "why", "kind", "source", "added", "commit", "checks", "issue"]);
+  // a pick means the owner has used it, and says how in one line; without a pick there is no note
+  if (l.pick !== undefined && l.pick !== true) e.push("pick, when present, must be true");
+  if (l.pick === true && !PLAIN(l.note, 200)) e.push("a pick needs a note of 1 to 200 plain characters on how it is used");
+  if (l.pick !== true && l.note !== undefined) e.push("note is only for picks");
+  const known = new Set(["name", "url", "author", "why", "kind", "source", "added", "commit", "checks", "issue", "pick", "note"]);
   for (const k of Object.keys(l)) if (!known.has(k)) e.push(`unknown field ${String(k).slice(0, 30)}`);
   return e;
 }
