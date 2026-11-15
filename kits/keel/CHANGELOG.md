@@ -1,5 +1,9 @@
 # Changelog — keel
 
+## 0.5.1 — 2026-11-15
+- Changed: the manifest now carries examples of what you will see, what the kit reads, writes and sends, and install steps for Cursor and Codex, so the catalog page can show them. No change to how the plugin behaves.
+- New: a test checks that Keel's scripts contain no network or child-process code, because the catalog page says they make no network calls.
+
 ## 0.5.0 — 2026-11-15
 - New: budget guard. Set `budget.prompt` and/or `budget.session` (estimated USD) in `.keel/config.json`; when a cap is passed the cost footer ends with `OVER prompt cap $X`. Warns only, never stops work. No cap by default.
 - New: cost per phase. `/keel:verify` runs `scripts/phase-cost.mjs` when a phase passes and records its estimated cost in `05-progress.md`, using a ledger in `.keel/ledger.json` (difference between marks, all sessions and sub-agents). The first mark covers all recorded history and says so.

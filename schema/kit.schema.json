@@ -15,6 +15,27 @@
     "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$", "description": "SemVer. Must match plugin.json for plugin kits and have a heading in CHANGELOG.md." },
     "promise": { "type": "string", "maxLength": 140, "description": "One plain sentence. No hype." },
     "install": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "Commands, one per line, as a user would type them." },
-    "limits": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "Honest limits, shown on the kit page." }
+    "limits": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "Honest limits, shown on the kit page." },
+    "installBy": {
+      "type": "array", "minItems": 1,
+      "description": "Optional. Install steps per tool, shown as tabs on the kit page. Without it the page shows `install` as Claude Code steps.",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["tool", "steps"],
+        "properties": { "tool": { "type": "string" }, "steps": { "type": "array", "minItems": 1, "items": { "type": "string" } }, "note": { "type": "string" } }
+      }
+    },
+    "preview": {
+      "type": "array",
+      "description": "Optional. Real or clearly illustrative examples of what the user will see, shown on the kit page as 'What you'll see'.",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["title", "body"],
+        "properties": { "title": { "type": "string" }, "note": { "type": "string" }, "body": { "type": "string" } }
+      }
+    },
+    "access": {
+      "type": "object", "additionalProperties": false, "required": ["reads", "writes", "network"],
+      "description": "Optional. What the kit reads, writes and sends, declared by its author. Hooks are listed automatically from plugin/hooks/hooks.json.",
+      "properties": { "reads": { "type": "array", "items": { "type": "string" } }, "writes": { "type": "array", "items": { "type": "string" } }, "network": { "type": "string" } }
+    }
   }
 }

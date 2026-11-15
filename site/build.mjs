@@ -52,6 +52,17 @@ function listAdds(dir) {
   if (existsSync(ag)) for (const f of readdirSync(ag).filter((x) => x.endsWith(".md"))) out.agents.push(frontmatter(join(ag, f)));
   return out;
 }
+function listHooks(dir) {
+  const f = join(dir, "plugin", "hooks", "hooks.json");
+  if (!existsSync(f)) return [];
+  let j; try { j = readJson(f); } catch { return []; }
+  const out = [];
+  for (const [event, groups] of Object.entries(j.hooks ?? {})) for (const g of groups ?? []) for (const h of g.hooks ?? []) {
+    const script = (h.args ?? []).map((a) => String(a).split("/").pop()).find((a) => /\.(mjs|js|sh|py)$/.test(a)) ?? String(h.command ?? "");
+    out.push({ event, matcher: g.matcher ?? "", script });
+  }
+  return out;
+}
 function parseChangelog(text) {
   const entries = [];
   for (const block of text.split(/^## /m).slice(1)) {
@@ -69,7 +80,7 @@ function loadKits() {
       const dir = join(kitsDir, d.name);
       const k = readJson(join(dir, "kit.json"));
       const cl = join(dir, "CHANGELOG.md");
-      return { ...k, changelog: existsSync(cl) ? parseChangelog(readFileSync(cl, "utf8")) : [], adds: listAdds(dir) };
+      return { ...k, changelog: existsSync(cl) ? parseChangelog(readFileSync(cl, "utf8")) : [], adds: listAdds(dir), hooks: listHooks(dir) };
     }).sort((a, b) => a.name.localeCompare(b.name));
 }
 function loadRecommended() {
@@ -111,6 +122,53 @@ const SITE_JS = `
         setTimeout(function () { b.textContent = "Copy"; b.classList.remove("done"); }, 1600);
       });
     });
+  });
+  document.querySelectorAll("[data-tabs]").forEach(function (root) {
+    var tabs = [].slice.call(root.querySelectorAll("[role=tab]")), panels = [].slice.call(root.querySelectorAll("[role=tabpanel]"));
+    function show(i) {
+      tabs.forEach(function (t, j) { t.setAttribute("aria-selected", String(i === j)); t.tabIndex = i === j ? 0 : -1; });
+      panels.forEach(function (p, j) { p.hidden = i !== j; });
+    }
+    tabs.forEach(function (t, i) {
+      t.addEventListener("click", function () { show(i); });
+      t.addEventListener("keydown", function (e) {
+        var n = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : -1;
+        if (n < 0) return; n = (n + tabs.length) % tabs.length; show(n); tabs[n].focus(); e.preventDefault();
+      });
+    });
+    root.querySelector("[role=tablist]").hidden = false;
+    show(0);
+  });
+  document.querySelectorAll("[data-checker]").forEach(function (box) {
+    var data; try { data = JSON.parse(box.getAttribute("data-checker")); } catch (e) { return; }
+    var kitSel = box.querySelector("[data-ck-kit]"), verSel = box.querySelector("[data-ck-ver]"), out = box.querySelector("[data-ck-out]"), upd = box.querySelector("[data-ck-update]");
+    function kit() { return data[kitSel ? kitSel.value : box.getAttribute("data-kit")]; }
+    function fill() {
+      var k = kit(); verSel.textContent = "";
+      var first = document.createElement("option"); first.value = ""; first.textContent = "Choose your version"; verSel.appendChild(first);
+      if (!k) return;
+      k.versions.forEach(function (v) { var o = document.createElement("option"); o.value = v.v; o.textContent = "v" + v.v + (v.date ? " (" + v.date + ")" : ""); verSel.appendChild(o); });
+      var old = document.createElement("option"); old.value = "older"; old.textContent = "Older, or I don't know"; verSel.appendChild(old);
+      render();
+    }
+    function line(parent, tag, text, cls) { var e = document.createElement(tag); e.textContent = text; if (cls) e.className = cls; parent.appendChild(e); return e; }
+    function render() {
+      out.textContent = ""; upd.hidden = true;
+      var k = kit(); if (!k || !verSel.value) { out.hidden = true; return; }
+      out.hidden = false;
+      var idx = verSel.value === "older" ? k.versions.length : k.versions.findIndex(function (v) { return v.v === verSel.value; });
+      if (idx === 0) { line(out, "p", "You are up to date: v" + k.versions[0].v + " is the latest.", "ck-ok"); return; }
+      line(out, "p", "Update available: v" + k.versions[0].v + " is the latest" + (idx < k.versions.length ? ", you have v" + verSel.value : "") + ". " + (idx < k.versions.length ? idx + (idx === 1 ? " release" : " releases") + " since yours:" : "Everything since the first release:"), "ck-new");
+      var shown = k.versions.slice(0, idx);
+      shown.forEach(function (v) {
+        var h = line(out, "h4", "v" + v.v + (v.date ? "  ·  " + v.date : ""));
+        var ul = document.createElement("ul"); v.notes.forEach(function (n) { line(ul, "li", n); }); out.appendChild(ul);
+      });
+      upd.hidden = false;
+    }
+    if (kitSel) kitSel.addEventListener("change", fill);
+    verSel.addEventListener("change", render);
+    fill();
   });
   var tgl = document.getElementById("theme");
   if (tgl) tgl.addEventListener("click", function () {
@@ -178,7 +236,7 @@ ${canonical ? `<link rel="canonical" href="${esc(canonical)}">\n` : ""}<link rel
 <a class="skip" href="#main">Skip to content</a>
 <header class="top"><div class="wrap bar">
 <a class="brand" href="${up}" aria-label="Praxikit home">${LOGO}<span>Praxikit</span></a>
-<nav aria-label="Main"><a href="${up}#kits">Kits</a><a href="${up}#whats-new">What's new</a><a href="${up}#how">How it works</a><a href="${up}#recommended">Recommended</a><a class="gh" href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
+<nav aria-label="Main"><a href="${up}#kits">Kits</a><a href="${up}#whats-new">What's new</a><a href="${up}#update-check">Up to date?</a><a href="${up}#how">How it works</a><a href="${up}#recommended">Recommended</a><a class="gh" href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
 <button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg></button></nav>
 </div></header>
 <main id="main">
@@ -193,6 +251,21 @@ ${body}
 
 const copyCmd = (c) => `<div class="cmd"><code>${esc(c)}</code><button type="button" data-copy>Copy</button></div>`;
 const install = (cmds) => cmds.map(copyCmd).join("\n");
+// version history for the "am I up to date" checker; newest first, as in the changelog
+const historyOf = (k) => k.changelog.map((e) => ({ v: e.head.split(/\s+/)[0], date: dateOf(e.head), notes: e.bullets.map((b) => b.replace(/`/g, "")) })).filter((h) => /^\d+\.\d+\.\d+$/.test(h.v));
+const checkerData = (kits) => Object.fromEntries(kits.map((k) => [k.name, { versions: historyOf(k) }]).filter(([, v]) => v.versions.length));
+function checker(kits, only) {
+  const data = checkerData(kits);
+  const names = Object.keys(data);
+  if (!names.length || (only && !data[only])) return "";
+  const kitSelect = only ? "" : `<label class="ck-field"><span>Kit</span><select data-ck-kit>${names.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("")}</select></label>`;
+  return `<div class="checker" data-checker="${esc(JSON.stringify(data))}"${only ? ` data-kit="${esc(only)}"` : ""}>
+<div class="ck-row">${kitSelect}<label class="ck-field"><span>Version you have</span><select data-ck-ver></select></label></div>
+<div class="ck-out" data-ck-out hidden aria-live="polite"></div>
+<div data-ck-update hidden><p class="muted">Update with:</p>${copyCmd("/plugin marketplace update praxikit")}<p class="muted">then <code>/reload-plugins</code>.</p></div>
+<p class="muted ck-help">Find your version: run <code>/plugin</code> and open the kit; the version is shown next to its name.</p>
+</div>`;
+}
 const badge = (k) => `<span class="badge kind">${esc(kindOf(k))}</span><span class="ver">v${esc(k.version)}</span>`;
 
 function card(k, up) {
@@ -261,6 +334,8 @@ ${kits.length ? "" : '<p class="muted">No kits yet.</p>'}
 
 <section id="whats-new" class="band"><div class="wrap sec"><h2>What's new</h2><p class="muted">Every release is tagged and has a changelog. This is the latest.</p><ul class="feed">${feedHtml || '<li class="muted">No releases yet.</li>'}</ul></div></section>
 
+${checker(kits) ? `<section id="update-check" class="wrap sec"><h2>Am I up to date?</h2><p class="muted">Pick the version you have and see only what changed since.</p>${checker(kits)}</section>` : ""}
+
 <section id="how" class="wrap sec"><h2>How it works</h2>
 <ol class="steps">
 <li><span class="num">1</span><h3>Add once</h3><p>Add the Praxikit marketplace to Claude Code. It is a Git repo; nothing runs until you install a kit.</p></li>
@@ -281,6 +356,30 @@ function collectionPage(c, kits) {
   return page({ title: `${c} — Praxikit`, depth: 2, body, description: `Praxikit kits in the ${c} collection.` });
 }
 
+function installBlock(k) {
+  const tools = k.installBy?.length ? k.installBy : [{ tool: "Claude Code", steps: k.install }];
+  if (tools.length === 1) return `<div>${install(tools[0].steps)}${tools[0].note ? `<p class="muted">${esc(tools[0].note)}</p>` : ""}</div>`;
+  const id = (i) => `tab-${slug(k.name)}-${i}`;
+  return `<div data-tabs><div role="tablist" aria-label="Install for" class="tablist" hidden>${tools.map((t, i) => `<button type="button" role="tab" id="${id(i)}" aria-controls="${id(i)}-p" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${esc(t.tool)}</button>`).join("")}</div>
+${tools.map((t, i) => `<div role="tabpanel" id="${id(i)}-p" aria-labelledby="${id(i)}"><p class="tool-name">${esc(t.tool)}</p>${install(t.steps)}${t.note ? `<p class="muted">${esc(t.note)}</p>` : ""}</div>`).join("")}</div>`;
+}
+
+function accessBlock(k) {
+  const parts = [];
+  if (k.hooks?.length) parts.push(`<h3>Runs automatically</h3><ul class="access">${k.hooks.map((h) => `<li><code>${esc(h.event)}</code>${h.matcher ? ` on <code>${esc(h.matcher)}</code>` : ""} runs <code>${esc(h.script)}</code></li>`).join("")}</ul><p class="muted">Listed from the kit's <code>hooks.json</code>, so it matches what is installed.</p>`);
+  if (k.access) {
+    parts.push(`<h3>Reads</h3><ul class="access">${k.access.reads.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`);
+    parts.push(`<h3>Writes</h3><ul class="access">${k.access.writes.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`);
+    parts.push(`<h3>Network</h3><p>${esc(k.access.network)}</p><p class="muted">Reads, writes and network are declared by the kit's author. Read the source before you rely on them.</p>`);
+  }
+  return parts.length ? `<h2>What it does on your machine</h2>${parts.join("")}` : "";
+}
+
+function previewBlock(k) {
+  if (!k.preview?.length) return "";
+  return `<h2>What you'll see</h2><div class="previews">${k.preview.map((p) => `<figure class="preview"><figcaption><strong>${esc(p.title)}</strong>${p.note ? `<span class="muted">${esc(p.note)}</span>` : ""}</figcaption><pre><code>${esc(p.body)}</code></pre></figure>`).join("")}</div>`;
+}
+
 function kitPage(k) {
   const tile = (s, label) => `<li class="tile"><span class="tile-kind">${label}</span><strong>${esc(label === "skill" && k.kind === "plugin" ? `/${k.name}:${s.name}` : s.name)}</strong><p>${esc(short(s.description))}</p></li>`;
   const adds = [];
@@ -294,11 +393,14 @@ function kitPage(k) {
 <p class="lead">${esc(k.promise)}</p>
 <div class="two">
 <div class="main-col">
+${previewBlock(k)}
 ${adds.join("\n")}
+${accessBlock(k)}
 <h2>Honest limits</h2><ul class="limits">${k.limits.map((l) => `<li>${md(l)}</li>`).join("")}</ul>
 <h2>Changelog</h2>${log ? `<ol class="log">${log}</ol>` : '<p class="muted">No changelog.</p>'}
 </div>
-<aside class="side"><div class="panel"><h2>Install</h2>${install(k.install)}<p class="muted">Update later:</p>${copyCmd("/plugin marketplace update praxikit")}<p class="muted">then <code>/reload-plugins</code>.</p>
+<aside class="side"><div class="panel"><h2>Install</h2>${installBlock(k)}<p class="muted">Update later (Claude Code):</p>${copyCmd("/plugin marketplace update praxikit")}<p class="muted">then <code>/reload-plugins</code>.</p>
+${checker([k], k.name) ? `<h2 class="ck-title">Am I up to date?</h2>${checker([k], k.name)}` : ""}
 <p class="side-links"><a class="btn ghost" href="${esc(REPO)}/tree/main/kits/${esc(k.name)}" rel="noopener noreferrer">Source on GitHub</a></p></div></aside>
 </div></div>`;
   return page({ title: `${k.name} — Praxikit`, depth: 2, body, description: k.promise });

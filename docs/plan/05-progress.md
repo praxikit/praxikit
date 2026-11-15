@@ -51,3 +51,6 @@
 
 ## 2026-11-15 — Catalog redesign
 - Rebuilt the site: brand shown as "Praxikit", hero with copy-to-clipboard install steps and stats, wide feature card (search and filters appear from 4 kits), What's new feed from changelogs, How it works, kit pages with install panel, skill/agent tiles, limits and a changelog timeline, dark mode toggle, 404 page, skip link, reduced-motion. Site test now proves the only scripts are ours and covers both layouts. Checked in the browser at desktop and 375px, no horizontal overflow. Package and org slugs stay lowercase.
+
+## 2026-11-15 — Catalog: up-to-date checker, what you'll see, install tabs (Keel 0.5.1)
+- Home page and kit pages gained "Am I up to date?" (pick the installed version, see only the releases since, from the changelog; no backend), kit pages gained "What you'll see" (examples), "What it does on your machine" (hooks listed from hooks.json, reads/writes/network declared in kit.json) and install tabs for Claude Code, Cursor and Codex. New optional kit.json fields: `installBy`, `preview`, `access` (schema and check-kits updated). A Keel test now proves its scripts contain no network or child-process code, since the page says so. Fixed a mobile overflow on the wide kit card. Keel bumped to 0.5.1 (manifest only; plugin behaviour unchanged).

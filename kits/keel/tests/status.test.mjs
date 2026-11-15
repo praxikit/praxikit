@@ -63,6 +63,14 @@ const dry = spawnSync("node", [join(plugin, "scripts", "phase-cost.mjs"), "Phase
 must(dry.includes("$0.0000") || dry.includes("$0.00"), `dry-run shows zero since last mark: ${dry}`);
 must(JSON.parse(readFileSync(join(work, ".keel", "ledger.json"), "utf8")).marks.length === 2, "dry-run writes nothing");
 
+// ---- the kit page says the scripts make no network calls; prove it
+import { readdirSync, statSync } from "node:fs";
+const walkJs = (d) => readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? walkJs(p) : /\.(mjs|js)$/.test(n) ? [p] : []; });
+for (const f of walkJs(join(plugin, "scripts"))) {
+  const src = readFileSync(f, "utf8");
+  must(!/\bfetch\s*\(|node:https?|node:net|node:dgram|node:child_process|XMLHttpRequest|WebSocket/.test(src), `network or process code in ${f}; the kit page claims none`);
+}
+
 rmSync(dir, { recursive: true, force: true });
 if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }
 console.log("ok: done-check warns only when a non-doc edit has no later check, honours the switch; status shows phases, checks and cost");

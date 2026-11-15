@@ -3,12 +3,63 @@
   "kind": "plugin",
   "collections": ["Planning", "Build and delegate", "Quality and security"],
   "tags": ["planning", "critique", "model-routing", "sub-agents", "phases"],
-  "version": "0.5.0",
+  "version": "0.5.1",
   "promise": "Plan with a critique gate, build in phases that prove themselves, give each task to the cheapest capable model, see what it cost.",
   "install": [
     "/plugin marketplace add praxikit/praxikit",
     "/plugin install keel@praxikit"
   ],
+  "installBy": [
+    {
+      "tool": "Claude Code",
+      "steps": ["/plugin marketplace add praxikit/praxikit", "/plugin install keel@praxikit"],
+      "note": "Everything: skills, agents, hooks, model routing and the cost footer."
+    },
+    {
+      "tool": "Cursor",
+      "steps": ["curl -o .cursorrules https://raw.githubusercontent.com/praxikit/praxikit/main/kits/keel/adapters/cursor/.cursorrules"],
+      "note": "Run in your project root. The method only: the plan documents and the rules. No hooks, no model routing, no cost footer."
+    },
+    {
+      "tool": "Codex and other agents",
+      "steps": ["curl -o AGENTS.md https://raw.githubusercontent.com/praxikit/praxikit/main/kits/keel/adapters/codex/AGENTS.md"],
+      "note": "Run in your project root. The method only. If you already have an AGENTS.md, merge instead of overwriting."
+    }
+  ],
+  "preview": [
+    {
+      "title": "One line after every prompt",
+      "note": "The cost footer. Estimates from list prices; subscription users do not pay these amounts.",
+      "body": "Keel · ≈$0.03 this prompt (sonnet 5.5) · session ≈$0.25 · 95.8k in, 1.5k out · est."
+    },
+    {
+      "title": "Replies that end with what is yours to do",
+      "note": "Illustrative reply. Plain questions get a plain answer with neither section.",
+      "body": "Added the login route and its test.\n\n### For you\n1. **Add the secret to Vercel.** Run `vercel env add API_KEY`\n   → expect: Added Environment Variable API_KEY   (blocks the next step)\n\n### Task list\n[x] Add the login route\n[>] Wire the form to it\n[ ] Deploy and smoke test"
+    },
+    {
+      "title": "/keel:status",
+      "note": "Illustrative output for a project in Phase 1.",
+      "body": "Phases\n  [x] Phase 0 — MVP\n  [>] Phase 1 — Core\n  [ ] Phase 2 — Polish\n\nNow: Phase 1 — Core\n  Goal: ship the core\n  Checks to pass:\n   - `npm test` → green\n   - login works\n\nLast progress entry\n  2026-11-14 — Phase 0 passed\n\nCost this session: ≈$0.42 (1.2M in, 9.1k out), an estimate from list prices."
+    },
+    {
+      "title": "A nudge when nothing was checked",
+      "note": "Done-check. A heuristic; never blocks.",
+      "body": "Keel done-check: 2 files changed this prompt and nothing was run to check them afterwards. Run the phase checks or the tests before calling it done."
+    }
+  ],
+  "access": {
+    "reads": [
+      "docs/plan/ in your project, for the drift warning and /keel:status",
+      ".keel/config.json in your project, for your settings",
+      "This session's transcript and its sub-agent transcripts under ~/.claude/projects, for token counts only"
+    ],
+    "writes": [
+      "Nothing on its own. Skills write docs/plan/ and .keel/ files only when you run them",
+      "A one-line marker file in your OS temp folder so the drift warning shows once per session"
+    ],
+    "network": "None from the hooks or scripts (a test checks the scripts for network code). The scout and critic agents can search the web when you use them."
+  },
   "limits": [
     "Not a pentest and not a model classifier.",
     "Model routing works in Claude Code only; the method and prompts work with any agent.",

@@ -41,6 +41,13 @@ for (const name of kitNames) {
   if (typeof k.promise !== "string" || !k.promise || k.promise.length > 140) fail(name, "promise must be one sentence of at most 140 characters");
   if (!Array.isArray(k.install) || !k.install.length) fail(name, "install must list at least one command");
   if (!Array.isArray(k.limits) || !k.limits.length) fail(name, "limits must list at least one honest limit");
+  const strs = (a) => Array.isArray(a) && a.every((x) => typeof x === "string" && x);
+  if (k.installBy !== undefined && !(Array.isArray(k.installBy) && k.installBy.length && k.installBy.every((t) => t && typeof t.tool === "string" && t.tool && strs(t.steps) && t.steps.length)))
+    fail(name, "installBy must be a non-empty list of { tool, steps[], note? }");
+  if (k.preview !== undefined && !(Array.isArray(k.preview) && k.preview.every((p) => p && typeof p.title === "string" && p.title && typeof p.body === "string" && p.body)))
+    fail(name, "preview must be a list of { title, body, note? }");
+  if (k.access !== undefined && !(k.access && strs(k.access.reads) && strs(k.access.writes) && typeof k.access.network === "string" && k.access.network))
+    fail(name, "access must be { reads[], writes[], network } with plain strings");
 
   const changelog = join(dir, "CHANGELOG.md");
   if (!existsSync(changelog)) fail(name, "missing CHANGELOG.md");
