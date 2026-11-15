@@ -63,8 +63,9 @@ A table of the five assumptions the idea leans on most: the claim, which seat re
 
 ## Step 6: Verdict
 
-- **Go** if at least five seats back it and no stop signal is met. **Go if** when votes are mixed but no stop signal is clearly met. **Stop** when a stop signal is clearly met and no cheap test could change it.
-- **Score:** the total out of 30, shown for reference only. It does not decide the verdict.
+- The five seats other than the devil's advocate vote and score; the devil's advocate does not vote.
+- **Go** if at least four of the five voting seats say Back it, no stop signal is met, and the devil's advocate's scenario has a cheap hedge. **Go if** when votes are mixed but no stop signal is clearly met. **Stop** when a stop signal is clearly met and no cheap test could change it.
+- **Score:** the total out of 25 (five scoring seats), shown for reference only. It does not decide the verdict.
 - **Conditions:** the three things that must be true, each tied to a seat.
 - **Kill triggers:** two numbers that, if seen, mean stop (for example "fewer than 5 of 20 buyers will pay").
 - **This week's test:** exactly one test that takes days, not months, and gathers evidence from real buyers: a priced waitlist, a pre-sale, ten conversations with the person who pays, or a hand-made version delivered by you. Never "build the MVP". State the pass bar as a number the founder commits to before running it.
@@ -91,7 +92,7 @@ What all six assumed without saying: ...
 ## Assumption ledger
 | Claim | Relied on by | Cheapest check |
 
-## Verdict: Go | Go if | Stop   (score n/30)
+## Verdict: Go | Go if | Stop   (score n/25)
 Conditions: 1. ... 2. ... 3. ...
 Kill triggers: ... / ...
 This week's test: ... Pass bar: ...

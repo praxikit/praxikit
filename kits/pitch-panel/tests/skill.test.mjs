@@ -34,6 +34,10 @@ must(/Assumption ledger/.test(skill) && /Kill triggers/.test(skill) && /assumed 
 must(/exactly one test/i.test(skill) && /pass bar/i.test(skill) && /Never "build the MVP"/.test(skill), "the verdict ends in one cheap test with a pass bar stated in advance");
 must(/Go if/.test(skill) && /\*\*Stop\*\*/.test(skill) && /does not decide the verdict/.test(skill), "verdict values are defined and the score does not decide them");
 
+// the score arithmetic must match who scores: five seats score, so the total is out of 25
+must(/out of 25/.test(skill) && /n\/25/.test(skill) && !/\/30|out of 30/.test(skill) && !/\/30/.test(readFileSync(join(kit, "kit.json"), "utf8")), "the score total is out of 25 everywhere");
+must(/devil's advocate does not vote/.test(skill) && /at least four of the five voting seats/.test(skill), "Go is decided by the five voting seats, not six");
+
 // cost honesty: one pass by default, deep mode only when asked
 must(/Default: one pass/.test(skill) && /many times more tokens/.test(skill), "single pass is the default and deep mode's cost is stated");
 

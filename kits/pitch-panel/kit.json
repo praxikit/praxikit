@@ -3,7 +3,7 @@
   "kind": "skill",
   "collections": ["Planning"],
   "tags": ["startup", "idea-validation", "pre-mortem", "business"],
-  "version": "0.2.0",
+  "version": "0.2.1",
   "promise": "Put a startup idea in front of six seats (CTO, CMO, COO, PM, CFO, devil's advocate), then get a verdict and one cheap test.",
   "install": [
     "/plugin marketplace add praxikit/praxikit",
@@ -35,7 +35,7 @@
     {
       "title": "The verdict",
       "note": "Same made-up idea. The test and its pass bar are stated before it is run.",
-      "body": "## Verdict: Go if   (score 20/30)\n\nConditions: 1. Buyers pay for a one-off box, not only a subscription (PM). 2. Landed cost leaves 40% margin after shipping (CFO). 3. Ten buyers reached for under $5 each (CMO).\nKill triggers: fewer than 5 of 20 interviewees will pay; second-box re-order under 25%.\nThis week's test: a one-page priced pre-order for a three-item box, shown to 200 left-handed people. Pass bar: 12 pre-orders.\nNot checked: competitors' real prices, supplier minimums.\n\nI am not an investor and this is not a prediction; talk to real buyers before you decide."
+      "body": "## Verdict: Go if   (score 17/25)\n\nConditions: 1. Buyers pay for a one-off box, not only a subscription (PM). 2. Landed cost leaves 40% margin after shipping (CFO). 3. Ten buyers reached for under $5 each (CMO).\nKill triggers: fewer than 5 of 20 interviewees will pay; second-box re-order under 25%.\nThis week's test: a one-page priced pre-order for a three-item box, shown to 200 left-handed people. Pass bar: 12 pre-orders.\nNot checked: competitors' real prices, supplier minimums.\n\nI am not an investor and this is not a prediction; talk to real buyers before you decide."
     }
   ],
   "access": {

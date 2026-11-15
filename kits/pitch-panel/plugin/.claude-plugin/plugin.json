@@ -1,6 +1,6 @@
 {
   "name": "pitch-panel",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Put a startup or product idea in front of a six-seat panel (CTO, CMO, COO, PM, CFO and a devil's advocate) that argues against it, then get a verdict, an assumption ledger and one cheap real-world test.",
   "author": { "name": "praxikit", "url": "https://github.com/praxikit" },
   "homepage": "https://github.com/praxikit/praxikit",

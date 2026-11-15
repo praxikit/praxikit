@@ -372,7 +372,7 @@ function extCard(l, up) {
 <h3><a class="name" href="${esc(l.url)}" rel="noopener noreferrer">${esc(l.name)}</a></h3>
 <p class="muted">by ${esc(l.author)}, not built by Praxikit</p>
 <p class="promise">${esc(l.why)}</p>
-<div class="card-foot"><span>Reviewed at <code>${esc(l.commit.slice(0, 7))}</code>, ${esc(CHECK_WORDS[l.checks] ?? l.checks)}</span><a class="details" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a></div>
+<div class="card-foot"><span>Reviewed at <code>${esc(l.commit.slice(0, 7))}</code>, ${esc(CHECK_WORDS[l.checks] ?? l.checks)}. Installs follow the author's latest version, which can differ.</span><a class="details" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a></div>
 </li>`;
 }
 
@@ -602,6 +602,7 @@ function policyPage() {
 <li>Kits <strong>built by Praxikit</strong> are ours. We maintain them and ship fixes as new versions.</li>
 <li><strong>Community</strong> and <strong>Recommended</strong> listings are other people's work. We link to the public repository. We do not host, copy or run it.</li>
 <li>A listing means a person read the repository and the automatic result <strong>at one commit</strong>, which each listing shows. It is not an endorsement and not a safety guarantee. The automatic checks are pattern checks and cannot see everything.</li>
+<li><strong>The reviewed commit is not what you install.</strong> Installs come from the author's repository and follow its latest version, so the code you get can be newer than the code that was reviewed. Compare the commit shown with the repository before you install.</li>
 <li>Listing is free. Nothing is listed for payment, and payment never changes a check or a decision.</li>
 <li>A listing needs a licence that lets others use the work, and the submitter confirms they wrote it or have permission.</li>
 <li>We can decline or remove any listing. We try to say why.</li>
