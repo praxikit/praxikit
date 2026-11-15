@@ -1,6 +1,9 @@
 {
   "name": "praxikit",
-  "owner": { "name": "praxikit", "url": "https://github.com/praxikit" },
+  "owner": {
+    "name": "praxikit",
+    "url": "https://github.com/praxikit"
+  },
   "description": "praxikit — practical kits for building with AI agents.",
   "plugins": [
     {
@@ -8,7 +11,23 @@
       "source": "./kits/keel/plugin",
       "description": "Critique-gated planning, phased builds with acceptance checks, model tiers, re-planning.",
       "category": "productivity",
-      "tags": ["planning", "critique", "model-routing", "security"]
+      "tags": [
+        "planning",
+        "critique",
+        "model-routing",
+        "security"
+      ]
+    },
+    {
+      "name": "pitch-panel",
+      "source": "./kits/pitch-panel/plugin",
+      "description": "Put a startup idea in front of a five-seat panel that argues against it, then get a verdict and one cheap test.",
+      "category": "productivity",
+      "tags": [
+        "startup",
+        "idea-validation",
+        "critique"
+      ]
     }
   ]
 }

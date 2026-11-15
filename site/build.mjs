@@ -118,7 +118,7 @@ function trustChecks(k) {
   const missing = need.filter((f) => k[f] === undefined || k[f] === "" || (Array.isArray(k[f]) && !k[f].length && f !== "tags"));
   out.push({ ok: !missing.length, text: missing.length ? `Manifest is missing: ${missing.join(", ")}` : "Manifest has every required field" });
   out.push({ ok: k.changelog.some((e) => e.head.split(/\s+/)[0] === k.version), text: `Changelog has an entry for v${k.version}` });
-  if (k.kind === "plugin") {
+  if (k.kind === "plugin" || existsSync(join(dir, "plugin", ".claude-plugin", "plugin.json"))) {
     const pj = join(dir, "plugin", ".claude-plugin", "plugin.json");
     let pv = null; try { pv = readJson(pj).version; } catch { /* missing */ }
     out.push({ ok: pv === k.version, text: pv === k.version ? "Plugin manifest version matches the kit version" : `Plugin manifest version (${pv ?? "missing"}) does not match v${k.version}` });

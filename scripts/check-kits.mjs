@@ -54,7 +54,8 @@ for (const name of kitNames) {
   else if (!new RegExp(`^## ${k.version?.replaceAll(".", "\\.")}( |$)`, "m").test(readFileSync(changelog, "utf8")))
     fail(name, `CHANGELOG.md has no "## ${k.version}" heading`);
 
-  if (k.kind === "plugin") {
+  // a kit of any kind that ships plugin/.claude-plugin/plugin.json is installable from the marketplace, so it gets the plugin checks
+  if (k.kind === "plugin" || existsSync(join(dir, "plugin", ".claude-plugin", "plugin.json"))) {
     const pj = join(dir, "plugin", ".claude-plugin", "plugin.json");
     if (!existsSync(pj)) fail(name, "plugin kit has no plugin/.claude-plugin/plugin.json");
     else if (readJson(pj).version !== k.version) fail(name, `plugin.json version ${readJson(pj).version} != kit.json version ${k.version}`);

@@ -40,6 +40,7 @@ jobs:
           node kits/keel/tests/status.test.mjs
           node scripts/check-submission.test.mjs
           node scripts/listings.test.mjs
+          node kits/pitch-panel/tests/skill.test.mjs
       - name: actionlint on workflows and the security template (pinned, checksum verified)
         env:
           V: 1.7.7

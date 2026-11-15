@@ -1,0 +1,47 @@
+{
+  "name": "pitch-panel",
+  "kind": "skill",
+  "collections": ["Planning"],
+  "tags": ["startup", "idea-validation", "critique", "business"],
+  "version": "0.1.0",
+  "promise": "Put a startup idea in front of a five-seat panel that argues against it, then get a verdict and one cheap test.",
+  "install": [
+    "/plugin marketplace add praxikit/praxikit",
+    "/plugin install pitch-panel@praxikit"
+  ],
+  "installBy": [
+    {
+      "tool": "Claude Code",
+      "steps": ["/plugin marketplace add praxikit/praxikit", "/plugin install pitch-panel@praxikit"],
+      "note": "Then run /pitch-panel:grill and describe your idea. Updates arrive through the marketplace."
+    },
+    {
+      "tool": "Any other agent",
+      "steps": ["curl -o PITCH-PANEL.md https://raw.githubusercontent.com/praxikit/praxikit/main/kits/pitch-panel/plugin/skills/grill/SKILL.md"],
+      "note": "Run in your project, then tell your agent to follow PITCH-PANEL.md for your idea. You will not get automatic updates this way."
+    }
+  ],
+  "preview": [
+    {
+      "title": "One seat's block",
+      "note": "Illustrative output for a made-up idea (a subscription box of left-handed kitchen tools).",
+      "body": "## Customer   Vote: Back it if\n\nStrongest objection: left-handed buyers already find these tools in shops and online, so the pain may be mild.\nWhy it matters: a mild pain does not justify a monthly subscription.\nWhat would change my mind: 10 of 20 left-handed buyers say they have given up looking and would pay today.\nQuestion I would ask in the room: what did you do the last time a tool felt wrong in your hand?\nOne number I would want: how many left-handed adults have bought a kitchen tool online in the past year."
+    },
+    {
+      "title": "The verdict",
+      "note": "Same made-up idea. The test and its pass bar are stated before it is run.",
+      "body": "## Verdict: Go if\n\nConditions: 1. Buyers pay for a one-off box, not only a subscription (Customer). 2. Landed cost per box leaves 40% margin after shipping (Money). 3. Ten buyers reached for under $5 each (Reach).\nThis week's test: a one-page priced pre-order for a three-item box, shown to 200 left-handed people. Pass bar: 12 pre-orders.\nNot checked: competitors' real prices, supplier minimums.\n\nI am not an investor and this is not a prediction; talk to real buyers before you decide."
+    }
+  ],
+  "access": {
+    "reads": ["The idea you describe, and any files or links you point it at"],
+    "writes": ["Nothing, unless you ask it to save the result to docs/pitch-panel.md"],
+    "network": "None from the kit: it has no scripts and no hooks. If your agent has web search it may use it when you allow it, and the skill says to name only pages it actually opened."
+  },
+  "limits": [
+    "Not investors and not a forecast: the verdict is a structured argument, not a prediction.",
+    "Only as good as the facts you give it; anything unsourced is marked as an assumption.",
+    "The seats are played by one model, so they share its blind spots. Talk to real buyers before you decide.",
+    "Not affiliated with any television programme or brand."
+  ]
+}
