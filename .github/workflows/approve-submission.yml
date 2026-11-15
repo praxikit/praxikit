@@ -41,26 +41,16 @@ on:
         description: GitHub login of the maintainer who approved it
         required: true
         type: string
-      pick:
-        description: The maintainer uses this kit (shown as a pick, with the note)
-        required: false
-        default: false
-        type: boolean
       note:
-        description: One line on how the maintainer uses it (needed for a pick)
+        description: One line on how the maintainer uses it. If it is not empty, the kit is shown as one of the maintainer's picks.
         required: false
         default: ""
         type: string
       expected_commit:
-        description: The commit whose checks the maintainer read; the listing is refused if the repository has moved on (leave empty for none)
+        description: The commit whose checks the maintainer read; the listing is refused if the repository has moved on. If it is empty (direct publishing, where nobody read the checks) the listing needs a result with nothing to look at.
         required: false
         default: ""
         type: string
-      require_clean:
-        description: Only publish if the checks found nothing to look at (used for direct publishing, where nobody reads them first)
-        required: false
-        default: false
-        type: boolean
 permissions: {}
 jobs:
   scan:
@@ -86,10 +76,10 @@ jobs:
           IN_AUTHOR: ${{ inputs.author }}
           IN_WHY: ${{ inputs.why }}
           IN_ALLOW_FAILED: "false"
-          IN_PICK: ${{ inputs.pick }}
           IN_NOTE: ${{ inputs.note }}
+          IN_PICK: ${{ inputs.note != '' }}
           IN_EXPECT_COMMIT: ${{ inputs.expected_commit }}
-          IN_REQUIRE_CLEAN: ${{ inputs.require_clean }}
+          IN_REQUIRE_CLEAN: ${{ inputs.expected_commit == '' }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |

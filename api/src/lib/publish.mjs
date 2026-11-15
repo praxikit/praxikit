@@ -20,9 +20,9 @@ export async function dispatchApprove(env, s) {
   try {
     r = await fetch(`${API}/repos/${env.REPO}/actions/workflows/${WORKFLOW}/dispatches`, {
       method: "POST", headers: hdr(env.GITHUB_DISPATCH_TOKEN),
-      body: JSON.stringify({ ref: "main", inputs: { submission_id: String(s.id), url: s.repo_url, name: s.final_name, kind: s.final_kind, source: s.source, author: s.owner, why: s.final_text, decided_by: s.decided_by, pick: s.final_pick ? "true" : "false", note: s.final_pick ? String(s.final_note ?? "") : "",
-        // a listing approved after reading the checks is pinned to the commit they ran on; a direct publish has no reader, so it must come out clean
-        expected_commit: /^[0-9a-f]{12}$/.test(String(s.scan_commit ?? "")) ? s.scan_commit : "", require_clean: /^[0-9a-f]{12}$/.test(String(s.scan_commit ?? "")) ? "false" : "true" } }),
+      body: JSON.stringify({ ref: "main", inputs: { submission_id: String(s.id), url: s.repo_url, name: s.final_name, kind: s.final_kind, source: s.source, author: s.owner, why: s.final_text, decided_by: s.decided_by, note: s.final_pick ? String(s.final_note ?? "") : "", // a non-empty note means a pick
+        // a listing approved after reading the checks is pinned to the commit they ran on; with no commit (a direct publish, where nobody read them) the workflow requires a clean result
+        expected_commit: /^[0-9a-f]{12}$/.test(String(s.scan_commit ?? "")) ? s.scan_commit : "" } }),
     });
   } catch { throw new UserError("GitHub could not be reached, so the publish job did not start."); }
   if (r.status !== 204) throw new UserError(r.status === 401 || r.status === 403 || r.status === 404 ? "GitHub refused to start the publish job. The app's token may be missing, expired or lacking the Actions permission." : "GitHub could not start the publish job.");

@@ -203,7 +203,7 @@ must(row.status === "approved" && row.decided_by === "ratul" && row.final_name =
 must(dispatches.length === 1 && dispatches[0].auth === `Bearer ${DISPATCH}`, "the publish job is started once, with the dedicated token (not the read-only one)");
 {
   const d = dispatches[0].body;
-  must(d.ref === "main" && d.inputs.submission_id === String(good.id) && d.inputs.url === "https://github.com/alice/good" && d.inputs.name === "Edited name" && d.inputs.kind === "skill" && d.inputs.source === "recommended" && d.inputs.author === "alice" && d.inputs.why.includes("Edited card text") && d.inputs.decided_by === "ratul" && d.inputs.expected_commit === SHA.slice(0, 12) && d.inputs.require_clean === "false" && !("allow_failed" in d.inputs), "the workflow gets exactly the confirmed fields, pinned to the commit whose checks were read, and no way to skip the scan");
+  must(d.ref === "main" && d.inputs.submission_id === String(good.id) && d.inputs.url === "https://github.com/alice/good" && d.inputs.name === "Edited name" && d.inputs.kind === "skill" && d.inputs.source === "recommended" && d.inputs.author === "alice" && d.inputs.why.includes("Edited card text") && d.inputs.decided_by === "ratul" && d.inputs.expected_commit === SHA.slice(0, 12) && !("require_clean" in d.inputs) && !("pick" in d.inputs) && d.inputs.note === "" && !("allow_failed" in d.inputs) && Object.keys(d.inputs).length === 10, "the workflow gets exactly the confirmed fields, pinned to the commit whose checks were read, and no way to skip the scan");
 }
 r = await act(owner, good.id, "approve", approveForm());
 must(r.headers.get("Location").endsWith("?m=already") && dispatches.length === 1, "approving twice is refused and does not start a second job");
@@ -287,7 +287,7 @@ must(rows().filter((x) => x.repo_key === "alice/reject").length === 2, "after a 
 const before = dispatches.length;
 r = await submit(owner, "https://github.com/alice/direct");
 row = byKey("alice/direct");
-must(r.headers.get("Location") === "/mine?ok=direct" && row.status === "approved" && row.decided_by === "ratul" && row.final_kind === "skill" && row.publish_state === "dispatched" && dispatches.length === before + 1 && dispatches.at(-1).body.inputs.decided_by === "ratul" && dispatches.at(-1).body.inputs.require_clean === "true" && dispatches.at(-1).body.inputs.expected_commit === "", "a maintainer's submission is approved and sent to the publish job directly");
+must(r.headers.get("Location") === "/mine?ok=direct" && row.status === "approved" && row.decided_by === "ratul" && row.final_kind === "skill" && row.publish_state === "dispatched" && dispatches.length === before + 1 && dispatches.at(-1).body.inputs.decided_by === "ratul" && dispatches.at(-1).body.inputs.expected_commit === "" && dispatches.at(-1).body.inputs.note === "", "a maintainer's submission is approved and sent to the publish job directly");
 must((await (await call("/mine?ok=direct", { cookies: owner })).text()).includes("being published now"), "and says so");
 const held = [["a stale sign-in", await sessionWithAge(31), "https://github.com/alice/direct2"], ["no recognisable type", owner, "https://github.com/alice/unknown"], ["a failed quick check", owner, "https://github.com/alice/nolicence"]];
 for (const [label, who, url] of held) {
@@ -309,10 +309,10 @@ must(byKey("alice/direct") && (await submit(dave, "https://github.com/alice/seco
   await act(owner, third.id, "retry");
   D1.raw.prepare("UPDATE submissions SET publish_state = 'blocked' WHERE id = ?").run(byKey("alice/direct").id);
   await act(owner, byKey("alice/direct").id, "retry");
-  must(dispatches.at(-1).body.inputs.require_clean === "true" && dispatches.at(-1).body.inputs.expected_commit === "", "retrying a direct publish keeps it clean-only");
+  must(dispatches.at(-1).body.inputs.expected_commit === "", "retrying a direct publish keeps it clean-only (no pinned commit)");
   D1.raw.prepare("UPDATE submissions SET publish_state = 'blocked' WHERE id = ?").run(third.id);
   await act(owner, third.id, "retry");
-  must(dispatches.at(-1).body.inputs.expected_commit === SHA.slice(0, 12) && dispatches.at(-1).body.inputs.require_clean === "false", "retrying an approval keeps the pin to the commit whose checks were read");
+  must(dispatches.at(-1).body.inputs.expected_commit === SHA.slice(0, 12), "retrying an approval keeps the pin to the commit whose checks were read");
 }
 
 // ---- back to review: a blocked direct publish goes through the normal path
@@ -349,7 +349,7 @@ must(byKey("alice/direct") && (await submit(dave, "https://github.com/alice/seco
 // ---- "I use this": a pick needs a note, and travels to the workflow
 {
   const id = byKey("alice/xss").id;
-  must(dispatches.every((d) => d.body.inputs.pick === "false" && d.body.inputs.note === "" || d.body.inputs.pick === "true"), "approvals without the tick send pick=false and no note");
+  must(dispatches.every((d) => Object.keys(d.body.inputs).length === 10), "the publish job is never sent more than the 10 inputs the workflow allows");
   for (const [label, over] of [["a pick with no note", { pick: "yes", pick_note: "" }], ["a pick with a blank note", { pick: "yes", pick_note: "   " }], ["a pick with a long note", { pick: "yes", pick_note: "n".repeat(201) }]]) {
     const res = await act(owner, id, "approve", approveForm(over));
     must(res.headers.get("Location").endsWith("?m=bad") && byKey("alice/xss").status === "pending", `${label} is refused and nothing changes`);
@@ -359,7 +359,7 @@ must(byKey("alice/direct") && (await submit(dave, "https://github.com/alice/seco
   const row2 = byKey("alice/xss");
   must(res.headers.get("Location").endsWith("?m=approved") && row2.final_pick === 1 && row2.final_note === "I use it for card text checks." && dispatches.length === n + 1, "a pick with a note is approved, the note cleaned to one line");
   const inp = dispatches.at(-1).body.inputs;
-  must(inp.pick === "true" && inp.note === "I use it for card text checks.", "the workflow receives the pick flag and the note");
+  must(inp.note === "I use it for card text checks.", "the workflow receives the note, which is what marks a pick");
   const page = await (await call(`/admin/submissions/${id}`, { cookies: owner })).text();
   must(page.includes("My pick") && page.includes("I use it for card text checks."), "the decision shows that it is a pick, with the note");
   const plainRes = await act(owner, byKey("alice/second").id, "approve", approveForm({ pick: "no", pick_note: "ignored when not ticked" }));
@@ -367,7 +367,7 @@ must(byKey("alice/direct") && (await submit(dave, "https://github.com/alice/seco
   await runScan(byKey("alice/second").id);
   await act(owner, byKey("alice/second").id, "approve", approveForm({ name: "Second", pick_note: "ignored when not ticked" }));
   const inp2 = dispatches.at(-1).body.inputs;
-  must(inp2.pick === "false" && inp2.note === "" && byKey("alice/second").final_note === "", "without the tick, any note is dropped");
+  must(inp2.note === "" && byKey("alice/second").final_note === "", "without the tick, any note is dropped");
 }
 
 // ---- flashes are fixed strings, never echoed

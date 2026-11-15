@@ -159,6 +159,23 @@ must(p.status === 3 && JSON.parse(readFileSync(list, "utf8")).length === 1, "an 
   must(seen.some((p) => p.includes(`/compare/${SHA}...main`)), "the compare call uses the reviewed commit and the default branch");
 }
 
+// ---- the workflow linter we pin allows at most 10 inputs on a manually started workflow; count them here so the limit shows up before CI does
+{
+  const { readdirSync } = await import("node:fs");
+  const dir = join(here, "..", ".github", "workflows");
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(".yml"))) {
+    const text = readFileSync(join(dir, f), "utf8");
+    // walk the lines: inputs are the keys indented six spaces under workflow_dispatch, up to the next key at a lower indent
+    let inDispatch = false, n = 0;
+    for (const line of text.split(/\r?\n/)) {
+      if (/^  workflow_dispatch:/.test(line)) { inDispatch = true; continue; }
+      if (inDispatch && /^ {0,2}\S/.test(line)) break;
+      if (inDispatch && /^      [A-Za-z_][A-Za-z0-9_]*:\s*$/.test(line)) n++;
+    }
+    must(n <= 10, `${f} has ${n} workflow_dispatch inputs; the pinned actionlint allows 10`);
+  }
+}
+
 // ---- scan step on a link it will not fetch: blocked, no entry, no network
 const out = join(tmp, "out");
 const s = spawnSync("node", [join(here, "listings.mjs"), "scan", "--mode", "issue", "--out-dir", out], { encoding: "utf8", env: { ...process.env, ISSUE_BODY: "### Kit name\n\nX\n\n### Repository link\n\nhttps://gitlab.com/a/b\n", ISSUE_AUTHOR: "a", ISSUE_NUMBER: "3" } });

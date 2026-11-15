@@ -141,7 +141,7 @@ Checks: `node --no-warnings api/test-approve.mjs` covers the scan flow, the pin 
 
 ## Picks (the owner's own list)
 
-The approve form has an **I use this kit** tick and a **How I use it** note (up to 200 characters). A ticked kit is published as one of **My picks** with that note on its card; without the tick it is simply **Listed**. Direct publishing by a maintainer never marks a pick. The publish workflow receives `pick` and `note`, and the entry validator refuses a pick without a note or a note without a pick.
+The approve form has an **I use this kit** tick and a **How I use it** note (up to 200 characters). A ticked kit is published as one of **My picks** with that note on its card; without the tick it is simply **Listed**. Direct publishing by a maintainer never marks a pick. The publish workflow receives the note, and a non-empty note is what marks a pick (the workflow is limited to 10 inputs, so the flag is derived). The entry validator refuses a pick without a note or a note without a pick.
 
 ### Setup for picks
 
