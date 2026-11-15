@@ -15,9 +15,8 @@ ORG = "praxikit"
 TEAM = "maintainers"
 REPO = "praxikit/praxikit"
 
-# Phase 2: the submissions database. After `npx wrangler d1 create praxikit-admin`, uncomment these lines and paste the
-# database_id it prints. (Left commented so a deploy does not fail before the database exists.)
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "praxikit-admin"
-# database_id = "PASTE_THE_DATABASE_ID_HERE"
+# Phase 2: the submissions database (created with `npx wrangler d1 create praxikit-admin`). The binding must be named DB.
+[[d1_databases]]
+binding = "DB"
+database_name = "praxikit-admin"
+database_id = "f6deecda-fef5-4370-913c-6973b4db84bd"
