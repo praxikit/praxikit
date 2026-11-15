@@ -8,8 +8,8 @@ workers_dev = true
 
 [vars]
 # Edit these two after you create the GitHub OAuth App (see README.md). Values starting with REPLACE are treated as unset.
-BASE_URL = "REPLACE_WITH_THE_WORKER_URL"
-GITHUB_CLIENT_ID = "REPLACE_WITH_THE_OAUTH_CLIENT_ID"
+BASE_URL = "https://praxikit-admin.ratul-arya-roy.workers.dev"
+GITHUB_CLIENT_ID = "Ov23liNkhHqThp3GPNfh"
 # These are the defaults for the Praxikit organisation.
 ORG = "praxikit"
 TEAM = "maintainers"
