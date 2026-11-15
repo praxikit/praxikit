@@ -1,0 +1,37 @@
+name: Report a listing
+description: Report a listed kit that is harmful, leaks a secret, breaks a licence, misleads people or is abandoned.
+title: "Report: "
+labels: ["report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Stop first.** If the problem is malicious code or a leaked secret, do not post details in this public issue. Use the private report instead: https://github.com/praxikit/praxikit/security/advisories/new
+
+        For everything else, this form is fine. Reports are read by one maintainer. We aim to reply within 3 days. See the policy page for what happens next.
+  - type: input
+    id: listing
+    attributes:
+      label: Which listing?
+      description: Its name or repository link.
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is wrong?
+      options:
+        - Licence or copyright problem
+        - Misleading description
+        - No longer maintained
+        - I am the author and want my listing removed
+        - Other (not malicious code or a secret)
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What you saw, and how someone else can check it.
+    validations:
+      required: true

@@ -29,3 +29,10 @@ The catalogue has no server and no admin website. GitHub is the admin panel: it 
 - Nothing from a submitted repository is ever executed, installed or checked out with its hooks, symlinks or submodules.
 - Everything that comes from an issue or a repository is cleaned before it is shown in a comment and escaped again on the site.
 - Nothing is listed for payment.
+
+## Reports and removals
+
+- Anyone can report a listing with the **Report a listing** form (label `report`). Malicious code and leaked secrets go through GitHub's **private vulnerability reporting** instead (enabled on this repository); do not discuss those in public.
+- To remove a listing: Actions, **Remove listing**, Run workflow, give the repository link and a reason category. It deletes the entry, appends a row to `docs/removals.md` (the public log), commits and redeploys. Only the reason category and a short note are logged.
+- The policy page (`/policy/`) states the response aims: reply within 3 days, remove malicious or leaked-secret listings the day you read the report and within 2 days of it, decide other reports within 14 days. They are aims for one part-time maintainer, not a service level. Keep them true or change the page.
+- There is no second approver yet. Adding one (a collaborator with write access) is the main remaining gap named on the policy page.

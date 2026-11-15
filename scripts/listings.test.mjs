@@ -77,6 +77,23 @@ writeFileSync(entryFile, JSON.stringify({ ...good, url: "https://evil.example/x"
 p = run("publish", "--entry", entryFile, "--file", list);
 must(p.status === 3 && JSON.parse(readFileSync(list, "utf8")).length === 1, "an invalid entry is refused at publish time even if a scan produced it");
 
+// ---- removal: takes the entry out, logs one validated row, refuses unknown repositories
+{
+  const list2 = join(tmp, "list2.json"), log = join(tmp, "removals.md");
+  writeFileSync(list2, JSON.stringify([{ ...good, name: "Thing | with <b>pipe</b>\nnewline" }, { ...good, name: "Other", url: "https://github.com/o/keep" }]));
+  let r = run("remove", "--url", "https://github.com/O/R/", "--reason", "malicious", "--note", "line1\nline2 | x", "--file", list2, "--log", log);
+  const after = JSON.parse(readFileSync(list2, "utf8"));
+  must(r.status === 0 && after.length === 1 && after[0].url === "https://github.com/o/keep", `removal drops only that repository: ${r.stderr}`);
+  const text = readFileSync(log, "utf8");
+  const rows = text.split("\n").filter((l) => l.startsWith("| 20"));
+  must(rows.length === 1 && rows[0].split("|").length === 7 && rows[0].includes("malicious"), "the log gets exactly one well-formed row, whatever the name and note contain");
+  must(text.startsWith("# Removed listings") && text.includes("| Date | Name |"), "a new log gets its header");
+  r = run("remove", "--url", "https://github.com/o/nothere", "--reason", "other", "--file", list2, "--log", log);
+  must(r.status === 4 && JSON.parse(readFileSync(list2, "utf8")).length === 1, "removing something that is not listed is refused and changes nothing");
+  r = run("remove", "--url", "https://github.com/o/keep", "--reason", "because", "--file", list2, "--log", log);
+  must(r.status === 2, "an unknown reason is refused");
+}
+
 // ---- scan step on a link it will not fetch: blocked, no entry, no network
 const out = join(tmp, "out");
 const s = spawnSync("node", [join(here, "listings.mjs"), "scan", "--mode", "issue", "--out-dir", out], { encoding: "utf8", env: { ...process.env, ISSUE_BODY: "### Kit name\n\nX\n\n### Repository link\n\nhttps://gitlab.com/a/b\n", ISSUE_AUTHOR: "a", ISSUE_NUMBER: "3" } });

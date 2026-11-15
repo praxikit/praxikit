@@ -67,6 +67,22 @@ export function appendListing(list, entry) {
   return [...list, entry];
 }
 
+export const REASONS = ["malicious", "secret", "licence", "misleading", "unmaintained", "owner-request", "other"];
+
+/** Removes the entry for a repository. Returns { list, removed } where removed is null if it was not listed. */
+export function removeListing(list, url) {
+  const removed = list.find((x) => sameRepo(x.url, url)) ?? null;
+  return { list: list.filter((x) => !sameRepo(x.url, url)), removed };
+}
+
+/** One row of the public removal log. Only validated fields and a cleaned short note go in. */
+export function removalRow(entry, reason, note, today) {
+  const cell = (s) => String(s).replace(/[|\r\n]/g, " ");
+  return `| ${today} | ${cell(clean(entry.name, 80))} | ${cell(entry.url)} | ${reason} | ${cell(clean(note, 160))} |`;
+}
+
+const LOG_HEADER = "# Removed listings\n\nEvery listing taken off the catalogue, with the date and the reason category. Entries are added by the `remove-listing` workflow.\n\n| Date | Name | Repository | Reason | Note |\n|---|---|---|---|---|\n";
+
 function main() {
   const arg = (n) => { const i = process.argv.indexOf(n); return i > -1 ? process.argv[i + 1] : undefined; };
   const cmd = process.argv[2];
@@ -108,7 +124,20 @@ function main() {
     return;
   }
 
-  console.error("usage: listings.mjs scan|publish ...");
+  if (cmd === "remove") {
+    const url = arg("--url"), reason = arg("--reason"), note = arg("--note") ?? "", listFile = arg("--file"), logFile = arg("--log");
+    if (!url || !listFile || !logFile || !REASONS.includes(reason)) { console.error(`remove needs --url, --file, --log and --reason (${REASONS.join(", ")})`); process.exit(2); }
+    const list = existsSync(listFile) ? JSON.parse(readFileSync(listFile, "utf8")) : [];
+    const { list: next, removed } = removeListing(list, url);
+    if (!removed) { console.error("that repository is not listed"); process.exit(4); }
+    writeFileSync(listFile, JSON.stringify(next, null, 2) + "\n");
+    const log = existsSync(logFile) ? readFileSync(logFile, "utf8") : LOG_HEADER;
+    writeFileSync(logFile, log.replace(/\n*$/, "\n") + removalRow(removed, reason, note, today) + "\n");
+    console.log(`removed: ${removed.url} (${reason})`);
+    return;
+  }
+
+  console.error("usage: listings.mjs scan|publish|remove ...");
   process.exit(2);
 }
 

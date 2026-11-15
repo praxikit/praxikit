@@ -80,3 +80,6 @@
 ## 2026-11-15 — pitch-panel 0.1.0 (our own idea-grilling skill)
 - Instead of listing the licence-less third-party skill, wrote our own from scratch: `/pitch-panel:grill`, five seats (customer, money, build, reach, operations), cross-examination, verdict (Go / Go if / Stop), three conditions, one cheap test with the pass bar stated first. Named `pitch-panel` to avoid a third-party brand name. Packaged as a plugin (so updates arrive through the marketplace) with `kind: skill`, which now counts as a plugin for the manifest, marketplace and trust checks whenever it ships `plugin/.claude-plugin/plugin.json`. No scripts, hooks or network code; a test enforces that.
 - The quriousprof/sharktank skill is not listed: no licence file. Could still be recommended by the owner with `allow failed` if wanted.
+
+## 2026-11-15 — Policy, reports and removals
+- Added `/policy/` (what a listing means, how to report, what happens, honest limits: one maintainer, aims not service levels), the **Report a listing** issue form, GitHub private vulnerability reporting for malicious code and leaked secrets (enabled on the repo), the owner-only **Remove listing** workflow and the public log `docs/removals.md`. Footer and submit page link to the policy. The pitch-panel run on Praxikit named a policy and a second approver as conditions; the policy is done, the second approver is not.

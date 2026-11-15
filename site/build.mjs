@@ -330,7 +330,7 @@ ${canonical ? `<link rel="canonical" href="${esc(canonical)}">\n` : ""}<link rel
 <main id="main">
 ${body}
 </main>
-<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>Kits for AI coding agents. MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Submit a kit</a></div></div></footer>
+<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>Kits for AI coding agents. MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Submit a kit</a></div></div></footer>
 <script data-site>${SITE_JS}</script>
 </body>
 </html>
@@ -521,7 +521,7 @@ function submitPage() {
 <li><strong>A person reads the source.</strong> The result is a starting point, not a decision. Only GitHub links can be checked automatically; anything else is reviewed by hand.</li>
 <li><strong>If it is listed,</strong> the listing is pinned to the commit that person reviewed, and the checks run again if the kit changes.</li>
 </ol>
-<p class="muted">Nothing is listed for payment, and listing is not a promise that a kit is safe.</p></div>`;
+<p class="muted">Nothing is listed for payment, and listing is not a promise that a kit is safe. Read the <a href="../policy/">policy</a> for how reports and removals work.</p></div>`;
   return page({ title: "Submit a kit — Praxikit", depth: 1, body, current: "submit", canonical: `${HOME_URL}submit/`, description: "Submit a kit to Praxikit for free. An automatic read-only check runs, then a person reviews it." });
 }
 
@@ -591,6 +591,45 @@ ${checker([k], k.name) ? `<h2 class="ck-title">Am I up to date?</h2>${checker([k
   return page({ title: `${k.name} — Praxikit`, depth: 2, body, description: k.promise });
 }
 
+function policyPage() {
+  const REPORT = ISSUE("report-listing.yml"), PRIVATE = `${REPO}/security/advisories/new`, LOG = `${REPO}/blob/main/docs/removals.md`;
+  const ext = (href, text) => `<a href="${esc(href)}" rel="noopener noreferrer">${text}</a>`;
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Policy</p><h1>Listings, reports and removals</h1>
+<p class="lead">Praxikit is run by one maintainer, part-time. This page says what a listing means, how to report a problem and what happens next. It describes how the site is run; it is not legal advice.</p>
+<div class="prose">
+<h2>What a listing means</h2>
+<ul>
+<li>Kits <strong>built by Praxikit</strong> are ours. We maintain them and ship fixes as new versions.</li>
+<li><strong>Community</strong> and <strong>Recommended</strong> listings are other people's work. We link to the public repository. We do not host, copy or run it.</li>
+<li>A listing means a person read the repository and the automatic result <strong>at one commit</strong>, which each listing shows. It is not an endorsement and not a safety guarantee. The automatic checks are pattern checks and cannot see everything.</li>
+<li>Listing is free. Nothing is listed for payment, and payment never changes a check or a decision.</li>
+<li>A listing needs a licence that lets others use the work, and the submitter confirms they wrote it or have permission.</li>
+<li>We can decline or remove any listing. We try to say why.</li>
+</ul>
+<h2>Report a problem</h2>
+<ul>
+<li><strong>Malicious code or an exposed secret:</strong> use the ${ext(PRIVATE, "private report")}. Please do not post details in a public issue.</li>
+<li><strong>Licence or copyright, a misleading description, an abandoned kit, or an author asking for their own work to be removed:</strong> use the ${ext(REPORT, "report form")}.</li>
+</ul>
+<h2>What we will do</h2>
+<ul>
+<li>We aim to reply within <strong>3 days</strong>. There is one maintainer and no on-call rota, so this is an aim, not a service level.</li>
+<li><strong>Malicious code or an exposed secret:</strong> once we have read the report and it looks real, we remove the listing first and investigate after. We aim to do that the day we read it, and within 2 days of the report.</li>
+<li><strong>Everything else:</strong> we read the evidence, may ask the listing's author, then correct or remove the listing. We aim to decide within 14 days.</li>
+<li><strong>A removal</strong> takes the entry off the catalogue at the next deploy, a few minutes later. It is recorded in the ${ext(LOG, "public removal log")} with the date, the name, the repository, a reason category and a short note.</li>
+</ul>
+<h2>Telling people who installed it</h2>
+<p>We cannot message them: installs go from the author's repository to the user and do not pass through Praxikit. The removal log is the notice. If you installed something that was later removed, check the log and uninstall it.</p>
+<h2>Limits we are open about</h2>
+<ul>
+<li>There is <strong>one maintainer</strong> and no second person with admin rights yet. One is planned. Until then, if the maintainer is away, reports wait.</li>
+<li>For copyright on code hosted elsewhere, also tell the host (GitHub). We will remove our link on a credible request.</li>
+<li>Last updated 2026-11-15.</li>
+</ul>
+</div></div>`;
+  return page({ title: "Policy — Praxikit", depth: 1, body, current: "", canonical: `${HOME_URL}policy/`, description: "What a Praxikit listing means, how to report a problem, and how removals work." });
+}
+
 function notFoundPage() {
   const body = `<div class="wrap sec page-head"><h1>That page isn't here.</h1><p class="lead">It may have moved when a kit was renamed or removed.</p><p><a class="btn" href="${esc(HOME_URL)}">See all kits</a></p></div>`;
   return page({ title: "Not found — Praxikit", depth: 0, body, description: "Page not found." }).replace(/(href|src)="\.\//g, `$1="${HOME_URL}`);
@@ -613,6 +652,7 @@ for (const g of GROUPS) write(`kits/${g.id}/index.html`, kitsPage(items, g));
 write("updates/index.html", updatesPage(kits));
 write("recommended/index.html", recommendedPage(recs));
 write("submit/index.html", submitPage());
+write("policy/index.html", policyPage());
 write("404.html", notFoundPage());
 write("feed.xml", atomFeed(kits));
 for (const c of new Set(kits.flatMap((k) => k.collections))) write(`c/${slug(c)}/index.html`, collectionPage(c, kits));

@@ -36,7 +36,7 @@ const must = (cond, msg) => { if (!cond) failures.push(msg); };
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
-must(htmlFiles.length === 16, `expected home, 404, kits, 4 type pages, updates, recommended, submit, 2 collections, 4 kit pages = 16 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 17, `expected home, 404, kits, 4 type pages, updates, recommended, submit, policy, 2 collections, 4 kit pages = 17 html files, got ${htmlFiles.length}`);
 for (const f of htmlFiles) {
   const h = readFileSync(f, "utf8");
   // drop only our own inline scripts (marked data-site); any other <script> is a failure
@@ -72,6 +72,9 @@ must(sub.includes("template=suggest-kit.yml") && sub.includes("template=recommen
 must(idx.includes('href="kits/"') && idx.includes('href="kits/plugins/"') && idx.includes('href="kits/skills/"') && idx.includes('href="kits/mcp/"') && idx.includes('href="kits/other/"'), "home must link to the kits page and each type page");
 must(idx.includes('href="updates/"') && idx.includes('href="recommended/"') && idx.includes('href="submit/"') && idx.includes("<body data-home>"), "home must link to updates, recommended and submit");
 must((idx.match(/<li class="card[ "]/g) ?? []).length <= 3 + 3, "home should show at most three kits (and three recommendations)");
+const pol = readFileSync(join(out, "policy/index.html"), "utf8");
+must(pol.includes("security/advisories/new") && pol.includes("template=report-listing.yml") && pol.includes("docs/removals.md") && pol.includes("not a safety guarantee") && pol.includes("one maintainer"), "policy page needs the private channel, the report form, the removal log and honest limits");
+must(!/href="\//.test(pol) && idx.includes('href="./policy/"') && sub.includes('href="../policy/"'), "policy is linked from the footer and the submit page, with relative links");
 const kitsAll = readFileSync(join(out, "kits/index.html"), "utf8");
 must(kitsAll.includes('id="q"') && kitsAll.includes('aria-current="page"') && kitsAll.includes('class="typenav"'), "kits page needs search (4+ kits) and the type navigation");
 const plug = readFileSync(join(out, "kits/plugins/index.html"), "utf8"), skl = readFileSync(join(out, "kits/skills/index.html"), "utf8"), mcp = readFileSync(join(out, "kits/other/index.html"), "utf8");
