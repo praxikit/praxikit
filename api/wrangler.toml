@@ -1,0 +1,16 @@
+# Praxikit admin API. Deploy from this folder with:  npx wrangler deploy
+# Secrets are NOT stored here. Set them with:        npx wrangler secret put GITHUB_CLIENT_SECRET
+#                                                    npx wrangler secret put SESSION_SECRET
+name = "praxikit-admin"
+main = "src/index.mjs"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[vars]
+# Edit these two after you create the GitHub OAuth App (see README.md). Values starting with REPLACE are treated as unset.
+BASE_URL = "REPLACE_WITH_THE_WORKER_URL"
+GITHUB_CLIENT_ID = "REPLACE_WITH_THE_OAUTH_CLIENT_ID"
+# These are the defaults for the Praxikit organisation.
+ORG = "praxikit"
+TEAM = "maintainers"
+REPO = "praxikit/praxikit"

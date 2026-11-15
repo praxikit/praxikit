@@ -42,3 +42,7 @@ The catalogue has no server and no admin website. GitHub is the admin panel: it 
 - The `listing-drift` workflow runs daily (and on demand: Actions, **listing-drift**, Run workflow). For each listing it asks the GitHub API whether the repository's default branch has commits after the reviewed one. It does not clone or run anything.
 - Result per listing goes to `site/drift.json` (`same`, `changed` or `unreachable`). The site shows **Changed since review** with a link to the comparison, or **Repository not reachable**. The file, and the site, change only when a status changes. A network or rate-limit failure keeps the previous status.
 - Active repositories will show **Changed since review** quickly. That is the point: it says the code moved on, not that it is bad. When you have read the new code, run **Add listing** with **replace** ticked to record the new reviewed commit; it also re-runs the check.
+
+## The admin app (in progress)
+
+`api/` holds a small Cloudflare Worker that signs maintainers in with GitHub (org owners and members of the `maintainers` team). Phase 1 is sign-in and a read-only page; approving, adding and removing move into it in later phases. Setup is in `api/README.md`. The GitHub-side flows described above keep working and stay as the fallback.
