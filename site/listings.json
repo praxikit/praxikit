@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "name": "Playwright MCP",
+    "url": "https://github.com/microsoft/playwright-mcp",
+    "author": "Microsoft",
+    "why": "Browser automation for agents: an MCP server that lets a model open web pages, click and read them through structured page snapshots.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-15",
+    "commit": "78eca85361efb545a4c0f59b6140aef0721c5412",
+    "checks": "checks-flagged"
+  }
+]
