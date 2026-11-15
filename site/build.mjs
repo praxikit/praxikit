@@ -16,6 +16,7 @@ import { readFileSync, readdirSync, existsSync, mkdirSync, writeFileSync, rmSync
 import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { validateListing } from "./listings.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i > -1 ? process.argv[i + 1] : d; };
@@ -84,13 +85,15 @@ function loadKits() {
       return { ...k, changelog: existsSync(cl) ? parseChangelog(readFileSync(cl, "utf8")) : [], adds: listAdds(dir), hooks: listHooks(dir) };
     }).sort((a, b) => a.name.localeCompare(b.name));
 }
-function loadRecommended() {
-  const f = join(ROOT, "site", "recommended.json");
+/** Community and recommended entries from site/listings.json. A bad entry stops the build. */
+function loadListings() {
+  const f = join(ROOT, "site", "listings.json");
   if (!existsSync(f)) return [];
   const items = readJson(f);
-  for (const r of items) {
-    if (!/^https:\/\//.test(r.url ?? "")) throw new Error(`recommended: url must start with https:// (${r.name})`);
-    for (const k of ["name", "author", "why", "category", "added"]) if (!r[k]) throw new Error(`recommended: ${r.name ?? "entry"} is missing ${k}`);
+  if (!Array.isArray(items)) throw new Error("listings.json must be a list");
+  for (const l of items) {
+    const problems = validateListing(l);
+    if (problems.length) throw new Error(`listings: ${String(l?.name ?? "entry").slice(0, 40)}: ${problems.join("; ")}`);
   }
   return items;
 }
@@ -356,7 +359,25 @@ function checker(kits, only) {
 }
 const badge = (k) => `<span class="kind">${esc(kindOf(k))}</span><span class="ver">v${esc(k.version)}</span>`;
 
+const SOURCE_LABEL = { community: "Community", recommended: "Recommended" };
+const CHECK_WORDS = { "no-flags-found": "automatic checks found nothing", "checks-flagged": "automatic checks flagged things a person reviewed", "checks-failed": "automatic checks failed, accepted by the admin", "needs-manual-review": "reviewed by hand" };
+
+/** A listing made by someone else: links out to its repository and says what was reviewed. */
+function extCard(l, up) {
+  void up;
+  const groups = [slug(KIND_LABEL[l.kind] ?? l.kind), slug(SOURCE_LABEL[l.source])].join(" ");
+  const text = [l.name, l.why, l.author, l.kind, l.source].join(" ").toLowerCase();
+  return `<li class="card" data-card data-groups="${esc(groups)}" data-text="${esc(text)}">
+<div class="meta-line"><span class="kind ext">${esc(SOURCE_LABEL[l.source])}</span><span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span></div>
+<h3><a class="name" href="${esc(l.url)}" rel="noopener noreferrer">${esc(l.name)}</a></h3>
+<p class="muted">by ${esc(l.author)}, not built by Praxikit</p>
+<p class="promise">${esc(l.why)}</p>
+<div class="card-foot"><span>Reviewed at <code>${esc(l.commit.slice(0, 7))}</code>, ${esc(CHECK_WORDS[l.checks] ?? l.checks)}</span><a class="details" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a></div>
+</li>`;
+}
+
 function card(k, up) {
+  if (k.ext) return extCard(k, up);
   const skills = k.adds.skills.length, agents = k.adds.agents.length;
   const bits = [skills ? plural(skills, "skill") : "", agents ? plural(agents, "agent") : ""].filter(Boolean).join(", ");
   const latest = dateOf(k.changelog[0]?.head);
@@ -414,7 +435,7 @@ function typeNav(kits, up, current) {
   return `<nav class="typenav" aria-label="Kit types">${item(`${up}kits/`, "All", kits.length, "all")}${GROUPS.map((g) => item(`${up}kits/${g.id}/`, g.label, inGroup(kits, g).length, g.id)).join("")}</nav>`;
 }
 
-const recCard = (r) => `<li class="card"><div class="meta-line"><span class="kind ext">${esc(r.category)}</span><span class="ver">added ${esc(r.added)}</span></div><h3><a class="name" href="${esc(r.url)}" rel="noopener noreferrer">${esc(r.name)}</a></h3><p class="muted">by ${esc(r.author)}</p><p class="promise">${esc(r.why)}</p></li>`;
+const recCard = (r) => extCard(r, "./");
 const releaseList = (items, up) => items.map(({ k, e, date, v }) => `<li><div class="feed-meta"><a href="${up}k/${esc(k.name)}/">${esc(k.name)} ${esc(v)}</a>${date ? `<time datetime="${esc(date)}">${esc(date)}</time>` : ""}</div><p>${md(short(e.bullets[0] ?? ""))}</p></li>`).join("");
 
 function homePage(kits, recs) {
@@ -458,7 +479,7 @@ function kitsPage(kits, group) {
   const empty = group && !list.length ? `<div class="empty"><p><strong>No ${esc(group.noun)} yet.</strong> <a href="${up}submit/">Submit one</a> or <a href="${up}kits/">see all kits</a>.</p></div>` : "";
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="${up}">Home</a> / ${group ? `<a href="${up}kits/">Kits</a> / ${esc(group.label)}` : "Kits"}</p>
 <div class="sec-head"><h1>${esc(title)}</h1><p class="muted" id="count" aria-live="polite">${plural(list.length, "kit")}</p></div>
-${group ? `<p class="lead">${esc(group.blurb)}</p>` : '<p class="lead">Every kit Praxikit has built. Each has its own page with what it adds, what it reads and sends, and its changelog.</p>'}
+${group ? `<p class="lead">${esc(group.blurb)}</p>` : '<p class="lead">Kits built by Praxikit, plus kits by other people that were submitted and reviewed, each marked as such. Praxikit kits have their own page with what they add, what they read and send, and their changelog.</p>'}
 ${typeNav(kits, up, group ? group.id : "all")}
 ${search}
 <div id="kits">${list.length ? listHtml(list, up) : ""}</div>
@@ -579,13 +600,16 @@ function notFoundPage() {
 const write = (rel, text) => { const p = join(OUT, rel); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, text); };
 
 const kits = loadKits();
-const recs = loadRecommended();
+const listings = loadListings();
+const recs = listings.filter((l) => l.source === "recommended");
+// everything that appears in the kit lists: kits built here first, then other people's listings
+const items = [...kits, ...listings.map((l) => ({ ...l, ext: true }))];
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 copyFileSync(join(here, "style.css"), join(OUT, "style.css"));
-write("index.html", homePage(kits, recs));
-write("kits/index.html", kitsPage(kits, null));
-for (const g of GROUPS) write(`kits/${g.id}/index.html`, kitsPage(kits, g));
+write("index.html", homePage(items, recs));
+write("kits/index.html", kitsPage(items, null));
+for (const g of GROUPS) write(`kits/${g.id}/index.html`, kitsPage(items, g));
 write("updates/index.html", updatesPage(kits));
 write("recommended/index.html", recommendedPage(recs));
 write("submit/index.html", submitPage());
@@ -595,4 +619,4 @@ for (const c of new Set(kits.flatMap((k) => k.collections))) write(`c/${slug(c)}
 for (const k of kits) write(`k/${k.name}/index.html`, kitPage(k));
 write("versions.json", JSON.stringify(Object.fromEntries(kits.map((k) => [k.name, { version: k.version, kind: k.kind }])), null, 2) + "\n");
 write(".nojekyll", "");
-console.log(`built ${kits.length} kit(s), ${recs.length} recommendation(s) -> ${OUT}`);
+console.log(`built ${kits.length} kit(s), ${listings.length} listing(s) (${recs.length} recommended) -> ${OUT}`);

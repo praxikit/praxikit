@@ -1,0 +1,114 @@
+name: add-listing
+# Owner only: add a kit to the catalogue directly, with no approval step.
+# Running a workflow needs write access to the repository. The repository is still read and checked
+# first, and the entry is pinned to the commit that was read.
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: Name shown in the catalogue
+        required: true
+        type: string
+      url:
+        description: Repository link, https://github.com/owner/repo
+        required: true
+        type: string
+      kind:
+        description: Type
+        required: true
+        type: choice
+        options: [plugin, skill, mcp, template, adapter, agent, hook]
+      source:
+        description: "recommended = made by someone else, you vouch for it. community = made by the person who submitted it."
+        required: true
+        type: choice
+        options: [recommended, community]
+      author:
+        description: Who made it
+        required: true
+        type: string
+      why:
+        description: One honest sentence on what it is or why you list it
+        required: true
+        type: string
+      allow_failed:
+        description: List it even if the automatic checks failed
+        required: false
+        type: boolean
+        default: false
+permissions: {}
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    outputs:
+      status: ${{ steps.scan.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: scan
+        env:
+          IN_NAME: ${{ inputs.name }}
+          IN_URL: ${{ inputs.url }}
+          IN_KIND: ${{ inputs.kind }}
+          IN_SOURCE: ${{ inputs.source }}
+          IN_AUTHOR: ${{ inputs.author }}
+          IN_WHY: ${{ inputs.why }}
+          IN_ALLOW_FAILED: ${{ inputs.allow_failed }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          node scripts/listings.mjs scan --mode dispatch --out-dir "$RUNNER_TEMP/listing"
+          echo "status=$(cat "$RUNNER_TEMP/listing/status.txt")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: listing
+          path: ${{ runner.temp }}/listing
+          retention-days: 3
+
+  publish:
+    needs: scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    concurrency:
+      group: listings
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: listing
+          path: ${{ runner.temp }}/listing
+      - name: Publish, or show why not
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          STATUS: ${{ needs.scan.outputs.status }}
+          DIR: ${{ runner.temp }}/listing
+        run: |
+          cat "$DIR/comment.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$STATUS" != "ok" ]; then
+            echo "Not listed. The reason is in the job summary."
+            exit 1
+          fi
+          node scripts/listings.mjs publish --entry "$DIR/entry.json" --file site/listings.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/listings.json
+          git commit -m "listings: add entry (Add listing workflow)"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh workflow run pages.yml --ref main
+          echo "Listed. The site is redeploying." >> "$GITHUB_STEP_SUMMARY"

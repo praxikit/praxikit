@@ -1,3 +1,5 @@
-# Changes to the scanner and to the workflows that run it need the owner's review.
+# Changes to the scanner, the listing scripts and the workflows that run them need the owner's review.
 /scripts/check-submission.mjs @royal-programmer
+/scripts/listings.mjs @royal-programmer
+/site/listings.mjs @royal-programmer
 /.github/ @royal-programmer

@@ -238,6 +238,25 @@ export function renderRefusal({ why, host }) {
     `These checks only read public repositories at \`https://github.com/<owner>/<repo>\`, so this submission was not scanned (${safe(why, 80)}${host ? `; host: ${safe(host, 60)}` : ""}). A person will review it by hand. Edit the issue to give a GitHub link if there is one.`].join("\n") };
 }
 
+/**
+ * Reads a public github.com repository (never runs it) and returns what the listing scripts need:
+ * { refusal } when it cannot be scanned, otherwise { page, sha, label, text, owner, repo }.
+ */
+export function scanUrl(text, declared = "") {
+  const r = repoUrl(text);
+  if (!r.ok) return { refusal: renderRefusal(r) };
+  const kb = repoSizeKb(r.owner, r.repo);
+  if (kb !== null && kb > LIMITS.repoKb) return { refusal: renderRefusal({ why: `repository is about ${Math.round(kb / 1000)} MB, over the ${LIMITS.repoKb / 1000} MB limit for automatic checks` }) };
+  const tmp = mkdtempSync(join(tmpdir(), "praxikit-sub-"));
+  try {
+    const sha = cloneRepo(r.clone, join(tmp, "repo"));
+    const c = renderComment({ page: r.page, sha, result: scanDir(join(tmp, "repo"), declared), declared });
+    return { page: r.page, sha, label: c.label, text: c.text, owner: r.owner, repo: r.repo };
+  } catch (e) {
+    return { refusal: { label: "checks-failed", text: [MARKER, "### Automated checks", "", `Could not fetch ${safe(r.page, 90)} (${safe(String(e.stderr ?? e.message).split("\n")[0], 100)}). Is the repository public? Edit the issue to run the checks again.`].join("\n") } };
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+}
+
 // ---------- command line ----------
 async function main() {
   const arg = (n) => { const i = process.argv.indexOf(n); return i > -1 ? process.argv[i + 1] : undefined; };

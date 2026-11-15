@@ -71,3 +71,8 @@
 
 ## 2026-11-15 — Catalogue home made kit-neutral
 - Home no longer features Keel: new hero (what the catalogue is, add the marketplace, Browse and Submit buttons, browse-by-type list), Featured kits as plain cards with an explicit "View details", no latest-releases block (it belongs on Updates). Update checker also accepts `claude plugin list --json`. Facts checked in the docs: installs are recorded in `~/.claude/plugins/installed_plugins.json` (format not documented as stable), `claude plugin list --json` exists, auto-update is per marketplace (`/plugin` > Marketplaces, or `autoUpdate` in `extraKnownMarketplaces`), off by default for third-party marketplaces, and no web page can read installed plugins.
+
+## 2026-11-15 — Approve, reject and admin-add flow
+- `site/listings.json` replaces `recommended.json`; entries are `community` or `recommended`, pinned to the reviewed commit with the check result, validated by `site/listings.mjs` (the build refuses a bad entry). Community and recommended listings appear on the kit and type pages with a "not built by Praxikit" label; the Recommended page shows only recommended ones.
+- Workflows: `listing-review` (owner adds label `approved` or `rejected` to an issue; only write-access users obeyed; scan job read-only, publish job validates again, commits to main, redeploys Pages and closes the issue) and `add-listing` (Actions form for the owner, direct publish after the same scan). Failed checks block approval; the admin form has an explicit allow-failed box. Guide: `docs/admin.md`.
+- Not done: live end-to-end publish (needs a real entry); per-author rate limit; automatic re-scan of listed kits when they change.

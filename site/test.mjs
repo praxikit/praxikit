@@ -23,7 +23,11 @@ put("kits/evil/plugin/hooks/hooks.json", JSON.stringify({ hooks: { Stop: [{ matc
 put("kits/evil/CHANGELOG.md", `# Changelog\n\n## 1.2.3 — 2026-01-01\n- ${XSS}\n`);
 put("kits/evil/plugin/skills/s/SKILL.md", `---\nname: ${XSS}\ndescription: ${XSS}\n---\nbody\n`);
 for (const n of ["a", "b", "c"]) put(`kits/${n}/kit.json`, JSON.stringify({ name: n, kind: "plugin", collections: ["Planning"], tags: [XSS], version: "0.0.1", promise: "p " + XSS, install: ["/plugin install " + n], limits: ["l"] }));
-put("site/recommended.json", JSON.stringify([{ name: XSS, url: "https://example.com/?a=1&b=2", author: XSS, why: XSS, category: "Skill", added: "2026-11-14" }]));
+const SHA = "a".repeat(40);
+put("site/listings.json", JSON.stringify([
+  { name: XSS, url: "https://github.com/o/rec", author: XSS, why: XSS, kind: "mcp", source: "recommended", added: "2026-11-14", commit: SHA, checks: "no-flags-found" },
+  { name: "Community " + XSS, url: "https://github.com/o/comm", author: "someone", why: XSS, kind: "skill", source: "community", added: "2026-11-14", commit: SHA, checks: "checks-flagged", issue: 5 },
+]));
 
 execFileSync("node", [join(here, "build.mjs"), "--root", root, "--out", out], { stdio: "inherit" });
 
@@ -46,7 +50,12 @@ for (const f of htmlFiles) {
 }
 const idx = readFileSync(join(out, "index.html"), "utf8");
 must(idx.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "payload not shown escaped on index");
-must(/href="https:\/\/example\.com\/\?a=1&amp;b=2" rel="noopener noreferrer"/.test(idx), "recommended link missing rel=noopener noreferrer or unescaped &");
+must(/href="https:\/\/github\.com\/o\/rec" rel="noopener noreferrer"/.test(idx), "recommended link missing rel=noopener noreferrer");
+const skillsPage = readFileSync(join(out, "kits/skills/index.html"), "utf8");
+must(/href="https:\/\/github\.com\/o\/comm" rel="noopener noreferrer"/.test(skillsPage) && skillsPage.includes("Community") && skillsPage.includes("not built by Praxikit") && skillsPage.includes("Reviewed at <code>aaaaaaa</code>"), "a community listing shows on its type page as someone else's work, with the reviewed commit");
+const mcpPage = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
+must(mcpPage.includes("o/rec") && !mcpPage.includes("No MCP configs yet"), "a recommended listing counts as an MCP config");
+must(readFileSync(join(out, "recommended/index.html"), "utf8").includes("o/rec") && !readFileSync(join(out, "recommended/index.html"), "utf8").includes("o/comm"), "the Recommended page shows recommended listings only");
 must(!/href="https:\/\/github\.com[^"]*"(?![^>]*rel=)/.test(idx), "external GitHub link without rel");
 must(existsSync(join(out, "k/evil/index.html")) && existsSync(join(out, "c/planning/index.html")) && existsSync(join(out, "c/design-and-3d/index.html")), "kit or collection pages missing");
 must(!/href="\//.test(idx), "absolute href found; links must be relative");
@@ -65,10 +74,10 @@ must(idx.includes('href="updates/"') && idx.includes('href="recommended/"') && i
 must((idx.match(/<li class="card[ "]/g) ?? []).length <= 3 + 3, "home should show at most three kits (and three recommendations)");
 const kitsAll = readFileSync(join(out, "kits/index.html"), "utf8");
 must(kitsAll.includes('id="q"') && kitsAll.includes('aria-current="page"') && kitsAll.includes('class="typenav"'), "kits page needs search (4+ kits) and the type navigation");
-const plug = readFileSync(join(out, "kits/plugins/index.html"), "utf8"), skl = readFileSync(join(out, "kits/skills/index.html"), "utf8"), mcp = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
+const plug = readFileSync(join(out, "kits/plugins/index.html"), "utf8"), skl = readFileSync(join(out, "kits/skills/index.html"), "utf8"), mcp = readFileSync(join(out, "kits/other/index.html"), "utf8");
 must(plug.includes('href="../../k/a/"') && !plug.includes('href="../../k/evil/"'), "plugins page lists plugin kits only");
 must(skl.includes('href="../../k/evil/"') && !skl.includes('href="../../k/a/"'), "skills page lists skill kits only");
-must(mcp.includes("No MCP configs yet") && mcp.includes("../../submit/"), "an empty type page says so and points to submit");
+must(mcp.includes("No templates, adapters, agents or hooks yet") && mcp.includes("../../submit/"), "an empty type page says so and points to submit");
 for (const f of [kitsAll, plug, mcp, upd, sub, readFileSync(join(out, "recommended/index.html"), "utf8")]) must(!/href="\//.test(f), "absolute href on a route page");
 const kp = readFileSync(join(out, "k/evil/index.html"), "utf8");
 must(kp.includes('role="tablist"') && kp.includes('role="tabpanel"'), "install tabs missing on a kit with installBy");
@@ -91,7 +100,7 @@ must(!/<img src=x/.test(few) && few.includes("&lt;script&gt;alert(1)&lt;/script&
 must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes("View details") && !readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('id="q"'), "with one kit the kits page shows a card with View details and no search");
 
 // a non-https recommended url must be refused
-put("site/recommended.json", JSON.stringify([{ name: "x", url: "javascript:alert(1)", author: "a", why: "w", category: "Skill", added: "2026-11-14" }]));
+put("site/listings.json", JSON.stringify([{ name: "x", url: "javascript:alert(1)", author: "a", why: "w", kind: "skill", source: "community", added: "2026-11-14", commit: SHA, checks: "no-flags-found" }]));
 let refused = false;
 try { execFileSync("node", [join(here, "build.mjs"), "--root", root, "--out", out], { stdio: "pipe" }); } catch { refused = true; }
 must(refused, "javascript: url was accepted");

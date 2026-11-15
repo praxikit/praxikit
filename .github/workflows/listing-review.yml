@@ -1,0 +1,125 @@
+name: listing-review
+# The owner approves or rejects a submission by adding the label `approved` or `rejected` to its issue.
+# Only people with write access to the repository are obeyed. The job that reads the submitted
+# repository has a read-only token; a separate job holds the write access and treats what the first
+# one produced as untrusted data (it validates the entry again before committing it).
+on:
+  issues:
+    types: [labeled]
+permissions: {}
+jobs:
+  gate:
+    if: github.event.label.name == 'approved' || github.event.label.name == 'rejected'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      allowed: ${{ steps.perm.outputs.allowed }}
+    steps:
+      - id: perm
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SENDER: ${{ github.event.sender.login }}
+        run: |
+          perm="$(gh api "repos/$GH_REPO/collaborators/$SENDER/permission" --jq .permission 2>/dev/null || echo none)"
+          case "$perm" in
+            admin|maintain|write) echo "allowed=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "allowed=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+  reject:
+    needs: gate
+    if: needs.gate.outputs.allowed == 'true' && github.event.label.name == 'rejected'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE" --body "Thanks for submitting. This one is not being listed. If the reason is not in an earlier comment, reply here and we can talk about it."
+          gh issue close "$ISSUE" --reason "not planned"
+
+  scan:
+    needs: gate
+    if: needs.gate.outputs.allowed == 'true' && github.event.label.name == 'approved'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    outputs:
+      status: ${{ steps.scan.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: scan
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          node scripts/listings.mjs scan --mode issue --out-dir "$RUNNER_TEMP/listing"
+          echo "status=$(cat "$RUNNER_TEMP/listing/status.txt")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: listing
+          path: ${{ runner.temp }}/listing
+          retention-days: 3
+
+  publish:
+    needs: scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    concurrency:
+      group: listings
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      issues: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: listing
+          path: ${{ runner.temp }}/listing
+      - name: Publish, or explain why not
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+          STATUS: ${{ needs.scan.outputs.status }}
+          DIR: ${{ runner.temp }}/listing
+        run: |
+          gh issue comment "$ISSUE" --body-file "$DIR/comment.md" --edit-last --create-if-none
+          if [ "$STATUS" != "ok" ]; then
+            gh issue edit "$ISSUE" --remove-label approved || true
+            exit 0
+          fi
+          if ! node scripts/listings.mjs publish --entry "$DIR/entry.json" --file site/listings.json; then
+            gh issue comment "$ISSUE" --body "Could not add this to the catalogue: the entry is not valid or the repository is already listed. Nothing was changed."
+            gh issue edit "$ISSUE" --remove-label approved || true
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/listings.json
+          git commit -m "listings: add entry from issue #$ISSUE"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh workflow run pages.yml --ref main
+          gh issue edit "$ISSUE" --add-label listed
+          gh issue comment "$ISSUE" --body "Listed. The catalogue entry is pinned to the commit the checks read, and the site is redeploying."
+          gh issue close "$ISSUE" --reason completed
