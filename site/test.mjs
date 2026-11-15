@@ -68,7 +68,7 @@ must(kitsAll.includes('id="q"') && kitsAll.includes('aria-current="page"') && ki
 const plug = readFileSync(join(out, "kits/plugins/index.html"), "utf8"), skl = readFileSync(join(out, "kits/skills/index.html"), "utf8"), mcp = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
 must(plug.includes('href="../../k/a/"') && !plug.includes('href="../../k/evil/"'), "plugins page lists plugin kits only");
 must(skl.includes('href="../../k/evil/"') && !skl.includes('href="../../k/a/"'), "skills page lists skill kits only");
-must(mcp.includes("No mcp configs yet") && mcp.includes("../../submit/"), "an empty type page says so and points to submit");
+must(mcp.includes("No MCP configs yet") && mcp.includes("../../submit/"), "an empty type page says so and points to submit");
 for (const f of [kitsAll, plug, mcp, upd, sub, readFileSync(join(out, "recommended/index.html"), "utf8")]) must(!/href="\//.test(f), "absolute href on a route page");
 const kp = readFileSync(join(out, "k/evil/index.html"), "utf8");
 must(kp.includes('role="tablist"') && kp.includes('role="tabpanel"'), "install tabs missing on a kit with installBy");

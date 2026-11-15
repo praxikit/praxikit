@@ -406,10 +406,10 @@ ${items.slice(0, 30).map(entry).join("\n")}
 
 // ---------- routes: home, kits, kits by type, updates, recommended, submit ----------
 const GROUPS = [
-  { id: "plugins", label: "Plugins", kinds: ["plugin"], blurb: "Bundles that add skills, agents and hooks to Claude Code." },
-  { id: "skills", label: "Skills", kinds: ["skill"], blurb: "One task Claude can run on request." },
-  { id: "mcp", label: "MCP configs", kinds: ["mcp"], blurb: "Ready-made connections to tools and data." },
-  { id: "other", label: "Templates and more", kinds: ["template", "adapter", "agent", "hook"], blurb: "Templates, adapters, agents and hooks." },
+  { id: "plugins", label: "Plugins", noun: "plugins", kinds: ["plugin"], blurb: "Bundles that add skills, agents and hooks to Claude Code." },
+  { id: "skills", label: "Skills", noun: "skills", kinds: ["skill"], blurb: "One task Claude can run on request." },
+  { id: "mcp", label: "MCP configs", noun: "MCP configs", kinds: ["mcp"], blurb: "Ready-made connections to tools and data." },
+  { id: "other", label: "Templates and more", noun: "templates, adapters, agents or hooks", kinds: ["template", "adapter", "agent", "hook"], blurb: "Templates, adapters, agents and hooks." },
 ];
 const inGroup = (kits, g) => kits.filter((k) => g.kinds.includes(k.kind));
 const listHtml = (list, up) => `<ul class="cards${list.length > 2 ? "" : " few"}" id="kits-list">${list.map((k) => (list.length > 2 ? card(k, up) : featureCard(k, up))).join("")}</ul>`;
@@ -471,7 +471,7 @@ function kitsPage(kits, group) {
   const depth = group ? 2 : 1, up = "../".repeat(depth);
   const title = group ? group.label : "All kits";
   const search = kits.length >= 4 ? `<div class="toolbar"><label class="search"><span class="vh">Search kits</span><input id="q" type="search" placeholder="Search kits  ( / )" autocomplete="off" spellcheck="false"></label></div>` : "";
-  const empty = group && !list.length ? `<div class="empty"><p><strong>No ${esc(group.label.toLowerCase())} yet.</strong> <a href="${up}submit/">Submit one</a> or <a href="${up}kits/">see all kits</a>.</p></div>` : "";
+  const empty = group && !list.length ? `<div class="empty"><p><strong>No ${esc(group.noun)} yet.</strong> <a href="${up}submit/">Submit one</a> or <a href="${up}kits/">see all kits</a>.</p></div>` : "";
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="${up}">Home</a> / ${group ? `<a href="${up}kits/">Kits</a> / ${esc(group.label)}` : "Kits"}</p>
 <div class="sec-head"><h1>${esc(title)}</h1><p class="muted" id="count" aria-live="polite">${plural(list.length, "kit")}</p></div>
 ${group ? `<p class="lead">${esc(group.blurb)}</p>` : '<p class="lead">Every kit Praxikit has built. Each has its own page with what it adds, what it reads and sends, and its changelog.</p>'}
