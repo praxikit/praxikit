@@ -21,7 +21,7 @@
     {
       "name": "pitch-panel",
       "source": "./kits/pitch-panel/plugin",
-      "description": "Put a startup idea in front of a five-seat panel that argues against it, then get a verdict and one cheap test.",
+      "description": "Put a startup idea in front of six seats (CTO, CMO, COO, PM, CFO, devil's advocate), then get a verdict and one cheap test.",
       "category": "productivity",
       "tags": [
         "startup",

@@ -14,12 +14,28 @@ const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(skill)?.[1] ?? "";
 must(/^name:\s*grill\s*$/m.test(fm), "frontmatter name is grill");
 must(/^description:\s*.{40,}/m.test(fm) && /Use when/.test(fm), "description says what it does and when to use it");
 
-for (const seat of ["Customer", "Money", "Build", "Reach", "Operations"]) must(skill.includes(`| ${seat} |`), `seat ${seat} is defined`);
-for (const part of ["Step 1", "Step 2", "Step 3", "Step 4", "Step 5"]) must(skill.includes(part), `${part} present`);
-must(/Never invent facts/.test(skill) && /assumption/.test(skill), "the no-invented-facts rule is present");
+// six seats, each with a lens and a stop signal
+for (const seat of ["CTO", "CMO", "COO", "PM", "CFO", "Devil's advocate"]) must(skill.includes(`| **${seat}**`), `seat ${seat} is defined in the table`);
+for (const part of ["Step 1", "Step 2", "Step 3", "Step 4", "Step 5", "Step 6", "Step 7"]) must(skill.includes(`## ${part}`), `${part} present`);
+
+// the topics the panel promises to cover are all named, and uncovered ones must be reported
+for (const topic of ["demand", "product", "competition", "market and growth", "business model", "financials", "technology", "operations and legal", "catastrophic risk"]) must(skill.toLowerCase().includes(topic), `topic ${topic} is named`);
+must(/not covered/.test(skill), "a topic with no owner must be reported as not covered");
+must(/disintermediation/i.test(skill) && /bottom-up/i.test(skill) && /churn/i.test(skill) && /CAC/.test(skill), "operations, market-size and money checks are specific");
+
+// the devil's advocate must see the others and add something new
+must(/speaks last/i.test(skill) && /reads the other five/i.test(skill) && /none of the other five raised/i.test(skill), "the devil's advocate speaks last, reads the others, and names what they missed");
+must(/trigger/i.test(skill) && /warning sign/i.test(skill) && /cheapest hedge/i.test(skill), "the devil's advocate gives trigger, warning sign and hedge");
+
+// honesty
+must(/Never invent facts/.test(skill) && /\[assumption\]/.test(skill) && /\[you\]/.test(skill) && /\[source:/.test(skill), "the tagging rule is present");
 must(/You are not an investor/.test(skill) && /not a prediction/.test(skill), "it says it is not an investor and not a prediction");
+must(/Assumption ledger/.test(skill) && /Kill triggers/.test(skill) && /assumed without saying/.test(skill), "ledger, kill triggers and hidden assumptions are required");
 must(/exactly one test/i.test(skill) && /pass bar/i.test(skill) && /Never "build the MVP"/.test(skill), "the verdict ends in one cheap test with a pass bar stated in advance");
-must(/Go if/.test(skill) && /\*\*Stop\*\*/.test(skill), "verdict values are defined");
+must(/Go if/.test(skill) && /\*\*Stop\*\*/.test(skill) && /does not decide the verdict/.test(skill), "verdict values are defined and the score does not decide them");
+
+// cost honesty: one pass by default, deep mode only when asked
+must(/Default: one pass/.test(skill) && /many times more tokens/.test(skill), "single pass is the default and deep mode's cost is stated");
 
 // the manifest says it has no scripts, hooks or network code: prove it
 must(!existsSync(join(kit, "plugin", "scripts")) && !existsSync(join(kit, "plugin", "hooks")), "no scripts or hooks directory");
@@ -27,8 +43,8 @@ const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.is
 const code = walk(join(kit, "plugin")).filter((f) => /\.(mjs|js|cjs|sh|ps1|py)$/.test(f));
 must(code.length === 0, `the plugin ships no code files, found: ${code.join(", ")}`);
 
-// no copied text from elsewhere: the licence-less reference skill must not leak in
-must(!/shark\s*tank/i.test(skill) && !/shark\s*tank/i.test(readFileSync(join(kit, "kit.json"), "utf8")), "the skill does not use a third-party brand name");
+// no third-party brand name, in the skill or the manifest
+must(!/shark\s*tank/i.test(skill) && !/shark\s*tank/i.test(readFileSync(join(kit, "kit.json"), "utf8")), "no third-party brand name");
 
 if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }
-console.log("ok: pitch-panel skill defines five seats, the no-invention and not-an-investor rules, a single cheap test, and ships no code");
+console.log("ok: pitch-panel defines six seats, covers every promised topic, makes the devil's advocate read the others, tags every claim, and ends in one cheap test");

@@ -2,9 +2,9 @@
   "name": "pitch-panel",
   "kind": "skill",
   "collections": ["Planning"],
-  "tags": ["startup", "idea-validation", "critique", "business"],
-  "version": "0.1.0",
-  "promise": "Put a startup idea in front of a five-seat panel that argues against it, then get a verdict and one cheap test.",
+  "tags": ["startup", "idea-validation", "pre-mortem", "business"],
+  "version": "0.2.0",
+  "promise": "Put a startup idea in front of six seats (CTO, CMO, COO, PM, CFO, devil's advocate), then get a verdict and one cheap test.",
   "install": [
     "/plugin marketplace add praxikit/praxikit",
     "/plugin install pitch-panel@praxikit"
@@ -24,24 +24,30 @@
   "preview": [
     {
       "title": "One seat's block",
-      "note": "Illustrative output for a made-up idea (a subscription box of left-handed kitchen tools).",
-      "body": "## Customer   Vote: Back it if\n\nStrongest objection: left-handed buyers already find these tools in shops and online, so the pain may be mild.\nWhy it matters: a mild pain does not justify a monthly subscription.\nWhat would change my mind: 10 of 20 left-handed buyers say they have given up looking and would pay today.\nQuestion I would ask in the room: what did you do the last time a tool felt wrong in your hand?\nOne number I would want: how many left-handed adults have bought a kitchen tool online in the past year."
+      "note": "Illustrative output for a made-up idea (a subscription box of left-handed kitchen tools). Every number is tagged.",
+      "body": "## CFO   Vote: Back it if   Score: 3/5\n\nStrongest objection: at $39 a box with 40% product cost and about $9 shipping, contribution is roughly $14 a box [assumption]; a $25 acquisition cost pays back in two boxes only if monthly churn stays under 15% [assumption].\nWhy it matters: most subscription boxes lose half their buyers in three months, which would erase the margin.\nWhat would change my mind: a pre-order cohort where 40% re-order the second box.\nQuestion I would ask in the room: what happens to cash if only half the expected boxes sell?\nOne number I would want: landed cost per box from two real suppliers."
+    },
+    {
+      "title": "The devil's advocate",
+      "note": "Same made-up idea. It speaks last and must name something the other five did not.",
+      "body": "## Devil's advocate   Catastrophic risk\n\nScenario: one large marketplace lists a cheaper left-handed range and takes the search traffic the whole plan depends on.\nTrigger: the marketplace sees the category selling.\nLikelihood: medium [assumption]\nEarliest warning sign: competing listings appearing under the same search terms.\nCheapest hedge: build an email list of buyers from day one, so demand does not depend on one platform's search."
     },
     {
       "title": "The verdict",
       "note": "Same made-up idea. The test and its pass bar are stated before it is run.",
-      "body": "## Verdict: Go if\n\nConditions: 1. Buyers pay for a one-off box, not only a subscription (Customer). 2. Landed cost per box leaves 40% margin after shipping (Money). 3. Ten buyers reached for under $5 each (Reach).\nThis week's test: a one-page priced pre-order for a three-item box, shown to 200 left-handed people. Pass bar: 12 pre-orders.\nNot checked: competitors' real prices, supplier minimums.\n\nI am not an investor and this is not a prediction; talk to real buyers before you decide."
+      "body": "## Verdict: Go if   (score 20/30)\n\nConditions: 1. Buyers pay for a one-off box, not only a subscription (PM). 2. Landed cost leaves 40% margin after shipping (CFO). 3. Ten buyers reached for under $5 each (CMO).\nKill triggers: fewer than 5 of 20 interviewees will pay; second-box re-order under 25%.\nThis week's test: a one-page priced pre-order for a three-item box, shown to 200 left-handed people. Pass bar: 12 pre-orders.\nNot checked: competitors' real prices, supplier minimums.\n\nI am not an investor and this is not a prediction; talk to real buyers before you decide."
     }
   ],
   "access": {
     "reads": ["The idea you describe, and any files or links you point it at"],
     "writes": ["Nothing, unless you ask it to save the result to docs/pitch-panel.md"],
-    "network": "None from the kit: it has no scripts and no hooks. If your agent has web search it may use it when you allow it, and the skill says to name only pages it actually opened."
+    "network": "None from the kit: it has no scripts and no hooks. If your agent has web search it may use it only when you allow it, and the skill says to name the pages it opened."
   },
   "limits": [
     "Not investors and not a forecast: the verdict is a structured argument, not a prediction.",
-    "Only as good as the facts you give it; anything unsourced is marked as an assumption.",
+    "Only as good as the facts you give it; anything unsourced is tagged as an assumption.",
     "The seats are played by one model, so they share its blind spots. Talk to real buyers before you decide.",
+    "Deep mode (separate sub-agents for each seat) costs many times more tokens than the default single pass.",
     "Not affiliated with any television programme or brand."
   ]
 }

@@ -1,10 +1,10 @@
 {
   "name": "pitch-panel",
-  "version": "0.1.0",
-  "description": "Put a startup or product idea in front of a five-seat panel that argues against it, then get a verdict, the conditions that would change it, and one cheap real-world test.",
+  "version": "0.2.0",
+  "description": "Put a startup or product idea in front of a six-seat panel (CTO, CMO, COO, PM, CFO and a devil's advocate) that argues against it, then get a verdict, an assumption ledger and one cheap real-world test.",
   "author": { "name": "praxikit", "url": "https://github.com/praxikit" },
   "homepage": "https://github.com/praxikit/praxikit",
   "repository": "https://github.com/praxikit/praxikit",
   "license": "MIT",
-  "keywords": ["startup", "idea-validation", "critique", "business"]
+  "keywords": ["startup", "idea-validation", "pre-mortem", "business"]
 }

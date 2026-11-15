@@ -83,3 +83,6 @@
 
 ## 2026-11-15 — Policy, reports and removals
 - Added `/policy/` (what a listing means, how to report, what happens, honest limits: one maintainer, aims not service levels), the **Report a listing** issue form, GitHub private vulnerability reporting for malicious code and leaked secrets (enabled on the repo), the owner-only **Remove listing** workflow and the public log `docs/removals.md`. Footer and submit page link to the policy. The pitch-panel run on Praxikit named a policy and a second approver as conditions; the policy is done, the second approver is not.
+
+## 2026-11-15 — pitch-panel 0.2.0 (six seats)
+- Upgraded to CTO, CMO, COO, PM, CFO and a devil's advocate (written in our own words; the role titles are generic). Adds claim tagging, 1 to 5 scores, an assumption ledger, hidden-assumption list, kill triggers, a coverage check, bottom-up market sizing, and one pass as the default (deep mode only on request, cost stated, after the five-seat trial used about 57k tokens per sub-agent). Not run live in its six-seat form yet; the test checks the file's structure, not the quality of an answer.
