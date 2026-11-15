@@ -15,6 +15,7 @@ const readJsonl = (file) => {
     return readFileSync(file, "utf8").split("\n").filter(Boolean).flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } });
   } catch { return []; }
 };
+export { readJsonl };
 export const readJson = (file, fallback) => { try { return JSON.parse(readFileSync(file, "utf8")); } catch { return fallback; } };
 
 /** Config: plugin defaults < project .keel/config.json. */
@@ -62,6 +63,13 @@ const isRealPrompt = (e) => {
   if (typeof c === "string") return c.trim().length > 0;
   return Array.isArray(c) && c.some((b) => b.type === "text" || b.type === "image") && !c.some((b) => b.type === "tool_result");
 };
+
+/** Index of the last real user prompt in parsed entries, or -1. */
+export function lastPromptIndex(entries) {
+  let idx = -1;
+  entries.forEach((e, i) => { if (isRealPrompt(e)) idx = i; });
+  return idx;
+}
 
 function addMessages(entries, since, into) {
   const byId = new Map();

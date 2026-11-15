@@ -1,5 +1,9 @@
 # Changelog — keel
 
+## 0.4.0 — 2026-11-15
+- New: `/keel:status`. One screen with the phases and where you are, the current phase's goal and checks, open decisions, the last progress entry and the session cost. Read-only.
+- New: done-check. When a prompt changed files (other than docs) and no check-like command ran afterwards, a Stop hook prints one line saying so. A heuristic, never blocks. Turn off with `defaults.doneCheck: false`.
+
 ## 0.3.1 — 2026-11-15
 - Changed: a fixed reply layout. The result first, then `### For you` (bold action, exact command, `→ expect:`, `(blocks the next step)`), then `### Task list`. Task order and wording stay stable across replies and finished tasks stay on the list until the request is done. A plain question still gets a plain answer.
 - Changed: task marks default to ASCII `[x] [>] [ ]`, because the emoji marks drew as empty boxes in some terminal fonts. Set `defaults.marks` to `"emoji"` in `.keel/config.json` to get ✅ 🔄 ⬜.

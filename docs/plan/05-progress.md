@@ -42,3 +42,6 @@
 - Owner's installed 0.3.0 (screenshots): the cost footer printed after a prompt; For you and Task list appeared on their own for a multi-step request and not for a one-line request (automatic, nothing to enable).
 - Found: task marks ⬜ drew as empty boxes in the owner's terminal; reply layout varied; footer wrapped to two lines. Claude Code prefixes hook output with "Stop says:", which Keel cannot remove.
 - 0.3.1: fixed layout (result, ### For you, ### Task list), ASCII marks by default (emoji optional), shorter footer. Tests updated and passing.
+
+## 2026-11-15 — Keel 0.4.0
+- Added `/keel:status` (phases, current checks, open decisions, last entry, cost) and the done-check Stop hook (warns when non-doc files changed and no check-like command ran after). Both covered by `tests/status.test.mjs`, wired into CI. Not yet seen live in a fresh install.

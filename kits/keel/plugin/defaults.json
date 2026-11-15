@@ -1,5 +1,5 @@
 {
   "note": "Keel's default behaviour. Override per project in .keel/config.json (or run /keel:settings). 'marks' is ascii ([x] [>] [ ]) or emoji (✅ 🔄 ⬜); ascii shows in every terminal font. 'models' is the set tasks may be distributed among; 'tiers' maps Keel's agents to a model and overrides tiers.json.",
-  "defaults": { "forYou": true, "taskList": true, "costFooter": true, "marks": "ascii" },
+  "defaults": { "forYou": true, "taskList": true, "costFooter": true, "doneCheck": true, "marks": "ascii" },
   "models": ["haiku", "sonnet", "opus", "fable"]
 }

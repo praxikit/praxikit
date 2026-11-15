@@ -37,6 +37,7 @@ jobs:
         run: |
           node kits/keel/tests/drift.test.mjs
           node kits/keel/tests/cost.test.mjs
+          node kits/keel/tests/status.test.mjs
       - name: actionlint on workflows and the security template (pinned, checksum verified)
         env:
           V: 1.7.7
