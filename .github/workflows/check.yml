@@ -47,6 +47,7 @@ jobs:
           node --no-warnings api/test-accounts.mjs
           node --no-warnings api/test-site.mjs
           node --no-warnings api/test-community.mjs
+          node --no-warnings api/test-contributors.mjs
           node site/a11y.test.mjs
           node site/behaviour.test.mjs
           node site/links.test.mjs

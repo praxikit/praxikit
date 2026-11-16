@@ -12,6 +12,7 @@ on:
         options:
           - 0006_accounts.sql
           - 0007_community.sql
+          - 0008_profiles.sql
 permissions:
   contents: read
 concurrency:
@@ -34,7 +35,7 @@ jobs:
         working-directory: api
         run: |
           case "$MIGRATION" in
-            0006_accounts.sql|0007_community.sql) ;;
+            0006_accounts.sql|0007_community.sql|0008_profiles.sql) ;;
             *) echo "::error::That migration is not offered here."; exit 1 ;;
           esac
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then

@@ -1,0 +1,155 @@
+#!/usr/bin/env node
+// Contributor profiles: public only by choice, ranked by listings that are live now, with badges; private view for everyone;
+// removal and deletion take effect at once. Fake GitHub and site, real SQLite. No network.
+// Run from the repo root: node --no-warnings api/test-contributors.mjs
+import { readFileSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import worker from "./src/index.mjs";
+import { badgesFor, nextMilestone } from "./src/lib/contributors.mjs";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const failures = [];
+const must = (c, m) => { if (!c) failures.push(m); };
+
+const raw = new DatabaseSync(":memory:");
+raw.exec(readFileSync(join(here, "schema.sql"), "utf8"));
+const D1 = { prepare(sql) { const st = raw.prepare(sql); let args = []; const api = { bind(...a) { args = a; return api; }, async first() { return st.get(...args) ?? null; }, async all() { return { results: st.all(...args) }; }, async run() { const r = st.run(...args); return { meta: { changes: Number(r.changes), last_row_id: Number(r.lastInsertRowid) } }; } }; return api; } };
+const SECRET = "s".repeat(40);
+const env = { BASE_URL: "https://admin.example.dev", ORG: "praxikit", TEAM: "maintainers", REPO: "praxikit/praxikit", GITHUB_CLIENT_ID: "cid", GITHUB_CLIENT_SECRET: "csecret", SESSION_SECRET: SECRET, SITE_URL: "https://site.example.dev/praxikit/", DB: D1 };
+const OK = "https://admin.example.dev";
+const XSS = "<script>alert(1)</script>";
+
+let INDEX;
+const resetIndex = () => {
+  INDEX = [
+    { t: XSS + " A", k: "listed", u: "https://github.com/o/a", p: "l/o-a/", ext: 1, d: "a", g: "" },
+    { t: "B pick", k: "pick", u: "https://github.com/o/b", p: "l/o-b/", ext: 1, d: "b", g: "" },
+    { t: "C", k: "listed", u: "https://github.com/o/c", p: "l/o-c/", ext: 1, d: "c", g: "" },
+    { t: "D", k: "listed", u: "https://github.com/o/d", p: "l/o-d/", ext: 1, d: "d", g: "" },
+    { t: "F", k: "listed", u: "https://github.com/o/f", p: "l/o-f/", ext: 1, d: "f", g: "" },
+    { t: "keel", k: "kit", u: "k/keel/", d: "x", g: "" },
+  ];
+};
+resetIndex();
+const USERS = { "tok-carol": { login: "carol", id: 3 }, "tok-dave": { login: "dave", id: 4 }, "tok-eve": { login: "eve", id: 5 } };
+const CODES = { "u-carol": "tok-carol", "u-dave": "tok-dave", "u-eve": "tok-eve" };
+const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json" } });
+globalThis.fetch = async (input, init = {}) => {
+  const u = new URL(typeof input === "string" ? input : input.url);
+  if (u.href === "https://github.com/login/oauth/access_token") { const b = JSON.parse(init.body); return CODES[b.code] ? json({ access_token: CODES[b.code] }) : json({ error: "bad" }); }
+  if (u.href === "https://site.example.dev/praxikit/search-index.json") return json(INDEX);
+  if (u.origin === "https://api.github.com" && u.pathname === "/user") { const t = String(init.headers?.Authorization ?? "").replace("Bearer ", ""); return USERS[t] ? json(USERS[t]) : json({}, 401); }
+  return json({}, 404);
+};
+
+const everything = [];
+const call = (path, { method = "GET", cookies = {}, origin, form } = {}) => {
+  const headers = new Headers();
+  const c = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join("; ");
+  if (c) headers.set("Cookie", c);
+  if (origin) headers.set("Origin", origin);
+  const init = { method, headers };
+  if (form) { headers.set("Content-Type", "application/x-www-form-urlencoded"); init.body = new URLSearchParams(form).toString(); }
+  return worker.fetch(new Request(`https://admin.example.dev${path}`, init), env);
+};
+const text = async (r) => { const t = await r.text(); everything.push(t); return t; };
+const cookieValue = (res, name) => { const c = res.headers.getSetCookie().find((x) => x.startsWith(name + "=")); return c ? c.slice(name.length + 1).split(";")[0] : undefined; };
+async function signIn(code) {
+  const login = await call("/auth/login?mode=user");
+  const state = new URL(login.headers.get("Location")).searchParams.get("state");
+  const cb = await call(`/auth/callback?code=${code}&state=${encodeURIComponent(state)}`, { cookies: { "__Host-praxikit-state": cookieValue(login, "__Host-praxikit-state") } });
+  return { "__Host-praxikit-session": cookieValue(cb, "__Host-praxikit-session") };
+}
+const rows = (sql, ...a) => raw.prepare(sql).all(...a);
+let n = 0;
+const sub = (userId, login, repo, source, state = "listed", status = "approved") => raw.prepare("INSERT INTO submissions (repo_url, repo_key, name, owner, owner_type, submitted_by, submitted_by_id, source, commit_sha, precheck, precheck_status, status, created_at, publish_state) VALUES (?, ?, 'x', 'o', 'User', ?, ?, ?, 'a', '[]', 'pass', ?, '2026-11-16', ?)").run(repo, repo.toLowerCase().replace("https://github.com/", "") + (n++), login, userId, source, status, state);
+
+// ---- the rules, on their own
+must(badgesFor({ count: 0, picked: 0, author: 0 }).length === 0, "no listings, no badges");
+must(badgesFor({ count: 1, picked: 0, author: 0 }).map((b) => b.id).join() === "first", "one listing earns First listing");
+must(badgesFor({ count: 10, picked: 1, author: 1 }).map((b) => b.id).join() === "first,five,ten,picked,author", "ten listings with a pick and an authored kit earn everything");
+must(nextMilestone(0).need === 1 && nextMilestone(3).need === 2 && nextMilestone(3).name === "Five listed" && nextMilestone(7).need === 3 && nextMilestone(10) === null, "the next milestone counts down, and ends at ten");
+
+// ---- the data: carol 2 live (one pick, one authored) plus one removed from the catalogue; dave 1; eve 1 but private; frank ties dave
+const carol = await signIn("u-carol"), dave = await signIn("u-dave"), eve = await signIn("u-eve");
+raw.prepare("INSERT INTO users (id, login, created_at, last_seen) VALUES (6, 'frank', '2026-11-16', '2026-11-16')").run();
+sub(3, "carol", "https://github.com/o/a", "recommended"); sub(3, "carol", "https://github.com/o/b", "community"); sub(3, "carol", "https://github.com/o/gone", "community");
+sub(3, "carol", "https://github.com/o/pending", "community", "", "pending");
+sub(4, "dave", "https://github.com/o/c", "recommended"); sub(4, "dave", "https://github.com/o/notyet", "recommended", "dispatched");
+sub(5, "eve", "https://github.com/o/d", "recommended");
+sub(6, "frank", "https://github.com/o/f", "recommended");
+raw.prepare("INSERT INTO profiles (user_id, public, updated_at) VALUES (6, 1, '2026-11-16')").run();
+
+// ---- nobody is public until they say so
+let html = await text(await call("/contributors"));
+must(html.includes("Nobody is on the board yet") || !html.includes("@carol"), "before anyone opts in, the board shows no one");
+must(!html.includes("@eve") && !html.includes("@carol") && !html.includes("@dave"), "private people are not named");
+must((await call("/u/carol")).status === 404, "a person who has not opted in has no public page");
+
+// ---- opting in
+must((await call("/settings/public", { method: "POST", origin: OK, form: { public: "yes" } })).status === 401, "the switch needs a sign-in");
+must((await call("/settings/public", { method: "POST", cookies: carol, origin: "https://evil.example", form: { public: "yes" } })).status === 403, "and a request from this site");
+let r = await call("/settings/public", { method: "POST", cookies: carol, origin: OK, form: { public: "yes" } });
+must(r.status === 303 && r.headers.get("Location") === "/settings?m=publicOn" && rows("SELECT public FROM profiles WHERE user_id = 3")[0].public === 1, "switching on public credit works");
+await call("/settings/public", { method: "POST", cookies: dave, origin: OK, form: { public: "yes" } });
+
+// ---- the board
+html = await text(await call("/contributors"));
+const order = [...html.matchAll(/class="login" href="\/u\/([^"]+)"/g)].map((m) => m[1]);
+must(order.join() === "carol,dave,frank", `ranked by live listings, ties by name: ${order.join()}`);
+must(!html.includes("@eve") && !html.includes("<script>alert(1)"), "someone who did not opt in is not on the board");
+must(/<span class="rank">1<\/span>[\s\S]*?carol[\s\S]*?<strong>2<\/strong> listed/.test(html), "carol has two live listings (the removed one and the pending one do not count)");
+must(/<span class="rank">2<\/span>[\s\S]*?dave[\s\S]*?<span class="rank">2<\/span>[\s\S]*?frank/.test(html), "a tie shares a rank");
+must(html.includes("First listing") && html.includes("Picked") && html.includes("Author") && !html.includes("Five listed"), "badges follow what the person has done");
+must((await call("/contributors")).headers.get("Content-Security-Policy").includes("default-src 'none'"), "the board carries the app's strict policy");
+
+// ---- a person's public page
+html = await text(await call("/u/carol"));
+must(html.includes("@carol") && html.includes('href="/l/o-b/"') && html.includes('href="/l/o-a/"') && !html.includes("gone"), "the public page lists the live kits with links to their pages");
+must(html.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !html.includes("<script>alert(1)"), "a hostile kit title is escaped");
+must((await call("/u/CAROL")).status === 200 && (await call("/u/eve")).status === 404 && (await call("/u/nobody")).status === 404 && (await call("/u/a%20b")).status === 404 && (await call("/u/" + "x".repeat(60))).status === 404 && (await call("/u/<script>")).status === 404, "case is ignored; private, unknown and malformed names are 404");
+
+// ---- credit on the listing, only for those who chose it
+const item = async (url) => (await (await call("/api/item?item=" + encodeURIComponent(url))).json());
+must((await item("https://github.com/o/a")).credit?.login === "carol" && (await item("https://github.com/o/c")).credit?.login === "dave", "a listing names the person who put it forward, if they opted in");
+must((await item("https://github.com/o/d")).credit === null && (await item("k/keel/")).credit === null, "nobody is named for a person who stayed private, or for a kit built here");
+must(!JSON.stringify(await item("https://github.com/o/a")).includes('"id"'), "the credit carries only the username");
+
+// ---- private view: everyone sees their own count, public or not
+html = await text(await call("/profile", { cookies: eve }));
+must(html.includes("My contributions") && html.includes("<strong>1</strong> kit listed") && html.includes("First listing") && html.includes("Your contributions are private"), "someone who is private still sees their own contributions");
+html = await text(await call("/profile", { cookies: carol }));
+must(html.includes("<strong>2</strong> kits listed") && html.includes("1 waiting for review") && html.includes("3 more for <em>Five listed</em>") && html.includes('href="/u/carol"'), "the owner sees pending work, the next milestone and a link to their public page");
+html = await text(await call("/settings", { cookies: carol }));
+must(html.includes("Turn off public credit") && html.includes("credited publicly"), "settings shows the current state and the way to turn it off");
+html = await text(await call("/settings", { cookies: eve }));
+must(html.includes("Turn on public credit") && html.includes("<strong>private</strong>"), "and for a private person, the way to turn it on");
+
+// ---- the submit form offers the choice
+html = await text(await call("/submit", { cookies: eve }));
+must(html.includes('name="credit"') && html.includes("Credit me publicly"), "the submit form has the tickbox for someone who is private");
+html = await text(await call("/submit", { cookies: carol }));
+must(!html.includes('name="credit"') && html.includes("credited publicly"), "and says so, instead, for someone who is public");
+
+// ---- a listing taken off the site stops counting at once
+INDEX = INDEX.filter((e) => e.u !== "https://github.com/o/a");
+html = await text(await call("/contributors"));
+must(/carol[\s\S]*?<strong>1<\/strong> listed/.test(html), "removing a listing lowers the count straight away");
+resetIndex();
+
+// ---- switching off, and the data download
+r = await call("/settings/public", { method: "POST", cookies: carol, origin: OK, form: { public: "no" } });
+must(r.headers.get("Location") === "/settings?m=publicOff" && (await call("/u/carol")).status === 404 && !(await text(await call("/contributors"))).includes("@carol") && (await item("https://github.com/o/a")).credit === null, "switching off removes the page, the board entry and the credit");
+const exp = await (await call("/account/export", { cookies: dave })).json();
+must(exp.public_credit === true, "the data download says whether you are credited");
+
+// ---- deleting an account takes the profile and the count with it
+r = await call("/account/delete", { method: "POST", cookies: dave, origin: OK, form: { confirm: "dave" } });
+must(r.status === 200 && rows("SELECT * FROM profiles WHERE user_id = 4").length === 0 && !(await text(await call("/contributors"))).includes("@dave") && (await call("/u/dave")).status === 404 && (await item("https://github.com/o/c")).credit === null, "deleting an account removes the profile and the credit");
+
+for (const t of everything) must(!/<script(?!>alert)|\son\w+=/i.test(t.replace(/&lt;[^&]*&gt;/g, "")), "no scripts or inline event handlers in any page");
+
+if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }
+console.log("ok: contributor profiles are public only by choice, ranked by live listings with badges, credited on listings, visible privately to everyone, and gone on switch-off, removal or deletion");

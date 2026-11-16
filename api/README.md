@@ -203,3 +203,20 @@ Setup, **once**, after pulling (the site deploys itself; until this runs, the se
 ```bash
 npx wrangler d1 execute praxikit-admin --remote --file=migrations/0007_community.sql
 ```
+
+### Contributor profiles
+
+A person is public only if they switch it on (**Settings → Public credit**, or the *Credit me publicly* tickbox on the submit form; it can only be turned on there, never off). Then:
+
+- **`/contributors`** lists public people ranked by the kits they put forward that are **live in the catalogue right now** (the app reads the site's own `search-index.json`), then by how many are picks, then by name; ties share a rank. A listing that is later removed stops counting at once, and a repository counts once per person. Sending many submissions earns nothing; only listed kits count.
+- **`/u/<name>`** is a person's public page: badges and the kits they put forward. Private, unknown and malformed names are a plain 404.
+- **Badges** (computed, never stored): First listing (1), Five listed (5), Ten listed (10), Picked (one of their kits is a pick), Author (they submitted a kit they wrote).
+- **Credit on listings:** a listing page shows "Put forward by … · @name" only when that person is public. `/api/item` carries the username and nothing else.
+- **Everyone** sees their own count, pending submissions, badges and next milestone on `/profile`, public or not.
+- Deleting an account removes the profile, the credit and the count. The data download says whether you were credited.
+
+Setup, **once** (the site deploys itself; until then the Settings switch fails with a plain error):
+
+```bash
+gh workflow run migrate.yml -f file=0008_profiles.sql
+```

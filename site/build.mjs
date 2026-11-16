@@ -405,6 +405,15 @@ const SITE_JS = `
       apiCall("/api/item?item=" + encodeURIComponent(comItem)).then(function (x) { if (x.ok) renderCom(x.j); else com.textContent = "This could not be loaded just now."; }).catch(function () { com.textContent = "This could not be loaded just now."; });
     };
     var renderCom = function (d) {
+      var cr = document.querySelector("[data-credit]");
+      if (cr) {
+        cr.textContent = cr.getAttribute("data-credit") || "";
+        if (d.credit && typeof d.credit.login === "string") {
+          cr.appendChild(document.createTextNode(" · "));
+          var who = node("a", "", "@" + d.credit.login); who.href = "/u/" + encodeURIComponent(d.credit.login);
+          cr.appendChild(who);
+        }
+      }
       com.textContent = "";
       var bar = node("div", "vote-row");
       var vote = node("button", "vote-btn"); vote.type = "button";
@@ -662,7 +671,7 @@ ${head}
 <main id="main">
 ${body}
 </main>
-<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>A catalogue of kits for AI coding agents.<br>Free, open source, MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}about/">About</a><a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a></div></div></footer>
+<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>A catalogue of kits for AI coding agents.<br>Free, open source, MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}about/">About</a>${APP ? `<a href="${esc(APP)}/contributors">Contributors</a>` : ""}<a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a></div></div></footer>
 <script src="${up}site.js?v=${hashStr(SITE_JS)}" defer data-site></script>
 </body>
 </html>
@@ -803,7 +812,7 @@ ${related.length ? `<section><h2>More like this</h2><ul class="cards few-3">${re
 <dt>Commit read</dt><dd><a href="${esc(commitUrl)}" rel="noopener noreferrer"><code>${esc(l.commit.slice(0, 7))}</code></a></dd>
 <dt>Automatic check</dt><dd>${esc(CHECK_WORDS[l.checks] ?? l.checks)}</dd>
 <dt>Listed on</dt><dd>${esc(l.added)}</dd>
-<dt>Put forward by</dt><dd>${esc(sourceWord(l))}</dd></dl>
+<dt>Put forward by</dt><dd data-credit="${esc(sourceWord(l))}">${esc(sourceWord(l))}</dd></dl>
 <p class="muted">Installs follow the author's latest version, which can differ from the commit that was read. A daily check marks the listing if the repository moves on.</p>
 <p class="side-links"><a href="../../policy/#report">Report a problem with this listing</a></p></div></aside>
 </div>
@@ -1071,7 +1080,7 @@ function privacyPage() {
 <p>Signing in happens in a separate app. It asks GitHub for your username only (the <code>read:user</code> permission), does not keep your GitHub access token, and stores your username, your numeric GitHub id, the dates you signed in, your saved kits and group names, and your submissions. It uses one sign-in cookie that lasts a few hours. Nothing is sold or shared, and no page shows your collection to anyone else.</p>
 <p>You can download your data and delete your account at any time from <em>My collection</em>. Deleting removes your collection, waiting submissions and account record; decided submissions stay in the catalogue's history without your name. Nothing in the app shows your collection to anyone else. Maintainers see your submissions and your username next to them. The person who runs the app can technically read the database, because that is how a database works; they do not look through collections.</p>
 <h2 class="sub">What exactly is kept</h2>
-<ul><li>Your GitHub username and numeric id, the date you first signed in and the date you last did.</li><li>The kits you saved and the group names you typed (up to 300 items; up to 40 can be added an hour).</li><li>Your submissions: the repository link, what GitHub says about it, the checks and the maintainers' decision.</li><li>If you press <em>This helped me</em> or write a note: the vote, and the note with your GitHub username. A note is public once a maintainer has shown it; you can delete yours at any time. Only totals are shown for votes and saves.</li><li>One sign-in cookie that lasts a few hours. No advertising or analytics cookies; nothing is sold or shared.</li></ul>
+<ul><li>Your GitHub username and numeric id, the date you first signed in and the date you last did.</li><li>The kits you saved and the group names you typed (up to 300 items; up to 40 can be added an hour).</li><li>Your submissions: the repository link, what GitHub says about it, the checks and the maintainers' decision.</li><li>If you press <em>This helped me</em> or write a note: the vote, and the note with your GitHub username. A note is public once a maintainer has shown it; you can delete yours at any time. Only totals are shown for votes and saves.</li><li>Public credit, only if you switch it on: your GitHub username is shown on the kits you put forward and on the Contributors board, with a count of your listed kits. It is off by default and you can turn it off at any time.</li><li>One sign-in cookie that lasts a few hours. No advertising or analytics cookies; nothing is sold or shared.</li></ul>
 <h2 class="sub">Questions</h2>
 <p>Open an issue in the <a href="${esc(REPO)}/issues" rel="noopener noreferrer">repository</a>.</p></div>`;
   return page({ title: "Privacy — Praxikit", depth: 1, body, canonical: `${HOME_URL}privacy/`, description: "What Praxikit keeps about you: nothing on the website; a GitHub username and your collection if you sign in." });

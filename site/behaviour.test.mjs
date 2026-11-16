@@ -36,7 +36,7 @@ class El {
 }
 
 /** One fake page. `hint` says whether the sign-in hint cookie is present; `me` is what /api/me answers (null = 401). */
-async function run({ hint = false, me = null, saved = [], dark = false, kits = false, search = "", community = null, counts = null, statKeys = [] }) {
+async function run({ hint = false, me = null, saved = [], dark = false, kits = false, search = "", community = null, counts = null, statKeys = [], creditEl = null }) {
   const calls = [], docListeners = {}, ids = {};
   const root = new El("html"), body = new El("body");
   body.attrs = { "data-root": "/", "data-app": "https://praxikit.com" };
@@ -60,9 +60,10 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
   if (community) { ids["community-body"] = new El("div"); ids.community = new El("section"); ids.community.attrs = { "data-item": community.item }; }
   const doc = {
     createElementNS: (ns, t) => new El(t),
+    createTextNode: (x) => { const e = new El("#text"); e.textContent = String(x); return e; },
     documentElement: root, body, cookie: hint ? "praxikit-in=1" : "",
     getElementById: (id) => ids[id] ?? null,
-    querySelector: (s) => (s === "header nav" ? nav : s === "header.top" ? header : null),
+    querySelector: (s) => (s === "header nav" ? nav : s === "header.top" ? header : s === "[data-credit]" ? creditEl : null),
     querySelectorAll: (s) => (s === "[data-save]" ? [btn] : s === "[data-show]" ? (list.segs ?? []) : s === "[data-stat]" ? stats : []),
     createElement: (t) => new El(t),
     addEventListener: (t, f) => (docListeners[t] ??= []).push(f),
@@ -226,11 +227,20 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
   must(/waiting for a maintainer/.test(text(mb)) && find(mb, (n) => n.tag === "textarea").value === "Waiting note text here" && walk(mb).some((n) => n.textContent === "Delete my note"), "your own waiting note is shown to you with a way to change or delete it");
   must(/No notes yet/.test(text(mb)), "with no approved notes, the page says so");
 
+  const credit = new El("dd"); credit.attrs = { "data-credit": "Submitted by its author" }; credit.textContent = "Submitted by its author";
+  const cp = await run({ hint: true, me: { login: "carol", id: 3, role: "user" }, creditEl: credit, community: { item: "https://github.com/o/a", data: data({ credit: { login: "dave" }, notes: [] }) } });
+  await new Promise((r) => setTimeout(r, 40));
+  must(credit.textContent.startsWith("Submitted by its author") && credit.children.some((c) => c.textContent === "@dave" && c.href === "/u/dave"), "a listing page names the person who put it forward, linking to their page");
+  const credit2 = new El("dd"); credit2.attrs = { "data-credit": "Suggested by someone else" }; credit2.textContent = "Suggested by someone else";
+  await run({ hint: true, me: { login: "carol", id: 3, role: "user" }, creditEl: credit2, community: { item: "https://github.com/o/a", data: data({ credit: null, notes: [] }) } });
+  await new Promise((r) => setTimeout(r, 40));
+  must(credit2.textContent === "Suggested by someone else" && credit2.children.length === 0, "and names nobody when they did not choose to be named");
   const out = await run({ hint: false, community: { item: "k/keel/", data: data({ signedIn: false, voted: false, mine: null }) } });
   await new Promise((r) => setTimeout(r, 40));
   const ob = out.ids["community-body"];
   must(!out.threw, "the page script still runs for someone who is not signed in");
   must(out.calls.every(([u]) => u !== "/api/me"), "(and does not ask who they are)");
+  must(/Sign in with GitHub/.test(text(ob)) && /to say it helped/.test(text(ob)), "it invites them to sign in to vote or write a note");
 }
 
 if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }

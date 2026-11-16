@@ -38,6 +38,18 @@ export const CSS = `
 .app .cards a{display:block;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:12px 14px;text-decoration:none;color:var(--fg)}
 .app .cards a:hover{border-color:var(--accent)}
 .app .cards strong{display:block}
+.app .board{list-style:none;padding:0;margin:0 0 1.5rem;display:grid;gap:10px}
+.app .board li{display:grid;grid-template-columns:2.2rem 40px 1fr auto;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
+.app .board .rank{font-weight:750;font-size:1.1rem;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.app .board img{border-radius:50%;border:1px solid var(--line)}
+.app .board .login{font-weight:650;text-decoration:none}
+.app .board .score{color:var(--muted);font-size:.93rem;white-space:nowrap}
+.app .board .score strong{color:var(--fg);font-size:1.1rem}
+.app .badge-row,.app .badge-list{list-style:none;padding:0;margin:.3rem 0 0;display:flex;flex-wrap:wrap;gap:6px}
+.app .badge-chip{font-size:.75rem;font-weight:650;padding:2px 10px;border-radius:99px;background:var(--accent-bg);color:var(--accent)}
+.app .badge-list{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))}
+.app .badge-list li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column}
+@media (max-width:520px){.app .board li{grid-template-columns:1.6rem 36px 1fr;}.app .board .score{grid-column:3}}
 .app .danger-zone{border:1px solid var(--bad);border-radius:8px;padding:6px 16px 14px;margin-top:2rem}
 `;
 
@@ -78,7 +90,7 @@ const SRC = { community: "Community (by its author)", recommended: "Recommended 
 const checks = (json) => { try { const a = JSON.parse(json); return Array.isArray(a) ? a.map((c) => ({ title: String(c?.title ?? ""), status: String(c?.status ?? ""), note: String(c?.note ?? "") })) : []; } catch { return []; } };
 const status = (s) => (s === "pass" ? "Pass" : s === "flag" ? "Look closer" : s === "fail" ? "Fail" : esc(s));
 
-export function submitPage({ session, flash, error, values = {} }) {
+export function submitPage({ session, flash, error, values = {}, isPublic = false }) {
   return page("Submit a kit — Praxikit", `${nav(session)}
 <h1>Submit a kit</h1>
 <p>Paste the link to a public GitHub repository. We read its name, owner, licence and README from GitHub; you do not need to describe it. A person reviews every submission before anything is listed, and nothing is listed for payment.</p>
@@ -86,6 +98,7 @@ ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${error ? `<p class="note">${es
 <form method="post" action="/submit">
 <label for="url">Repository link</label><input id="url" name="url" type="url" required maxlength="200" placeholder="https://github.com/owner/repo" value="${esc(values.url ?? "")}">
 <label for="why">Note <span class="hint">(optional, up to 200 characters; shown if you are recommending someone else's kit)</span></label><textarea id="why" name="why" maxlength="200">${esc(values.why ?? "")}</textarea>
+${isPublic ? '<p class="muted">You are credited publicly for kits you put forward (change this in <a href="/settings">Settings</a>).</p>' : '<label class="check"><input type="checkbox" name="credit" value="yes"> Credit me publicly: show my GitHub username on the listing and on the Contributors board <span class="hint">(you can turn it off any time)</span></label>'}
 <p><button type="submit">Submit for review</button> <a class="btn ghost" href="/profile">My profile</a></p>
 </form>
 <p class="muted">If you are the repository's owner (or a public member of its organisation), it is listed as a community kit by its author. Otherwise it is a recommendation. GitHub decides which, not the form.</p>`);

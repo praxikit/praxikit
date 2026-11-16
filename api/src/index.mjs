@@ -20,6 +20,7 @@ import { storeFor } from "./lib/store.mjs";
 import { parseTags } from "./lib/tags.mjs";
 import { dispatchApprove, dispatchEdit, dispatchRemove, dispatchScan, syncPublishing, syncScans, publishingConfigured } from "./lib/publish.mjs";
 import { COMMUNITY, cleanNote, notesAdminPage } from "./lib/community.mjs";
+import { boardFor, contributionsFor, contributorsPage, contributorProfilePage } from "./lib/contributors.mjs";
 import { cleanItem, cleanLabel, fetchCatalogue, LIMITS, FLASH_ACCOUNT, savePage, collectionPage, profilePage, settingsPage } from "./lib/account.mjs";
 import { CSS, setShell, signInPage, messagePage, listingsPage, adminPage, submitPage, minePage, detailPage, FLASH } from "./lib/html.mjs";
 
@@ -54,8 +55,8 @@ const SITE_HEADERS = {
   "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
 };
 // What the app answers itself. Everything else is a page of the site.
-const APP_EXACT = new Set(["/healthz", "/submit", "/api/collection", "/collection", "/profile", "/settings", "/admin", "/api/me"]);
-const APP_PREFIX = ["/api/", "/auth/", "/admin/", "/collection/", "/account/", "/assets/"];
+const APP_EXACT = new Set(["/healthz", "/submit", "/contributors", "/api/collection", "/collection", "/profile", "/settings", "/admin", "/api/me"]);
+const APP_PREFIX = ["/u/", "/api/", "/auth/", "/admin/", "/collection/", "/account/", "/assets/"];
 const isAppPath = (p) => APP_EXACT.has(p) || APP_PREFIX.some((x) => p.startsWith(x));
 
 let shellAt = 0;
@@ -134,6 +135,7 @@ async function startPublish(env, store, row) {
 }
 
 const safeDecode = (s) => { try { return decodeURIComponent(String(s ?? "")); } catch { return ""; } };
+const store0Public = async (env, s) => { const st = storeFor(env); return st ? st.isPublic(s.id) : false; };
 const oneLine = (s, n) => String(s ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 
 async function submit(request, env, session) {
@@ -142,10 +144,11 @@ async function submit(request, env, session) {
   if (!sameOrigin(request, env)) return send(messagePage("Refused", "That request did not come from this site."), { status: 403 });
   if (Number(request.headers.get("Content-Length") ?? 0) > 4096) return send(messagePage("Too large", "That submission is too large.", false), { status: 413 });
 
-  let url = "", why = "";
-  try { const f = await request.formData(); url = String(f.get("url") ?? "").trim(); why = String(f.get("why") ?? ""); } catch { return send(submitPage({ session, error: "That form could not be read. Try again." }), { status: 400 }); }
+  let url = "", why = "", credit = false;
+  try { const f = await request.formData(); url = String(f.get("url") ?? "").trim(); why = String(f.get("why") ?? ""); credit = f.get("credit") === "yes"; } catch { return send(submitPage({ session, error: "That form could not be read. Try again." }), { status: 400 }); }
   const values = { url: url.slice(0, 200), why: oneLine(why, 200) };
-  const fail = (error, status = 400) => send(submitPage({ session, error, values }), { status });
+  const isPublic = await store.isPublic(session.id);
+  const fail = (error, status = 400) => send(submitPage({ session, error, values, isPublic }), { status });
 
   if (url.length > 200) return fail("That link is too long.");
   if (oneLine(why, 1000).length > 200) return fail("The note is longer than 200 characters.");
@@ -174,6 +177,7 @@ async function submit(request, env, session) {
     if (String(e?.message) === "duplicate") return fail("That repository is already waiting for review.", 409);
     throw e;
   }
+  if (credit) { const at = new Date().toISOString(); await store.touchUser(session.id, session.sub, at); await store.setPublic(session.id, true, at); }
   // a maintainer's own submission is published directly, after the same scan. It is held for review if it cannot be.
   if (session.role === "admin") {
     const text = oneLine(source === "recommended" && values.why ? values.why : info.excerpt || `${info.name} by ${info.owner}`, 400);
@@ -256,11 +260,22 @@ async function accountRoutes(request, env, url, path, method) {
   }
   if (path === "/profile" && method === "GET") {
     const g = await personGate(request, env, method, { forPage: true }); if (g instanceof Response) return g;
-    return send(profilePage({ session: g.s, rows: await g.store.byUser(g.s.id), count: await g.store.collectionCount(g.s.id), user: await g.store.getUser(g.s.id), flash: { 1: "Thanks. Your submission is waiting for review.", direct: FLASH.direct, held: FLASH.held }[url.searchParams.get("ok")] ?? flashAccount(url) }));
+    let contrib = null;
+    try { contrib = (await contributionsFor(g.store, await fetchCatalogue(env))).get(g.s.id) ?? { id: g.s.id, count: 0, picked: 0, author: 0, items: [] }; } catch { /* the block is left out if the catalogue cannot be read */ }
+    return send(profilePage({ contrib, pending: await g.store.pendingCountFor(g.s.id), isPublic: await g.store.isPublic(g.s.id), session: g.s, rows: await g.store.byUser(g.s.id), count: await g.store.collectionCount(g.s.id), user: await g.store.getUser(g.s.id), flash: { 1: "Thanks. Your submission is waiting for review.", direct: FLASH.direct, held: FLASH.held }[url.searchParams.get("ok")] ?? flashAccount(url) }));
   }
   if (path === "/settings" && method === "GET") {
     const g = await personGate(request, env, method, { forPage: true }); if (g instanceof Response) return g;
-    return send(settingsPage({ session: g.s, user: await g.store.getUser(g.s.id), flash: flashAccount(url) }));
+    return send(settingsPage({ session: g.s, user: await g.store.getUser(g.s.id), flash: flashAccount(url), isPublic: await g.store.isPublic(g.s.id) }));
+  }
+  if (path === "/settings/public" && isPost) {
+    const g = await personGate(request, env, method); if (g instanceof Response) return g;
+    let f; try { f = await request.formData(); } catch { return back("/settings", "bad"); }
+    const on = f.get("public") === "yes";
+    const at = new Date().toISOString();
+    await g.store.touchUser(g.s.id, g.s.sub, at);
+    await g.store.setPublic(g.s.id, on, at);
+    return back("/settings", on ? "publicOn" : "publicOff");
   }
   if (path === "/collection/save" && method === "GET") {
     const g = await personGate(request, env, method, { forPage: true, item }); if (g instanceof Response) return g;
@@ -296,7 +311,7 @@ async function accountRoutes(request, env, url, path, method) {
   if (path === "/account/export" && method === "GET") {
     const g = await personGate(request, env, method, { forPage: true }); if (g instanceof Response) return g;
     const user = await g.store.getUser(g.s.id), subs = await g.store.byUser(g.s.id, 200);
-    const data = { github_login: g.s.sub, github_id: g.s.id, account_created: user?.created_at ?? null, last_seen: user?.last_seen ?? null,
+    const data = { public_credit: await g.store.isPublic(g.s.id), github_login: g.s.sub, github_id: g.s.id, account_created: user?.created_at ?? null, last_seen: user?.last_seen ?? null,
       collection: (await g.store.collectionOf(g.s.id)).map((r) => ({ item: r.item, group: r.label, saved: r.added_at })),
       helped_me: (await g.store.votesOf(g.s.id)).map((r) => ({ item: r.item, at: r.created_at })),
       notes: (await g.store.notesOf(g.s.id)).map((r) => ({ item: r.item, text: r.text, status: r.status, written: r.created_at })),
@@ -340,7 +355,8 @@ async function communityRoutes(request, env, url, path, method) {
     const saves = await store.saveCountFor(item);
     const notes = (await store.approvedNotes(item, COMMUNITY.listMax)).map((n) => ({ id: n.id, login: n.login, text: n.text, at: String(n.created_at).slice(0, 10), mine: !!s && n.user_id === s.id }));
     const mine = s ? await store.myNote(s.id, item) : null;
-    return jsonRes({ signedIn: !!s, votes: await store.voteCountFor(item), voted: s ? await store.hasVote(s.id, item) : false, saves: saves >= COMMUNITY.savesShownFrom ? saves : 0, notes, mine: mine ? { text: mine.text, status: mine.status } : null });
+    const by = item.startsWith("https://") ? await store.creditFor(item) : null;
+    return jsonRes({ credit: by ? { login: by.login } : null, signedIn: !!s, votes: await store.voteCountFor(item), voted: s ? await store.hasVote(s.id, item) : false, saves: saves >= COMMUNITY.savesShownFrom ? saves : 0, notes, mine: mine ? { text: mine.text, status: mine.status } : null });
   }
 
   if (method !== "POST") return jsonRes({ error: "method" }, 405);
@@ -404,6 +420,20 @@ async function notesAdmin(request, env, url, path, method) {
     return back("/admin/notes", "noteDone");
   }
   return send(messagePage("Not found", "There is nothing here.", false), { status: 404 });
+}
+
+/** The public Contributors board and a person's public page. Only people who switched it on appear; counts are of listings that are live now. */
+async function contributorRoutes(request, env, path, method) {
+  const s = await sessionOf(request, env), store = storeFor(env);
+  if (method !== "GET") return send(messagePage("Not found", "There is nothing here.", false), { status: 404 });
+  if (!store) return send(messagePage("Not open yet", "This app has no database connected yet.", false), { status: 503 });
+  let catalogue; try { catalogue = await fetchCatalogue(env); } catch { return send(messagePage("Try again", FLASH_ACCOUNT.down, false), { status: 503 }); }
+  if (path === "/contributors") return send(contributorsPage({ session: s, rows: await boardFor(store, catalogue) }));
+  const m = /^\/u\/([A-Za-z0-9-]{1,39})\/?$/.exec(path);
+  const user = m ? await store.userByLogin(m[1]) : null;
+  const c = user && Number(user.public) === 1 ? (await contributionsFor(store, catalogue)).get(user.id) : null;
+  if (!user || !c || c.count < 1) return send(messagePage("No public profile", "There is no public contributor profile at this address.", false), { status: 404 });
+  return send(contributorProfilePage({ session: s, user, c }));
 }
 
 async function approveRoute(request, env, s, id) {
@@ -538,17 +568,18 @@ async function route(request, env) {
       const prefill = cleanRepo(url.searchParams.get("url")); // a link from the website form; anything that is not a github.com repository is dropped
       if (!s) return send(signInPage("", { submit: true, next: prefill, return: "/submit" }));
       if (!storeFor(env)) return send(messagePage("Submissions are not open yet", "This app has no database connected yet.", false), { status: 503 });
-      return send(submitPage({ session: s, values: { url: prefill } }));
+      return send(submitPage({ session: s, values: { url: prefill }, isPublic: await store0Public(env, s) }));
     }
     if (method === "POST") return s ? submit(request, env, s) : send(signInPage("Sign in first, then submit again.", { submit: true }), { status: 401 });
   }
 
 
-  if (path === "/collection" || path === "/api/collection" || path === "/collection/toggle" || path === "/profile" || path === "/settings" || path === "/collection/save" || path === "/collection/remove" || path === "/account/export" || path === "/account/delete") {
+  if (path === "/collection" || path === "/settings/public" || path === "/api/collection" || path === "/collection/toggle" || path === "/profile" || path === "/settings" || path === "/collection/save" || path === "/collection/remove" || path === "/account/export" || path === "/account/delete") {
     return accountRoutes(request, env, url, path, method);
   }
   if (["/api/counts", "/api/item", "/api/vote", "/api/note", "/api/note/delete", "/api/note/report"].includes(path)) return communityRoutes(request, env, url, path, method);
   if (path === "/admin/notes" || path === "/admin/notes/decide") return notesAdmin(request, env, url, path, method);
+  if (path === "/contributors" || path.startsWith("/u/")) return contributorRoutes(request, env, path, method);
 
 
   if (path === "/admin" && method === "GET") {

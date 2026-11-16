@@ -71,12 +71,23 @@ export function d1Store(db) {
     async deleteAccount(userId) {
       await db.prepare("DELETE FROM collection WHERE user_id = ?").bind(userId).run();
       await db.prepare("DELETE FROM votes WHERE user_id = ?").bind(userId).run();
+      await db.prepare("DELETE FROM profiles WHERE user_id = ?").bind(userId).run();
       await db.prepare("DELETE FROM note_reports WHERE note_id IN (SELECT id FROM notes WHERE user_id = ?) OR user_id = ?").bind(userId, userId).run();
       await db.prepare("DELETE FROM notes WHERE user_id = ?").bind(userId).run();
       await db.prepare("DELETE FROM submissions WHERE submitted_by_id = ? AND status = 'pending'").bind(userId).run();
       await db.prepare("UPDATE submissions SET submitted_by = 'deleted-account', submitted_by_id = 0 WHERE submitted_by_id = ?").bind(userId).run();
       await db.prepare("DELETE FROM users WHERE id = ?").bind(userId).run();
     },
+    // ---- contributor profiles. A profile is public only when its owner switched it on.
+    async setPublic(userId, on, at) { await db.prepare("INSERT INTO profiles (user_id, public, updated_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET public = excluded.public, updated_at = excluded.updated_at").bind(userId, on ? 1 : 0, at).run(); },
+    async isPublic(userId) { return Number((await db.prepare("SELECT public FROM profiles WHERE user_id = ?").bind(userId).first())?.public ?? 0) === 1; },
+    /** Every approved and published submission with the person behind it: the raw material for counting contributions. */
+    async listedSubmissions() { return (await db.prepare("SELECT submitted_by_id AS id, repo_url, source FROM submissions WHERE status = 'approved' AND publish_state = 'listed' AND submitted_by_id > 0").all()).results ?? []; },
+    async publicUsers() { return (await db.prepare("SELECT u.id AS id, u.login AS login FROM users u JOIN profiles p ON p.user_id = u.id AND p.public = 1").all()).results ?? []; },
+    async userByLogin(login) { return (await db.prepare("SELECT u.id AS id, u.login AS login, COALESCE(p.public, 0) AS public FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE lower(u.login) = lower(?)").bind(login).first()) ?? null; },
+    /** Who put this repository forward, if they chose to be credited. */
+    async creditFor(repoUrl) { return (await db.prepare("SELECT u.id AS id, u.login AS login FROM submissions s JOIN users u ON u.id = s.submitted_by_id JOIN profiles p ON p.user_id = s.submitted_by_id AND p.public = 1 WHERE lower(s.repo_url) = lower(?) AND s.status = 'approved' AND s.publish_state = 'listed' ORDER BY s.id DESC LIMIT 1").bind(repoUrl).first()) ?? null; },
+    async pendingCountFor(userId) { return Number((await db.prepare("SELECT COUNT(*) AS n FROM submissions WHERE submitted_by_id = ? AND status = 'pending'").bind(userId).first())?.n ?? 0); },
     // ---- votes ("this helped me") and short notes
     async voteCounts() { return (await db.prepare("SELECT item, COUNT(*) AS n FROM votes GROUP BY item").all()).results ?? []; },
     async saveCounts() { return (await db.prepare("SELECT item, COUNT(*) AS n FROM collection GROUP BY item").all()).results ?? []; },

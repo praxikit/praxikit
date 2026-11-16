@@ -193,3 +193,7 @@
 ## 2026-11-17 — Card and filter tidy-up
 - Cards: repository and save icons in the top corner; the action row and "Details" are gone (the whole card opens its page); copy-install sits at the right of the footer line; at most three tags then "+N", and the chips can no longer be cut in half (list items inside the tag row had inherited margins).
 - Kits list: the wall of tag buttons is replaced by a Tag dropdown beside Sort, remembered in the address (?tag=). It scales to any number of tags.
+
+## 2026-11-17 — Contributor profiles
+- Public only by choice (Settings, or a tickbox on the submit form). `/contributors` ranks by kits live in the catalogue now (then picks, then name; ties share a rank); `/u/<name>` shows badges and kits; listing pages credit the person who put a kit forward. Badges: First listing, Five listed, Ten listed, Picked, Author. Everyone sees their own count and next milestone on their profile.
+- Needs the owner: migration 0008 (`gh workflow run migrate.yml -f file=0008_profiles.sql`).

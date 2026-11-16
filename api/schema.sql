@@ -85,3 +85,10 @@ CREATE TABLE IF NOT EXISTS note_reports (
   created_at TEXT NOT NULL,
   PRIMARY KEY (note_id, user_id)
 );
+
+-- Contributor profiles (migration 0008): public only when the person says so.
+CREATE TABLE IF NOT EXISTS profiles (
+  user_id INTEGER PRIMARY KEY,
+  public INTEGER NOT NULL DEFAULT 0,     -- 1 once the person chose to be credited and listed as a contributor; never set for them
+  updated_at TEXT NOT NULL
+);
