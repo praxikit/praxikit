@@ -110,6 +110,7 @@ must(js0().includes('signin.href = signin.getAttribute("href") + "&return=" + en
 // ---- the site script's account code only acts where the app lives, and builds with text nodes
 const js = readFileSync(join(out, "site.js"), "utf8");
 must(js.includes('data-app') && js.includes("location.origin === appOrigin") && js.includes("textContent") && !js.includes("innerHTML") && !js.includes("document.write") && !js.includes("eval("), "the account code compares origins and never uses innerHTML or eval");
+must(js.includes('link("/collection", "My collection")') && js.includes('nav.insertBefore(mine,'), "signed-in people get a My collection tab in the navigation");
 must(js.includes('"/admin"') && js.includes("nav.insertBefore(a, nav.firstChild)") && js.includes('me.role === "admin"'), "the Admin tab is added first in the nav, only for the admin role");
 
 rmSync(out, { recursive: true, force: true });

@@ -279,6 +279,7 @@ const SITE_JS = `
       if (!me || typeof me.login !== "string") return;
       var nav = document.querySelector("header nav"), admin = me.role === "admin";
       if (admin && nav) { var a = link("/admin", "Admin"); a.className = "admin-tab"; if (location.pathname.indexOf("/admin") === 0) a.setAttribute("aria-current", "page"); nav.insertBefore(a, nav.firstChild); }
+      if (nav) { var mine = link("/collection", "My collection"); if (location.pathname.indexOf("/collection") === 0) mine.setAttribute("aria-current", "page"); nav.insertBefore(mine, nav.querySelector('a[href^="https://github.com"]')); }
       var d = el("details", "menu"), sum = el("summary");
       if (Number.isInteger(me.id)) { var img = el("img"); img.src = "https://avatars.githubusercontent.com/u/" + me.id + "?s=64"; img.alt = ""; img.width = 28; img.height = 28; sum.appendChild(img); }
       sum.appendChild(el("span", "", me.login)); sum.setAttribute("aria-label", "Account menu for " + me.login);
