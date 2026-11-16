@@ -19,10 +19,12 @@ import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, fetchListings, prech
 import { storeFor } from "./lib/store.mjs";
 import { parseTags } from "./lib/tags.mjs";
 import { dispatchApprove, dispatchEdit, dispatchRemove, dispatchScan, syncPublishing, syncScans, publishingConfigured } from "./lib/publish.mjs";
+import { cleanItem, cleanLabel, fetchCatalogue, LIMITS, FLASH_ACCOUNT, savePage, collectionPage, privacyPage } from "./lib/account.mjs";
 import { CSS, signInPage, messagePage, listingsPage, adminPage, submitPage, minePage, detailPage, FLASH } from "./lib/html.mjs";
 
 const SESSION_COOKIE = "__Host-praxikit-session";
 const STATE_COOKIE = "__Host-praxikit-state";
+const SAVE_COOKIE = "__Host-praxikit-save"; // a kit the visitor pressed Save on, kept across the GitHub sign-in
 const NEXT_COOKIE = "__Host-praxikit-next"; // the repository link a visitor typed on the website, kept across the GitHub sign-in
 /** A repository link that is safe to carry around: only the cleaned https://github.com/owner/repo form survives. */
 const cleanRepo = (text) => { const r = parseRepo(String(text ?? "").slice(0, 200)); return r ? r.url : ""; };
@@ -90,6 +92,7 @@ async function startPublish(env, store, row) {
   catch (e) { await store.setPublish(row.id, "blocked", e instanceof UserError ? e.message : "The publish job could not be started."); return "blocked"; }
 }
 
+const safeDecode = (s) => { try { return decodeURIComponent(String(s ?? "")); } catch { return ""; } };
 const oneLine = (s, n) => String(s ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 
 async function submit(request, env, session) {
@@ -167,6 +170,76 @@ async function listingRoute(request, env, s, kind) {
     await dispatchRemove(env, { url, reason, note });
     return back(base, "removed");
   } catch { return back(base, "joberr"); }
+}
+
+/** Signed-in people only (any role), requests from this site only. Returns { s, store } or a Response to stop. */
+async function personGate(request, env, method, { forPage = false, item = "" } = {}) {
+  const s = await sessionOf(request, env);
+  if (!s) return forPage ? send(signInPage("", { submit: true, save: item, what: "collection" })) : send(signInPage("Sign in first.", { submit: true, what: "collection" }), { status: 401 });
+  if (method === "POST" && !sameOrigin(request, env)) return send(messagePage("Refused", "That request did not come from this site."), { status: 403 });
+  const store = storeFor(env);
+  if (!store) return send(messagePage("Not open yet", "This app has no database connected yet.", false), { status: 503 });
+  return { s, store };
+}
+const flashAccount = (url) => FLASH_ACCOUNT[url.searchParams.get("m")] ?? "";
+
+async function accountRoutes(request, env, url, path, method) {
+  const isPost = method === "POST";
+  const item = cleanItem(isPost ? "" : url.searchParams.get("item"));
+  if (path === "/collection" && method === "GET") {
+    const g = await personGate(request, env, method, { forPage: true }); if (g instanceof Response) return g;
+    let catalogue = null; try { catalogue = await fetchCatalogue(env); } catch { /* names are not shown; the list still is */ }
+    return send(collectionPage({ session: g.s, env, rows: await g.store.collectionOf(g.s.id), catalogue, flash: flashAccount(url), user: await g.store.getUser(g.s.id) }));
+  }
+  if (path === "/collection/save" && method === "GET") {
+    const g = await personGate(request, env, method, { forPage: true, item }); if (g instanceof Response) return g;
+    if (!item) return send(messagePage("Nothing to save", "That link does not name a kit.", false), { status: 400 });
+    let catalogue; try { catalogue = await fetchCatalogue(env); } catch { return send(messagePage("Try again", FLASH_ACCOUNT.down, false), { status: 503 }); }
+    const info = catalogue.get(item);
+    if (!info) return send(messagePage("Not found", FLASH_ACCOUNT.gone, false), { status: 404 });
+    const mine = (await g.store.collectionOf(g.s.id)).find((r) => r.item === item);
+    return send(savePage({ session: g.s, env, item, info, saved: !!mine, label: mine?.label ?? "" }));
+  }
+  if (path === "/collection/save" && isPost) {
+    const g = await personGate(request, env, method); if (g instanceof Response) return g;
+    let f; try { f = await request.formData(); } catch { return back("/collection", "bad"); }
+    const key = cleanItem(f.get("item")), label = cleanLabel(f.get("label"));
+    if (!key || String(f.get("label") ?? "").length > 200) return back("/collection", "bad");
+    let catalogue; try { catalogue = await fetchCatalogue(env); } catch { return back("/collection", "down"); }
+    if (!catalogue.has(key)) return back("/collection", "gone");
+    if (!(await g.store.hasItem(g.s.id, key))) {
+      if ((await g.store.collectionCount(g.s.id)) >= LIMITS.total) return back("/collection", "limit");
+      if ((await g.store.collectionSince(g.s.id, new Date(Date.now() - 3600_000).toISOString())) >= LIMITS.perHour) return back("/collection", "slow");
+    }
+    await g.store.touchUser(g.s.id, g.s.sub, new Date().toISOString());
+    await g.store.saveItem(g.s.id, key, label, new Date().toISOString());
+    return back("/collection", "saved");
+  }
+  if (path === "/collection/remove" && isPost) {
+    const g = await personGate(request, env, method); if (g instanceof Response) return g;
+    let f; try { f = await request.formData(); } catch { return back("/collection", "bad"); }
+    const key = cleanItem(f.get("item"));
+    if (key) await g.store.removeItem(g.s.id, key);
+    return back("/collection", "removed");
+  }
+  if (path === "/account/export" && method === "GET") {
+    const g = await personGate(request, env, method, { forPage: true }); if (g instanceof Response) return g;
+    const user = await g.store.getUser(g.s.id), subs = await g.store.byUser(g.s.id, 200);
+    const data = { github_login: g.s.sub, github_id: g.s.id, account_created: user?.created_at ?? null, last_seen: user?.last_seen ?? null,
+      collection: (await g.store.collectionOf(g.s.id)).map((r) => ({ item: r.item, group: r.label, saved: r.added_at })),
+      submissions: subs.map((r) => ({ repository: r.repo_url, status: r.status, submitted: r.created_at, note: r.why })) };
+    const res = send(JSON.stringify(data, null, 2), { type: "application/json" });
+    res.headers.set("Content-Disposition", 'attachment; filename="praxikit-my-data.json"');
+    return res;
+  }
+  if (path === "/account/delete" && isPost) {
+    const g = await personGate(request, env, method); if (g instanceof Response) return g;
+    let f; try { f = await request.formData(); } catch { return back("/collection", "bad"); }
+    if (String(f.get("confirm") ?? "").trim().toLowerCase() !== g.s.sub.toLowerCase()) return back("/collection", "confirm");
+    await g.store.deleteAccount(g.s.id);
+    return send(messagePage("Account deleted", "Your collection, your waiting submissions and your account record are gone. Decided submissions stay in the catalogue's history without your name. You are signed out.", false), { cookies: [cookie(SESSION_COOKIE, "", { maxAge: 0 })] });
+  }
+  return send(messagePage("Not found", "There is no such page.", false), { status: 404 });
 }
 
 async function approveRoute(request, env, s, id) {
@@ -249,7 +322,8 @@ async function route(request, env) {
     const mode = url.searchParams.get("mode") === "user" ? "user" : "admin";
     const state = `${mode}.${randomToken()}`;
     const next = mode === "user" ? cleanRepo(url.searchParams.get("next")) : "";
-    return send("", { status: 302, location: authorizeUrl(env, state, mode === "user" ? "read:user" : "read:user read:org"), cookies: [cookie(STATE_COOKIE, state, { maxAge: STATE_SECONDS }), ...(next ? [cookie(NEXT_COOKIE, next, { maxAge: STATE_SECONDS })] : [])] });
+    const save = mode === "user" ? cleanItem(url.searchParams.get("save")) : "";
+    return send("", { status: 302, location: authorizeUrl(env, state, mode === "user" ? "read:user" : "read:user read:org"), cookies: [cookie(STATE_COOKIE, state, { maxAge: STATE_SECONDS }), ...(next ? [cookie(NEXT_COOKIE, next, { maxAge: STATE_SECONDS })] : []), ...(save ? [cookie(SAVE_COOKIE, encodeURIComponent(save), { maxAge: STATE_SECONDS })] : [])] });
   }
 
   if (path === "/auth/callback" && method === "GET") {
@@ -269,8 +343,11 @@ async function route(request, env) {
     }
     const session = await signToken({ sub: user.login, id: user.id, role: who.role, via: who.via ?? "", iat: Date.now(), exp: Date.now() + SESSION_SECONDS * 1000 }, env.SESSION_SECRET);
     const carried = mode === "user" ? cleanRepo(parseCookies(request.headers.get("Cookie"))[NEXT_COOKIE]) : "";
-    const where = mode === "user" ? (carried ? `/submit?url=${encodeURIComponent(carried)}` : "/submit") : "/admin";
-    return send("", { status: 302, location: where, cookies: [clearState, cookie(NEXT_COOKIE, "", { maxAge: 0 }), cookie(SESSION_COOKIE, session, { maxAge: SESSION_SECONDS })] });
+    const savedItem = mode === "user" ? cleanItem(safeDecode(parseCookies(request.headers.get("Cookie"))[SAVE_COOKIE])) : "";
+    const store0 = storeFor(env);
+    if (store0) { try { await store0.touchUser(user.id, user.login, new Date().toISOString()); } catch { /* the account record is a convenience; signing in still works */ } }
+    const where = mode === "user" ? (savedItem ? `/collection/save?item=${encodeURIComponent(savedItem)}` : carried ? `/submit?url=${encodeURIComponent(carried)}` : "/submit") : "/admin";
+    return send("", { status: 302, location: where, cookies: [clearState, cookie(NEXT_COOKIE, "", { maxAge: 0 }), cookie(SAVE_COOKIE, "", { maxAge: 0 }), cookie(SESSION_COOKIE, session, { maxAge: SESSION_SECONDS })] });
   }
 
   if (path === "/auth/logout" && method === "POST") {
@@ -293,6 +370,12 @@ async function route(request, env) {
       return send(submitPage({ session: s, values: { url: prefill } }));
     }
     if (method === "POST") return s ? submit(request, env, s) : send(signInPage("Sign in first, then submit again.", { submit: true }), { status: 401 });
+  }
+
+  if (path === "/privacy" && method === "GET") return send(privacyPage(await sessionOf(request, env)));
+
+  if (path === "/collection" || path === "/collection/save" || path === "/collection/remove" || path === "/account/export" || path === "/account/delete") {
+    return accountRoutes(request, env, url, path, method);
   }
 
   if (path === "/mine" && method === "GET") {

@@ -142,3 +142,10 @@
 - Owner decisions: collections start private; the app stays on Cloudflare D1 (no Supabase: a second database and auth system for no gain at this size); Google sign-in later only if people ask. Order: listing management, then accounts and privacy (note, delete-my-account, rate limits, users table), then My collection.
 - Built: `/admin/listings` with edit and remove, new `edit-listing` workflow and `editListing()` in `scripts/listings.mjs`, tests (`api/test-listings.mjs`, added to CI).
 - No migration. Redeploy the app (`npx wrangler deploy`) after pulling.
+
+## 2026-11-16 — Accounts, privacy and My collection
+- Anyone can sign in with GitHub (`read:user` only) to keep a private collection and submit. Stored: username, numeric id, first and last sign-in, saved items with an optional group, submissions. Token never stored.
+- Save links on every card and kit page go to the app (a GET link only opens a confirmation page; saving is a same-origin POST). Only items in the live catalogue (read from `search-index.json`) can be saved. Limits: 300 total, 40 per hour.
+- Download my data, delete my account (needs the username typed), privacy pages on the site and in the app.
+- Needs the owner: migration `api/migrations/0006_accounts.sql`, then `npx wrangler deploy`.
+- Not built, on purpose: public or shareable collections, Google sign-in, an admin view of other people's collections.

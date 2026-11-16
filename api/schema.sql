@@ -42,3 +42,19 @@ CREATE TABLE IF NOT EXISTS submissions (
 CREATE UNIQUE INDEX IF NOT EXISTS one_pending_per_repo ON submissions (repo_key) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS by_user_time ON submissions (submitted_by_id, created_at);
 CREATE INDEX IF NOT EXISTS by_status ON submissions (status, created_at);
+
+-- Accounts and collections (migration 0006). Private to each person; nothing in the app shows one person's collection to another.
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY,                -- the GitHub user id: all we keep to recognise a person
+  login TEXT NOT NULL,                   -- the GitHub username at the last sign-in
+  created_at TEXT NOT NULL,
+  last_seen TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS collection (
+  user_id INTEGER NOT NULL,
+  item TEXT NOT NULL,                    -- a kit page path ("k/keel/") or a listed repository link; checked against the live catalogue when saved
+  label TEXT NOT NULL DEFAULT '',        -- the person's own group name, up to 24 characters
+  added_at TEXT NOT NULL,
+  PRIMARY KEY (user_id, item)
+);
+CREATE INDEX IF NOT EXISTS collection_by_time ON collection (user_id, added_at);

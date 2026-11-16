@@ -14,6 +14,8 @@ GITHUB_CLIENT_ID = "Ov23liNkhHqThp3GPNfh"
 ORG = "praxikit"
 TEAM = "maintainers"
 REPO = "praxikit/praxikit"
+# The public site, where the app reads the list of kits that can be saved to a collection.
+SITE_URL = "https://praxikit.github.io/praxikit/"
 
 # Phase 2: the submissions database (created with `npx wrangler d1 create praxikit-admin`). The binding must be named DB.
 [[d1_databases]]

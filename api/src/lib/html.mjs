@@ -21,7 +21,7 @@ label{display:block;font-weight:600;margin:1rem 0 .3rem}input[type=text],input[t
 textarea{min-height:5rem;resize:vertical}select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}button[disabled]{opacity:.5;cursor:not-allowed}label.check{font-weight:400;display:flex;gap:8px;align-items:center}.hint{font-weight:400;color:var(--muted);font-size:.88rem}
 blockquote{margin:.5rem 0;padding:.4rem 1rem;border-left:3px solid var(--line);color:var(--muted)}
 dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:6px 18px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}
-.listing{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:10px 14px;margin:10px 0}.listing summary{cursor:pointer}.listing .danger{margin-top:18px;padding-top:6px;border-top:1px dashed var(--line)}
+ul.plain{list-style:none;padding:0;margin:0}.listing{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:10px 14px;margin:10px 0}.listing summary{cursor:pointer}.listing .danger{margin-top:18px;padding-top:6px;border-top:1px dashed var(--line)}
 `;
 
 // the stylesheet is cached for an hour, so its address changes whenever its content does
@@ -34,14 +34,14 @@ export const page = (title, body) => `<!doctype html>
 <body><div class="wrap">${body}</div></body></html>`;
 
 const logoutForm = '<form method="post" action="/auth/logout"><button class="ghost" type="submit">Sign out</button></form>';
-const nav = (s) => `<div class="top"><strong>Praxikit</strong><div class="who">${s ? `<img src="https://avatars.githubusercontent.com/u/${Number(s.id)}?s=64" alt="" width="32" height="32"><span>@${esc(s.sub)}${s.role === "admin" ? ' <span class="badge">maintainer</span>' : ""}</span>${logoutForm}` : ""}</div></div>`;
+export const nav = (s) => `<div class="top"><strong>Praxikit</strong><div class="who">${s ? `<img src="https://avatars.githubusercontent.com/u/${Number(s.id)}?s=64" alt="" width="32" height="32"><span>@${esc(s.sub)}${s.role === "admin" ? ' <span class="badge">maintainer</span>' : ""}</span>${logoutForm}` : ""}</div></div>`;
 
 export const signInPage = (note = "", opts = {}) => page("Sign in — Praxikit", `
 <div class="top"><strong>Praxikit</strong></div>
-<h1>${opts.submit ? "Sign in to submit a kit" : "Sign in"}</h1>
+<h1>${opts.what === "collection" ? "Sign in to keep a collection" : opts.submit ? "Sign in to submit a kit" : "Sign in"}</h1>
 ${opts.submit
-    ? `<p>Sign in with GitHub, then paste the link to a public repository. We ask GitHub only who you are (your username); nothing else is read or kept.</p>
-${note ? `<p class="note">${esc(note)}</p>` : ""}<p><a class="btn" href="/auth/login?mode=user${opts.next ? `&next=${encodeURIComponent(opts.next)}` : ""}">Sign in with GitHub to submit</a></p>${opts.next ? `<p class="muted">After signing in you will land back here with <code>${esc(opts.next)}</code> filled in.</p>` : ""}
+    ? `<p>${opts.what === "collection" ? "Sign in with GitHub to save kits to a private collection and submit your own." : "Sign in with GitHub, then paste the link to a public repository."} We ask GitHub only who you are (your username); nothing else is read or kept. <a href="/privacy">Privacy</a>.</p>
+${note ? `<p class="note">${esc(note)}</p>` : ""}<p><a class="btn" href="/auth/login?mode=user${opts.next ? `&next=${encodeURIComponent(opts.next)}` : ""}${opts.save ? `&save=${encodeURIComponent(opts.save)}` : ""}">Sign in with GitHub${opts.what === "collection" ? "" : " to submit"}</a></p>${opts.next ? `<p class="muted">After signing in you will land back here with <code>${esc(opts.next)}</code> filled in.</p>` : ""}
 <p class="muted">Maintainers: <a href="/auth/login">sign in here</a>.</p>`
     : `<p>Sign in with GitHub. Maintainers of the catalogue are the owners of the <code>praxikit</code> organisation and the members of its <code>maintainers</code> team.</p>
 ${note ? `<p class="note">${esc(note)}</p>` : ""}<p><a class="btn" href="/auth/login">Sign in with GitHub</a></p>

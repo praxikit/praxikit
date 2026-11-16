@@ -50,6 +50,30 @@ export function d1Store(db) {
       return Number(r.meta?.changes) === 1;
     },
     async inFlight(limit = 10) { return (await db.prepare("SELECT * FROM submissions WHERE status = 'approved' AND publish_state IN ('dispatching','dispatched') ORDER BY id LIMIT ?").bind(limit).all()).results ?? []; },
+    // ---- accounts and collections. A person's rows are only ever read or changed by their own id.
+    async touchUser(id, login, at) {
+      await db.prepare("INSERT INTO users (id, login, created_at, last_seen) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET login = excluded.login, last_seen = excluded.last_seen").bind(id, login, at, at).run();
+    },
+    async getUser(id) { return (await db.prepare("SELECT * FROM users WHERE id = ?").bind(id).first()) ?? null; },
+    async collectionOf(userId, limit = 500) { return (await db.prepare("SELECT item, label, added_at FROM collection WHERE user_id = ? ORDER BY added_at DESC LIMIT ?").bind(userId, limit).all()).results ?? []; },
+    async collectionCount(userId) { return Number((await db.prepare("SELECT COUNT(*) AS n FROM collection WHERE user_id = ?").bind(userId).first())?.n ?? 0); },
+    async collectionSince(userId, iso) { return Number((await db.prepare("SELECT COUNT(*) AS n FROM collection WHERE user_id = ? AND added_at >= ?").bind(userId, iso).first())?.n ?? 0); },
+    async hasItem(userId, item) { return !!(await db.prepare("SELECT 1 AS x FROM collection WHERE user_id = ? AND item = ?").bind(userId, item).first()); },
+    /** Saves an item, or changes its label if it is already saved (the original date stays). */
+    async saveItem(userId, item, label, at) {
+      await db.prepare("INSERT INTO collection (user_id, item, label, added_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, item) DO UPDATE SET label = excluded.label").bind(userId, item, label, at).run();
+    },
+    async removeItem(userId, item) { await db.prepare("DELETE FROM collection WHERE user_id = ? AND item = ?").bind(userId, item).run(); },
+    /**
+     * Deletes the account: the collection and the user row go. Waiting submissions are withdrawn and deleted; decided ones stay as
+     * the catalogue's own record, with the person's name and id removed.
+     */
+    async deleteAccount(userId) {
+      await db.prepare("DELETE FROM collection WHERE user_id = ?").bind(userId).run();
+      await db.prepare("DELETE FROM submissions WHERE submitted_by_id = ? AND status = 'pending'").bind(userId).run();
+      await db.prepare("UPDATE submissions SET submitted_by = 'deleted-account', submitted_by_id = 0 WHERE submitted_by_id = ?").bind(userId).run();
+      await db.prepare("DELETE FROM users WHERE id = ?").bind(userId).run();
+    },
     async byUser(userId, limit = 20) { return (await db.prepare("SELECT * FROM submissions WHERE submitted_by_id = ? ORDER BY id DESC LIMIT ?").bind(userId, limit).all()).results ?? []; },
   };
 }

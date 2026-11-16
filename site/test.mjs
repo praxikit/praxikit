@@ -37,7 +37,7 @@ const must = (cond, msg) => { if (!cond) failures.push(msg); };
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
-must(htmlFiles.length === 21, `expected home, 404, kits, 4 type pages, updates, picks, old recommended redirect, submit, policy, 2 collections, 4 kit pages, tags index, 1 tag page, search = 21 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 22, `expected home, 404, kits, 4 type pages, updates, picks, old recommended redirect, submit, policy, 2 collections, 4 kit pages, tags index, 1 tag page, search, privacy = 22 html files, got ${htmlFiles.length}`);
 for (const f of htmlFiles) {
   const h = readFileSync(f, "utf8");
   // drop only our own inline scripts (marked data-site); any other <script> is a failure
@@ -131,6 +131,23 @@ must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes("Vi
   must(searchIndex(sample, "test")[0].t === "Playwright MCP", "partial words match tags and text");
   const submit = readFileSync(join(out, "submit", "index.html"), "utf8");
   must(submit.includes("opens a GitHub issue") === false && submit.includes("github.com/") , "submit page renders");
+}
+
+// Save links and the privacy page: only when the app address is a clean https origin
+{
+  const keep = existsSync(join(root, "site", "config.json"));
+  put("site/config.json", JSON.stringify({ app: "https://app.example.dev/" }));
+  const out3 = join(root, "out3");
+  execFileSync("node", [join(here, "build.mjs"), "--root", root, "--out", out3], { stdio: "pipe" });
+  const kitsHtml = readFileSync(join(out3, "kits", "index.html"), "utf8");
+  must(kitsHtml.includes('href="https://app.example.dev/collection/save?item=k%2Fa%2F"') && kitsHtml.includes('href="https://app.example.dev/collection/save?item=https%3A%2F%2Fgithub.com%2Fo%2Frec"'), "each card has a Save link to the app, with the item encoded");
+  must(kitsHtml.includes('href="https://app.example.dev/collection"') && readFileSync(join(out3, "privacy", "index.html"), "utf8").includes("https://app.example.dev/privacy"), "the nav links to My collection and the privacy page to the app's");
+  must(!kitsHtml.split('href="https://app.example.dev').slice(1).some((x) => /^[^"]*[<>' ]/.test(x)), "no app link contains markup");
+  put("site/config.json", JSON.stringify({ app: "javascript:alert(1)" }));
+  const out4 = join(root, "out4");
+  execFileSync("node", [join(here, "build.mjs"), "--root", root, "--out", out4], { stdio: "pipe" });
+  must(!readFileSync(join(out4, "kits", "index.html"), "utf8").includes("collection/save") && !readFileSync(join(out4, "kits", "index.html"), "utf8").includes("javascript:alert(1)\""), "an app address that is not an https origin is ignored");
+  void keep;
 }
 
 // a non-https listing url must be refused

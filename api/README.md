@@ -169,3 +169,20 @@ npx wrangler deploy
 ### Managing live listings
 
 `/admin/listings` shows what is live now (read from `site/listings.json` on GitHub) with, for each listing, an edit form (name, card text, tags, the "how I use it" note) and a remove form (a reason from the list, an optional public note, a confirmation tick). Both need a maintainer signed in within the last 30 minutes and a request from the app's own origin. The app does not edit files: it starts the `edit-listing` or `remove-listing` workflow with fixed inputs, which commit the change and redeploy the site. An edit never changes what was reviewed (repository, commit, checks, source); a note makes the listing a pick, an empty note makes it an ordinary listing. Removals go to the public log in `docs/removals.md`. No migration and no new setting are needed; the dispatch token already covers these workflows.
+
+### Accounts and My collection
+
+Anyone can sign in with GitHub (the `read:user` permission only; the access token is used once and never stored). The app keeps, per person: the GitHub username and numeric id, the first and last sign-in dates, their saved items with an optional group name, and their submissions. Pages: `/collection` (the list, with Download my data and Delete my account), `/collection/save?item=` (a confirmation page; saving is a same-origin form post, never a link), `/account/export`, `/privacy`.
+
+- **What can be saved** is decided by the live catalogue, not the form: the app reads the site's `search-index.json` (`SITE_URL` in `wrangler.toml`) and accepts only a built kit's page path (`k/<name>/`) or a listed github.com repository.
+- **Limits:** 300 items in total and 40 additions per hour per person; changing a group on something already saved is not an addition.
+- **Private:** no route shows one person's collection to anyone else, maintainers included.
+- **Delete:** removes the collection, waiting submissions and the account record; decided submissions stay with the name replaced by `deleted-account`.
+- The website's cards and kit pages carry a **Save** link when `site/config.json` has the app address; a signed-out visitor is sent through GitHub and lands back on the confirmation.
+
+Setup, **once**, after pulling:
+
+```bash
+npx wrangler d1 execute praxikit-admin --remote --file=migrations/0006_accounts.sql
+npx wrangler deploy
+```

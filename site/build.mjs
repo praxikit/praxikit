@@ -413,13 +413,13 @@ ${head}
 <header class="top"><div class="wrap bar">
 <a class="brand" href="${up}" aria-label="Praxikit home">${LOGO}<span>Praxikit</span></a>
 <form class="site-search" role="search" action="${up}search/" method="get"><label class="vh" for="site-q">Search the catalogue</label><input id="site-q" name="q" type="search" placeholder="Search  ( / )" autocomplete="off" spellcheck="false" maxlength="100"></form>
-<nav aria-label="Main"><a href="${up}kits/"${cur("kits")}>Kits</a><a href="${up}updates/"${cur("updates")}>Updates</a><a href="${up}picks/"${cur("picks")}>Picks</a><a href="${up}submit/"${cur("submit")}>Submit</a><a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
+<nav aria-label="Main"><a href="${up}kits/"${cur("kits")}>Kits</a><a href="${up}updates/"${cur("updates")}>Updates</a><a href="${up}picks/"${cur("picks")}>Picks</a><a href="${up}submit/"${cur("submit")}>Submit</a>${APP ? `<a href="${esc(APP)}/collection" rel="noopener">My collection</a>` : ""}<a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
 <button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg></button></nav>
 </div></header>
 <main id="main">
 ${body}
 </main>
-<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>Kits for AI coding agents. MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a></div></div></footer>
+<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>Kits for AI coding agents. MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a></div></div></footer>
 <script data-site>${SITE_JS}</script>
 </body>
 </html>
@@ -459,6 +459,8 @@ function loadDrift() {
 const SLUG_OK = /^[a-z0-9-]{1,40}$/;
 const tagsOf = (item) => (Array.isArray(item.tags) ? item.tags.map(String).filter(Boolean) : []);
 const MAX_CHIPS = 8; // a card shows at most two rows of tags; the rest are on the tag pages and in the tooltip of "+N"
+/** A Save link goes to the app, which asks you to sign in and confirm (a link cannot change anything by itself). */
+const saveLink = (key) => (APP ? `<a class="save" href="${esc(APP)}/collection/save?item=${encodeURIComponent(key)}" rel="noopener">Save</a>` : "");
 function tagChips(item, up) {
   const all = tagsOf(item);
   if (!all.length) return "";
@@ -484,7 +486,7 @@ function extCard(l, up) {
 <p class="promise">${esc(l.why)}</p>
 ${tagChips(l, up)}
 ${l.pick ? `<p class="pick-note"><strong>How I use it:</strong> ${esc(l.note)}</p>` : ""}
-<div class="card-foot"><span>Reviewed at <code>${esc(l.commit.slice(0, 7))}</code>, ${esc(CHECK_WORDS[l.checks] ?? l.checks)}. Installs follow the author's latest version, which can differ.${drift.note}</span><a class="details" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a></div>
+<div class="card-foot"><span>Reviewed at <code>${esc(l.commit.slice(0, 7))}</code>, ${esc(CHECK_WORDS[l.checks] ?? l.checks)}. Installs follow the author's latest version, which can differ.${drift.note}</span><a class="details" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a>${saveLink(l.url)}</div>
 </li>`;
 }
 
@@ -500,7 +502,7 @@ function card(k, up) {
 <h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
 <p class="promise">${esc(k.promise)}</p>
 ${tagChips(k, up)}
-<div class="card-foot"><span>${esc(bits)}${bits && latest ? " · " : ""}${latest ? `updated ${esc(latest)}` : ""}</span><a class="details" href="${up}k/${esc(k.name)}/">View details</a></div>
+<div class="card-foot"><span>${esc(bits)}${bits && latest ? " · " : ""}${latest ? `updated ${esc(latest)}` : ""}</span><a class="details" href="${up}k/${esc(k.name)}/">View details</a>${saveLink(`k/${k.name}/`)}</div>
 </li>`;
 }
 
@@ -702,6 +704,7 @@ function kitPage(k) {
 <p class="meta-line">${badge(k)}${latest ? `<span>released ${esc(latest)}</span>` : ""}<span>${k.collections.map((c) => `<a href="../../c/${slug(c)}/">${esc(c)}</a>`).join(", ")}</span></p>
 <p class="lead">${esc(k.promise)}</p>
 ${tagChips(k, "../../")}
+${APP ? `<p>${saveLink(`k/${k.name}/`)}</p>` : ""}
 <div class="two">
 <div class="main-col">
 ${previewBlock(k)}
@@ -716,6 +719,19 @@ ${checker([k], k.name) ? `<h2 class="ck-title">Am I up to date?</h2>${checker([k
 <p class="side-links"><a href="${esc(REPO)}/tree/main/kits/${esc(k.name)}" rel="noopener noreferrer">Source on GitHub</a></p></div></aside>
 </div></div>`;
   return page({ title: `${k.name} — Praxikit`, depth: 2, body, description: k.promise });
+}
+
+function privacyPage() {
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Privacy</p><h1>Privacy</h1>
+<p class="lead">You do not need an account to read anything here. An account is only for submitting a kit or keeping a private collection, and it works through GitHub.</p>
+<h2 class="sub">This website</h2>
+<p>It is a static site on GitHub Pages. It sets no cookies, runs no analytics and loads nothing from other sites. GitHub, which hosts it, keeps its own server logs.</p>
+<h2 class="sub">If you sign in</h2>
+<p>Signing in happens in a separate app. It asks GitHub for your username only (the <code>read:user</code> permission), does not keep your GitHub access token, and stores your username, your numeric GitHub id, the dates you signed in, your saved kits and group names, and your submissions. It uses one sign-in cookie that lasts a few hours. Nothing is sold or shared, and no page shows your collection to anyone else.</p>
+<p>You can download your data and delete your account at any time from <em>My collection</em>. Deleting removes your collection, waiting submissions and account record; decided submissions stay in the catalogue's history without your name. The app's own <a href="${APP ? esc(APP) + "/privacy" : "#"}">privacy page</a> has the full list.</p>
+<h2 class="sub">Questions</h2>
+<p>Open an issue in the <a href="${esc(REPO)}/issues" rel="noopener noreferrer">repository</a>.</p></div>`;
+  return page({ title: "Privacy — Praxikit", depth: 1, body, canonical: `${HOME_URL}privacy/`, description: "What Praxikit keeps about you: nothing on the website; a GitHub username and your collection if you sign in." });
 }
 
 function policyPage() {
@@ -802,7 +818,7 @@ function buildSearchIndex(kits, listings, tagMap) {
   }
   for (const l of listings) out.push({ t: l.name, k: l.pick ? "pick" : "listed", u: l.url, ext: 1, d: [l.pick ? `How I use it: ${l.note}` : "", l.why].filter(Boolean).join(" "), g: tagsOf(l).join(" ") });
   for (const [t, l] of sortedTags(tagMap)) out.push({ t: `#${t}`, k: "tag", u: `tags/${t}/`, d: plural(l.length, "kit"), g: t });
-  for (const [t, u, d] of [["Kits", "kits/", "Every kit, by type"], ["Updates", "updates/", "Check your version and see what changed"], ["My picks", "picks/", "Kits the owner uses, with a note on how"], ["Submit a kit", "submit/", "Submit a public GitHub repository"], ["Policy", "policy/", "What a listing means, reports and removals"], ["Tags", "tags/", "Browse by tag"], ["Release feed", "feed.xml", "Subscribe to new versions"]]) out.push({ t, k: "page", u, d, g: "" });
+  for (const [t, u, d] of [["Kits", "kits/", "Every kit, by type"], ["Updates", "updates/", "Check your version and see what changed"], ["My picks", "picks/", "Kits the owner uses, with a note on how"], ["Submit a kit", "submit/", "Submit a public GitHub repository"], ["Policy", "policy/", "What a listing means, reports and removals"], ["Privacy", "privacy/", "What is kept about you if you sign in"], ["Tags", "tags/", "Browse by tag"], ["Release feed", "feed.xml", "Subscribe to new versions"]]) out.push({ t, k: "page", u, d, g: "" });
   return out;
 }
 
@@ -826,6 +842,7 @@ write("picks/index.html", picksPage(picks));
 write("recommended/index.html", movedPage());
 write("submit/index.html", submitPage());
 write("policy/index.html", policyPage());
+write("privacy/index.html", privacyPage());
 const tagMap = collectTags(items);
 write("tags/index.html", tagsIndexPage(tagMap));
 for (const [t, l] of tagMap) write(`tags/${t}/index.html`, tagPage(t, l));

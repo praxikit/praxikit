@@ -278,3 +278,6 @@ a.tag:hover { border-color: var(--accent); color: var(--fg); }
 .submit-form .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .submit-form input { flex: 1 1 320px; font: inherit; padding: 10px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--fg); }
 @media (max-width: 720px) { .site-search { max-width: none; margin-inline: 8px; } .brand span { display: none; } }
+
+.save { margin-left: 12px; font-size: .9rem; }
+.card-foot .save { white-space: nowrap; }
