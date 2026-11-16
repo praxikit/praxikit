@@ -48,6 +48,7 @@ const call = (path, { method = "GET", cookies = {}, origin, form, host = "https:
 const sess = (over) => signToken({ sub: "carol", id: 3, role: "user", via: "", iat: Date.now(), exp: Date.now() + 3600000, ...over }, SECRET).then((t) => ({ "__Host-praxikit-session": t }));
 const carol = await sess({}), admin = await sess({ sub: "ratul", id: 111, role: "admin", via: "owner" });
 
+const js0 = () => readFileSync(join(out, "site.js"), "utf8");
 // ---- the site is served as it is built, with strict headers
 let r = await call("/");
 let html = await r.text();
@@ -105,6 +106,7 @@ for (const [p, ck] of [["/profile", carol], ["/settings", carol], ["/collection"
 must((await (await call("/admin", { cookies: carol })).text()).includes('href="/auth/login">Sign in with organisation access'), "a member who is a maintainer gets a button to sign in with organisation access");
 must((await (await call("/settings", { cookies: carol })).text()).includes("Maintainer access") && !(await (await call("/settings", { cookies: admin })).text()).includes("Maintainer access"), "settings offers maintainer sign-in to members only");
 
+must(js0().includes('signin.href = signin.getAttribute("href") + "&return=" + encodeURIComponent(location.pathname + location.search)'), "the header's Sign in button remembers the page it was pressed on");
 // ---- the site script's account code only acts where the app lives, and builds with text nodes
 const js = readFileSync(join(out, "site.js"), "utf8");
 must(js.includes('data-app') && js.includes("location.origin === appOrigin") && js.includes("textContent") && !js.includes("innerHTML") && !js.includes("document.write") && !js.includes("eval("), "the account code compares origins and never uses innerHTML or eval");

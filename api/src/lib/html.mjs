@@ -60,16 +60,15 @@ export const page = (title, body) => SHELL
 // the site header already shows who is signed in, so pages no longer draw their own bar
 export const nav = () => "";
 
-export const signInPage = (note = "", opts = {}) => page("Sign in — Praxikit", `
-
-<h1>${opts.what === "collection" ? "Sign in to keep a collection" : opts.submit ? "Sign in to submit a kit" : "Sign in"}</h1>
-${opts.submit
-    ? `<p>${opts.what === "collection" ? "Sign in with GitHub to save kits to a private collection and submit your own." : "Sign in with GitHub, then paste the link to a public repository."} We ask GitHub only who you are (your username); nothing else is read or kept. <a href="/privacy">Privacy</a>.</p>
-${note ? `<p class="note">${esc(note)}</p>` : ""}<p><a class="btn" href="/auth/login?mode=user${opts.next ? `&next=${encodeURIComponent(opts.next)}` : ""}${opts.save ? `&save=${encodeURIComponent(opts.save)}` : ""}">Sign in with GitHub${opts.what === "collection" ? "" : " to submit"}</a></p>${opts.next ? `<p class="muted">After signing in you will land back here with <code>${esc(opts.next)}</code> filled in.</p>` : ""}
-<p class="muted">Maintainers: <a href="/auth/login">sign in here</a>.</p>`
-    : `<p>Sign in with GitHub. Maintainers of the catalogue are the owners of the <code>praxikit</code> organisation and the members of its <code>maintainers</code> team.</p>
-${note ? `<p class="note">${esc(note)}</p>` : ""}<p><a class="btn" href="/auth/login">Sign in with GitHub</a></p>
-<p class="muted">The app asks GitHub who you are and which organisation and teams you belong to. It does not keep your GitHub token. To submit a kit, <a href="/submit">go here</a>.</p>`}`);
+export const signInPage = (note = "", opts = {}) => {
+  const q = (k, v) => (v ? `&${k}=${encodeURIComponent(v)}` : "");
+  const heading = opts.what === "collection" ? "Sign in to keep a collection" : opts.submit ? "Sign in to submit a kit" : "Sign in";
+  const intro = opts.what === "collection" ? "Sign in with GitHub to save kits to a private collection and submit your own." : opts.submit ? "Sign in with GitHub, then paste the link to a public repository." : "Sign in with GitHub. Maintainers of the catalogue are recognised automatically.";
+  return page("Sign in — Praxikit", `<h1>${heading}</h1>
+<p>${intro} We ask GitHub only who you are (your username); nothing else is read or kept. <a href="/privacy/">Privacy</a>.</p>
+${note ? `<p class="note">${esc(note)}</p>` : ""}<p><a class="btn" href="/auth/login?mode=user${q("next", opts.next)}${q("save", opts.save)}${q("return", opts.return)}">Sign in with GitHub</a></p>${opts.next ? `<p class="muted">After signing in you will land back here with <code>${esc(opts.next)}</code> filled in.</p>` : ""}
+<p class="muted">A maintainer who is not recognised can <a href="/auth/login${opts.return ? "?return=" + encodeURIComponent(opts.return) : ""}">sign in with organisation access</a>.</p>`);
+};
 
 export const messagePage = (title, text, withHome = true, link = null) => page(title, `<h1>${esc(title)}</h1><p>${esc(text)}</p>${link ? `<p><a class="btn" href="${esc(link.href)}">${esc(link.text)}</a></p>` : ""}${withHome ? '<p><a class="btn ghost" href="/admin">Back</a></p>' : ""}`);
 

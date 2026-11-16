@@ -164,3 +164,5 @@
 - New: `deploy` workflow (replaces `pages.yml`), needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets. Keel 0.6.2 prints the update link on `praxikit.com`.
 
 - Maintainers are recognised automatically: the callback checks org ownership and team membership with a server-side `GITHUB_ORG_TOKEN` (Members: read), so no one grants organisation access. Without the token, the "Sign in with organisation access" button still works.
+
+- Sign-in returns to the page you were on: the header button and any page that needs a sign-in pass a checked same-site path (kept in a short-lived cookie); saving a kit and submit prefill take priority; unsafe addresses fall back to the profile.

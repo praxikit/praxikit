@@ -60,7 +60,7 @@ async function signIn(code, query = "") {
   const login = await note(await call(`/auth/login?mode=user${query}`));
   const state = new URL(loc(login)).searchParams.get("state");
   const cookies = { "__Host-praxikit-state": cookieValue(login, "__Host-praxikit-state") };
-  for (const n of ["__Host-praxikit-save", "__Host-praxikit-next"]) if (cookieValue(login, n)) cookies[n] = cookieValue(login, n);
+  for (const n of ["__Host-praxikit-save", "__Host-praxikit-next", "__Host-praxikit-return"]) if (cookieValue(login, n)) cookies[n] = cookieValue(login, n);
   const cb = await note(await call(`/auth/callback?code=${code}&state=${encodeURIComponent(state)}`, { cookies }));
   return { login, cb, session: { "__Host-praxikit-session": cookieValue(cb, "__Host-praxikit-session") } };
 }
@@ -92,6 +92,21 @@ must(tamperCb.status === 400, "a callback without a matching state is refused");
 must(loc(tamper.cb) === "/profile", "without a kit to save, sign-in goes to the profile");
 const conf = await (await note(await call("/collection/save?item=" + encodeURIComponent("k/keel/"), { cookies: carol.session }))).text();
 must(conf.includes("keel") && conf.includes('action="/collection/save"') && conf.includes("Private") === false && conf.includes("private"), "the confirmation shows the kit and saves with a form post, never a link");
+
+// ---- after signing in, the person is back on the page they came from
+{
+  const back = async (query) => (await signIn("u-carol", query)).cb.headers.get("Location");
+  must((await back("&return=" + encodeURIComponent("/kits/plugins/"))) === "/kits/plugins/", "signing in from a site page returns to that page");
+  must((await back("&return=" + encodeURIComponent("/search/?q=planning"))) === "/search/?q=planning", "including its query");
+  must((await back("&return=" + encodeURIComponent("/admin"))) === "/admin", "signing in from the admin page returns to the admin page");
+  must((await back("")) === "/profile", "with no page to return to, sign-in lands on the profile");
+  for (const bad of ["//evil.example/x", "https://evil.example/", "/\\evil.example", "/../etc", "/auth/login", "/api/me", "javascript:alert(1)", "/x<script>", "/x y"]) must((await back("&return=" + encodeURIComponent(bad))) === "/profile", `an unsafe return address is ignored: ${bad}`);
+  must((await back("&save=" + encodeURIComponent("k/keel/") + "&return=" + encodeURIComponent("/kits/"))) === "/collection/save?item=" + encodeURIComponent("k/keel/"), "saving a kit takes priority over the page you were on");
+  const gate = await (await note(await call("/collection"))).text();
+  must(gate.includes("return=%2Fcollection"), "a page that needs a sign-in sends you back to itself afterwards");
+  const tamper = await note(await call("/auth/callback?code=u-carol&state=x", { cookies: { "__Host-praxikit-return": encodeURIComponent("https://evil.example/") } }));
+  must(tamper.status === 400, "a callback without a matching state is still refused");
+}
 
 // ---- saving
 let r = await save(carol.session, "k/keel/", "Planning");

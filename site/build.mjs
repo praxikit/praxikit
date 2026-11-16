@@ -272,6 +272,8 @@ const SITE_JS = `
   var slot = document.getElementById("acct");
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; }
   function link(href, text) { var a = el("a", "", text); a.href = href; return a; }
+  var signin = slot ? slot.querySelector("a.signin") : null;
+  if (signin && location.pathname.indexOf("/auth") !== 0) signin.href = signin.getAttribute("href") + "&return=" + encodeURIComponent(location.pathname + location.search);
   if (slot && appOrigin && location.origin === appOrigin) {
     fetch("/api/me", { credentials: "same-origin", headers: { Accept: "application/json" } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (me) {
       if (!me || typeof me.login !== "string") return;

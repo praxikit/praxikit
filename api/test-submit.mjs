@@ -150,7 +150,7 @@ for (const sample of ["Planning, model routing; SEO", "a, <script>alert(1)</scri
 }
 
 // ---- signed out
-must((await note(await call("/submit"))).status === 200 && (await (await call("/submit")).text()).includes('href="/auth/login?mode=user"'), "signed out, /submit offers the submitter sign-in");
+must((await note(await call("/submit"))).status === 200 && (await (await call("/submit")).text()).includes('href="/auth/login?mode=user&return=%2Fsubmit"'), "signed out, /submit offers the submitter sign-in and returns here afterwards");
 must((await call("/submit", { method: "POST", origin: OK, form: { url: "https://github.com/alice/good" } })).status === 401 && rows().length === 0, "posting without signing in is refused and stores nothing");
 must((await call("/profile")).status === 200 && (await (await call("/profile")).text()).includes("Sign in"), "/profile needs a sign-in");
 

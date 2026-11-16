@@ -24,6 +24,16 @@ import { CSS, setShell, signInPage, messagePage, listingsPage, adminPage, submit
 
 const SESSION_COOKIE = "__Host-praxikit-session";
 const STATE_COOKIE = "__Host-praxikit-state";
+const RETURN_COOKIE = "__Host-praxikit-return"; // the page the person was on when they pressed Sign in
+/** A path on this site only: starts with one slash, plain characters, never an auth or api path. Anything else is "". */
+const cleanReturn = (t) => {
+  const s = String(t ?? "").slice(0, 200);
+  if (!s.startsWith("/") || s.startsWith("//") || s.includes("..") || s.includes("\\")) return "";
+  if (!/^[A-Za-z0-9_.~%=&?\/-]+$/.test(s)) return "";
+  if (s.startsWith("/auth/") || s.startsWith("/api/") || s === "/auth") return "";
+  return s;
+};
+const hereOf = (request) => { const u = new URL(request.url); return cleanReturn(u.pathname + u.search); };
 const SAVE_COOKIE = "__Host-praxikit-save"; // a kit the visitor pressed Save on, kept across the GitHub sign-in
 const NEXT_COOKIE = "__Host-praxikit-next"; // the repository link a visitor typed on the website, kept across the GitHub sign-in
 /** A repository link that is safe to carry around: only the cleaned https://github.com/owner/repo form survives. */
@@ -205,7 +215,7 @@ async function listingRoute(request, env, s, kind) {
 /** Signed-in people only (any role), requests from this site only. Returns { s, store } or a Response to stop. */
 async function personGate(request, env, method, { forPage = false, item = "" } = {}) {
   const s = await sessionOf(request, env);
-  if (!s) return forPage ? send(signInPage("", { submit: true, save: item, what: "collection" })) : send(signInPage("Sign in first.", { submit: true, what: "collection" }), { status: 401 });
+  if (!s) return forPage ? send(signInPage("", { submit: true, save: item, what: "collection", return: item ? "" : hereOf(request) })) : send(signInPage("Sign in first.", { submit: true, what: "collection" }), { status: 401 });
   if (method === "POST" && !sameOrigin(request, env)) return send(messagePage("Refused", "That request did not come from this site."), { status: 403 });
   const store = storeFor(env);
   if (!store) return send(messagePage("Not open yet", "This app has no database connected yet.", false), { status: 503 });
@@ -366,7 +376,8 @@ async function route(request, env) {
     const state = `${mode}.${randomToken()}`;
     const next = mode === "user" ? cleanRepo(url.searchParams.get("next")) : "";
     const save = mode === "user" ? cleanItem(url.searchParams.get("save")) : "";
-    return send("", { status: 302, location: authorizeUrl(env, state, mode === "user" ? "read:user" : "read:user read:org"), cookies: [cookie(STATE_COOKIE, state, { maxAge: STATE_SECONDS }), ...(next ? [cookie(NEXT_COOKIE, next, { maxAge: STATE_SECONDS })] : []), ...(save ? [cookie(SAVE_COOKIE, encodeURIComponent(save), { maxAge: STATE_SECONDS })] : [])] });
+    const ret = cleanReturn(url.searchParams.get("return"));
+    return send("", { status: 302, location: authorizeUrl(env, state, mode === "user" ? "read:user" : "read:user read:org"), cookies: [cookie(STATE_COOKIE, state, { maxAge: STATE_SECONDS }), ...(next ? [cookie(NEXT_COOKIE, next, { maxAge: STATE_SECONDS })] : []), ...(save ? [cookie(SAVE_COOKIE, encodeURIComponent(save), { maxAge: STATE_SECONDS })] : []), ...(ret ? [cookie(RETURN_COOKIE, encodeURIComponent(ret), { maxAge: STATE_SECONDS })] : [])] });
   }
 
   if (path === "/auth/callback" && method === "GET") {
@@ -387,10 +398,11 @@ async function route(request, env) {
     const session = await signToken({ sub: user.login, id: user.id, role: who.role, via: who.via ?? "", iat: Date.now(), exp: Date.now() + SESSION_SECONDS * 1000 }, env.SESSION_SECRET);
     const carried = mode === "user" ? cleanRepo(parseCookies(request.headers.get("Cookie"))[NEXT_COOKIE]) : "";
     const savedItem = mode === "user" ? cleanItem(safeDecode(parseCookies(request.headers.get("Cookie"))[SAVE_COOKIE])) : "";
+    const back0 = cleanReturn(safeDecode(parseCookies(request.headers.get("Cookie"))[RETURN_COOKIE]));
     const store0 = storeFor(env);
     if (store0) { try { await store0.touchUser(user.id, user.login, new Date().toISOString()); } catch { /* the account record is a convenience; signing in still works */ } }
-    const where = mode === "user" ? (savedItem ? `/collection/save?item=${encodeURIComponent(savedItem)}` : carried ? `/submit?url=${encodeURIComponent(carried)}` : "/profile") : "/admin";
-    return send("", { status: 302, location: where, cookies: [clearState, cookie(NEXT_COOKIE, "", { maxAge: 0 }), cookie(SAVE_COOKIE, "", { maxAge: 0 }), cookie(SESSION_COOKIE, session, { maxAge: SESSION_SECONDS })] });
+    const where = mode === "user" ? (savedItem ? `/collection/save?item=${encodeURIComponent(savedItem)}` : carried ? `/submit?url=${encodeURIComponent(carried)}` : (back0 || "/profile")) : (back0 || "/admin");
+    return send("", { status: 302, location: where, cookies: [clearState, cookie(NEXT_COOKIE, "", { maxAge: 0 }), cookie(SAVE_COOKIE, "", { maxAge: 0 }), cookie(RETURN_COOKIE, "", { maxAge: 0 }), cookie(SESSION_COOKIE, session, { maxAge: SESSION_SECONDS })] });
   }
 
   if (path === "/auth/logout" && method === "POST") {
@@ -408,7 +420,7 @@ async function route(request, env) {
     const s = await sessionOf(request, env);
     if (method === "GET") {
       const prefill = cleanRepo(url.searchParams.get("url")); // a link from the website form; anything that is not a github.com repository is dropped
-      if (!s) return send(signInPage("", { submit: true, next: prefill }));
+      if (!s) return send(signInPage("", { submit: true, next: prefill, return: "/submit" }));
       if (!storeFor(env)) return send(messagePage("Submissions are not open yet", "This app has no database connected yet.", false), { status: 503 });
       return send(submitPage({ session: s, values: { url: prefill } }));
     }
@@ -423,7 +435,7 @@ async function route(request, env) {
 
   if (path === "/admin" && method === "GET") {
     const s = await sessionOf(request, env);
-    if (!s) return send(signInPage());
+    if (!s) return send(signInPage("", { return: hereOf(request) }));
     if (s.role !== "admin") return send(messagePage("No access", `You are signed in as @${s.sub}, but only owners of ${env.ORG} and members of ${env.ORG}/${env.TEAM} can maintain the catalogue. If you are one of them, sign in again with organisation access. Ask an owner to add you to the team, then sign in again.`, false, { href: "/auth/login", text: "Sign in with organisation access" }), { status: 403 });
     let queue = [], queueError = "", subs = null;
     try { queue = await listPending(env); } catch { queueError = "The waiting list could not be loaded from GitHub just now. Reload in a minute."; }
@@ -437,7 +449,7 @@ async function route(request, env) {
 
   if (path === "/admin/listings" && method === "GET") {
     const s = await sessionOf(request, env);
-    if (!s) return send(signInPage());
+    if (!s) return send(signInPage("", { return: hereOf(request) }));
     if (s.role !== "admin") return send(messagePage("No access", "Only maintainers can manage listings.", false), { status: 403 });
     let listings = [], error = "";
     try { listings = await fetchListings(env); } catch (e) { error = e instanceof UserError ? e.message : "The listings could not be loaded."; }
@@ -448,7 +460,7 @@ async function route(request, env) {
   const detail = /^\/admin\/submissions\/(\d{1,9})$/.exec(path);
   if (detail && method === "GET") {
     const s = await sessionOf(request, env);
-    if (!s) return send(signInPage());
+    if (!s) return send(signInPage("", { return: hereOf(request) }));
     if (s.role !== "admin") return send(messagePage("No access", "Only maintainers can see submissions.", false), { status: 403 });
     const store = storeFor(env);
     if (store) { try { await syncPublishing(env, store, listed(env)); await syncScans(env, store); } catch { /* the page still works without a refresh */ } }
