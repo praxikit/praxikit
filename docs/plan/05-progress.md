@@ -184,3 +184,8 @@
 ## 2026-11-16 — Bugs from first use, and a bigger pass
 - Fixed: Save could not read the catalogue (a Worker cannot fetch its own public address; it now reads the site files bound to it). Fixed: the theme button was dead since search was added (two variables named root). `site/behaviour.test.mjs` runs the real site script against a fake page so this cannot recur; `site/links.test.mjs` follows 800+ internal links and anchors (it found a wrong depth on the Picks page and a missing anchor on the Policy page).
 - New: a page for each pick and listed kit (`/l/<owner>-<repo>/`) with a review receipt; cards simplified (a small reviewed mark with the commit instead of a paragraph; "How I use it" kept as a short label on picks); copy-install button on built kits; kits list with Show (all, built, picks, listed), Sort (featured, newest, A to Z) and a shareable address; home with a trust section, stats, and tags as quick entry points; the 404 page has search; chips clamp to exactly two rows.
+
+## 2026-11-17 — Votes and notes
+- "This helped me" (one per person per kit) and one short note per person per kit (10 to 240 characters, plain text, no links). First notes wait for a maintainer; later ones appear at once; two reports hide a note until a maintainer decides. Limits: 60 votes an hour, 5 notes a day. Cards show "N people found it useful" and, from three, "saved by N".
+- Needs the owner: migration `api/migrations/0007_community.sql`, once.
+- Tests: `api/test-community.mjs` and the community cases in `site/behaviour.test.mjs`. Also fixed: tag chips on kit pages were indented by a rule meant for long text.

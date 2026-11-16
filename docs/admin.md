@@ -16,6 +16,7 @@ Everything is done in the app at `https://praxikit.com`. Maintainers (owners of 
 | **Submit something yourself** | The same form. As a maintainer your submission is published directly after the scan, but only if the result has nothing to look at; otherwise it waits for review. |
 | **Edit a live listing** | Admin, **Manage live listings**: name, card text, tags and the pick note. What was reviewed (repository, commit, checks) never changes here. |
 | **Remove a listing** | **Manage live listings**, choose a reason, tick the confirmation. It is logged publicly in `docs/removals.md`. |
+| **Review notes** | Admin, **Review notes**: Show, Hide or Delete. A person's first note waits here; a note two people report is hidden here until you decide. |
 | **Add one the checks refused** | Actions, **Add listing**, Run workflow (it has a switch to allow failed checks). |
 
 - Approving, editing and removing need a sign-in from the last 30 minutes. The app only starts GitHub Actions jobs with fixed inputs; the jobs commit the change and the site redeploys.

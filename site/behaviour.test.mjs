@@ -36,7 +36,7 @@ class El {
 }
 
 /** One fake page. `hint` says whether the sign-in hint cookie is present; `me` is what /api/me answers (null = 401). */
-async function run({ hint = false, me = null, saved = [], dark = false, kits = false, search = "" }) {
+async function run({ hint = false, me = null, saved = [], dark = false, kits = false, search = "", community = null, counts = null, statKeys = [] }) {
   const calls = [], docListeners = {}, ids = {};
   const root = new El("html"), body = new El("body");
   body.attrs = { "data-root": "/", "data-app": "https://praxikit.com" };
@@ -56,23 +56,32 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
     ids.q = Object.assign(new El("input"), { value: "" }); ids.kits = grid; ids.count = new El("p"); ids.none = Object.assign(new El("div"), { hidden: true }); ids.clear = new El("button"); ids.sort = Object.assign(new El("select"), { value: "featured" });
     list.ul = ul; list.segs = ["all", "built", "pick", "listed"].map((s) => { const b = new El("button"); b.attrs = { "data-show": s, "aria-pressed": String(s === "all") }; return b; });
   }
+  const stats = statKeys.map((k) => { const e = new El("p"); e.attrs = { "data-stat": k }; e.hidden = true; return e; });
+  if (community) { ids["community-body"] = new El("div"); ids.community = new El("section"); ids.community.attrs = { "data-item": community.item }; }
   const doc = {
+    createElementNS: (ns, t) => new El(t),
     documentElement: root, body, cookie: hint ? "praxikit-in=1" : "",
     getElementById: (id) => ids[id] ?? null,
     querySelector: (s) => (s === "header nav" ? nav : s === "header.top" ? header : null),
-    querySelectorAll: (s) => (s === "[data-save]" ? [btn] : s === "[data-show]" ? (list.segs ?? []) : []),
+    querySelectorAll: (s) => (s === "[data-save]" ? [btn] : s === "[data-show]" ? (list.segs ?? []) : s === "[data-stat]" ? stats : []),
     createElement: (t) => new El(t),
     addEventListener: (t, f) => (docListeners[t] ??= []).push(f),
   };
   const fetchStub = async (url, init = {}) => {
     calls.push([String(url), init.method ?? "GET"]);
+    if (String(url).startsWith("/api/item")) return { ok: true, json: async () => community.data() };
+    if (String(url) === "/api/counts") return { ok: true, json: async () => counts };
+    if (String(url) === "/api/vote") { community.voted = !community.voted; return { ok: true, json: async () => ({ voted: community.voted }) }; }
+    if (String(url) === "/api/note") { community.posted = init.body; return { ok: true, json: async () => ({ saved: true, status: "pending" }) }; }
+    if (String(url) === "/api/note/report") { community.reported = init.body; return { ok: true, json: async () => ({ reported: true }) }; }
     if (String(url) === "/api/me") return me ? { ok: true, json: async () => me } : { ok: false, status: 401, json: async () => ({}) };
     if (String(url) === "/api/collection") return { ok: true, json: async () => ({ items: saved }) };
     if (String(url) === "/collection/toggle") return { ok: true, json: async () => ({ saved: !saved.includes("k/keel/") }) };
     return { ok: false, json: async () => [] };
   };
+  const loc = { origin: "https://praxikit.com", pathname: "/k/keel/", search, href: "https://praxikit.com/k/keel/" };
   const ctx = vm.createContext({
-    document: doc, location: { origin: "https://praxikit.com", pathname: "/kits/", search, href: "https://praxikit.com/" },
+    document: doc, location: loc, _unused: { origin: "https://praxikit.com", pathname: "/kits/", search, href: "https://praxikit.com/" },
     matchMedia: () => ({ matches: dark }), localStorage: { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = v; } },
     fetch: fetchStub, URLSearchParams, Promise, setTimeout, clearTimeout, console, String, Array, Object, Number, JSON, encodeURIComponent, decodeURIComponent, Math, Date, RegExp, Error,
     navigator: { clipboard: { writeText: async () => {} } }, history: { replaceState() {} },
@@ -80,7 +89,7 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
   let threw = null;
   try { vm.runInContext(code, ctx); } catch (e) { threw = e; }
   await new Promise((r) => setTimeout(r, 30));
-  return { threw, list, calls, root, body, header, nav, ids, btn, label, store, doc, docListeners, click: (el) => { const ev = {}; for (const f of docListeners.click ?? []) f({ target: el, preventDefault() { ev.prevented = true; } }); return ev; } };
+  return { threw, list, stats, loc, calls, root, body, header, nav, ids, btn, label, store, doc, docListeners, click: (el) => { const ev = {}; for (const f of docListeners.click ?? []) f({ target: el, preventDefault() { ev.prevented = true; } }); return ev; } };
 }
 
 // ---- the theme button
@@ -167,6 +176,53 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
   must(u.ids.q.value === "browser" && u.ids.sort.value === "az" && u.list.segs[2].getAttribute("aria-pressed") === "true" && u.list.ul.children.filter((c) => !c.hidden).length === 1, "the address restores a shared view of the list");
   const bad = await run({ kits: true, search: "?show=<script>&sort=evil&q=" + "x".repeat(300) });
   must(!bad.threw && bad.ids.q.value.length === 100 && bad.ids.sort.value === "featured", "a hostile address is ignored or cut down");
+}
+
+// ---- community: counts on cards, "helped me" and notes on a kit's page
+{
+  const walk = (el) => [el, ...el.children.flatMap(walk)];
+  const text = (el) => walk(el).map((n) => n.textContent).join(" ");
+  const find = (el, pred) => walk(el).find(pred);
+  const data = (over) => () => ({ signedIn: true, votes: 4, voted: false, saves: 5, notes: [{ id: 7, login: "dave", text: "<b>Saved me a day</b> of planning", at: "2026-11-16", mine: false }, { id: 8, login: "me", text: "Mine", at: "2026-11-15", mine: true }], mine: null, ...over });
+
+  const c = await run({ hint: true, me: { login: "carol", id: 3, role: "user" }, statKeys: ["k/keel/", "k/other/"], counts: { votes: { "k/keel/": 4 }, saves: { "k/keel/": 5 } } });
+  must(c.stats[0].hidden === false && c.stats[0].textContent === "4 people found it useful · saved by 5" && c.stats[1].hidden === true, "cards show how many found a kit useful and how many saved it, and stay quiet when there is nothing to say");
+
+  const com = { item: "k/keel/", voted: false, data: data({}) };
+  const p = await run({ hint: true, me: { login: "carol", id: 3, role: "user" }, community: com });
+  await new Promise((r) => setTimeout(r, 40));
+  const body = p.ids["community-body"];
+  const vote = find(body, (n) => n.className === "vote-btn");
+  must(vote && /This helped me/.test(text(vote)) && /4/.test(text(vote)) && vote.getAttribute("aria-pressed") === "false", "the page shows the vote button with its count");
+  must(/Saved by 5 people/.test(text(body)), "and how many people saved it");
+  must(text(body).includes("<b>Saved me a day</b> of planning"), "a note is shown as plain text, markup and all");
+  const reports = walk(body).filter((n) => n.textContent === "Report");
+  must(reports.length === 1, "a note by someone else can be reported, your own cannot");
+  reports[0].fire("click");
+  await new Promise((r) => setTimeout(r, 20));
+  must(/id=7/.test(com.reported ?? ""), "reporting sends that note's id");
+  vote.fire("click");
+  await new Promise((r) => setTimeout(r, 40));
+  must(com.voted === true, "pressing the vote button sends the vote");
+  const form = find(body, (n) => n.className === "note-form");
+  const ta = find(form, (n) => n.tag === "textarea");
+  ta.value = "It helped me plan a migration in an afternoon.";
+  form.fire("submit", {});
+  await new Promise((r) => setTimeout(r, 40));
+  must(/item=k%2Fkeel%2F/.test(com.posted ?? "") && /afternoon/.test(decodeURIComponent((com.posted ?? "").replace(/\+/g, " "))), "sharing a note sends the kit and the text");
+  must(p.body.children.some((n) => n.className === "toast" && /maintainer will read/.test(n.textContent)), "and tells a new person that a maintainer reads it first");
+
+  const mine = await run({ hint: true, me: { login: "carol", id: 3, role: "user" }, community: { item: "k/keel/", data: data({ mine: { text: "Waiting note text here", status: "pending" }, notes: [] }) } });
+  await new Promise((r) => setTimeout(r, 40));
+  const mb = mine.ids["community-body"];
+  must(/waiting for a maintainer/.test(text(mb)) && find(mb, (n) => n.tag === "textarea").value === "Waiting note text here" && walk(mb).some((n) => n.textContent === "Delete my note"), "your own waiting note is shown to you with a way to change or delete it");
+  must(/No notes yet/.test(text(mb)), "with no approved notes, the page says so");
+
+  const out = await run({ hint: false, community: { item: "k/keel/", data: data({ signedIn: false, voted: false, mine: null }) } });
+  await new Promise((r) => setTimeout(r, 40));
+  const ob = out.ids["community-body"];
+  must(!out.threw, "the page script still runs for someone who is not signed in");
+  must(out.calls.every(([u]) => u !== "/api/me"), "(and does not ask who they are)");
 }
 
 if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }

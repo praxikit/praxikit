@@ -19,6 +19,7 @@ import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, fetchListings, prech
 import { storeFor } from "./lib/store.mjs";
 import { parseTags } from "./lib/tags.mjs";
 import { dispatchApprove, dispatchEdit, dispatchRemove, dispatchScan, syncPublishing, syncScans, publishingConfigured } from "./lib/publish.mjs";
+import { COMMUNITY, cleanNote, notesAdminPage } from "./lib/community.mjs";
 import { cleanItem, cleanLabel, fetchCatalogue, LIMITS, FLASH_ACCOUNT, savePage, collectionPage, profilePage, settingsPage } from "./lib/account.mjs";
 import { CSS, setShell, signInPage, messagePage, listingsPage, adminPage, submitPage, minePage, detailPage, FLASH } from "./lib/html.mjs";
 
@@ -54,7 +55,7 @@ const SITE_HEADERS = {
 };
 // What the app answers itself. Everything else is a page of the site.
 const APP_EXACT = new Set(["/healthz", "/submit", "/api/collection", "/collection", "/profile", "/settings", "/admin", "/api/me"]);
-const APP_PREFIX = ["/auth/", "/admin/", "/collection/", "/account/", "/assets/"];
+const APP_PREFIX = ["/api/", "/auth/", "/admin/", "/collection/", "/account/", "/assets/"];
 const isAppPath = (p) => APP_EXACT.has(p) || APP_PREFIX.some((x) => p.startsWith(x));
 
 let shellAt = 0;
@@ -297,6 +298,8 @@ async function accountRoutes(request, env, url, path, method) {
     const user = await g.store.getUser(g.s.id), subs = await g.store.byUser(g.s.id, 200);
     const data = { github_login: g.s.sub, github_id: g.s.id, account_created: user?.created_at ?? null, last_seen: user?.last_seen ?? null,
       collection: (await g.store.collectionOf(g.s.id)).map((r) => ({ item: r.item, group: r.label, saved: r.added_at })),
+      helped_me: (await g.store.votesOf(g.s.id)).map((r) => ({ item: r.item, at: r.created_at })),
+      notes: (await g.store.notesOf(g.s.id)).map((r) => ({ item: r.item, text: r.text, status: r.status, written: r.created_at })),
       submissions: subs.map((r) => ({ repository: r.repo_url, status: r.status, submitted: r.created_at, note: r.why })) };
     const res = send(JSON.stringify(data, null, 2), { type: "application/json" });
     res.headers.set("Content-Disposition", 'attachment; filename="praxikit-my-data.json"');
@@ -310,6 +313,97 @@ async function accountRoutes(request, env, url, path, method) {
     return send(messagePage("Account deleted", "Your collection, your waiting submissions and your account record are gone. Decided submissions stay in the catalogue's history without your name. You are signed out.", false), { cookies: [cookie(SESSION_COOKIE, "", { maxAge: 0 }), hintCookie(false)] });
   }
   return send(messagePage("Not found", "There is no such page.", false), { status: 404 });
+}
+
+const jsonRes = (o, status = 200, cache = "no-store") => send(JSON.stringify(o), { status, type: "application/json", cache });
+
+/**
+ * "This helped me" votes and short notes. Reading counts is public; everything that changes something needs a sign-in from this
+ * site. A note is plain text, no links, one per person per kit; a person's first note waits for a maintainer, later ones show at once;
+ * two different people reporting a note hides it until a maintainer looks.
+ */
+async function communityRoutes(request, env, url, path, method) {
+  const store = storeFor(env);
+  if (!store) return jsonRes({ error: "closed", message: "This is not open yet." }, 503);
+
+  if (path === "/api/counts" && method === "GET") {
+    const votes = {}, saves = {};
+    for (const r of await store.voteCounts()) votes[r.item] = Number(r.n);
+    for (const r of await store.saveCounts()) if (Number(r.n) >= COMMUNITY.savesShownFrom) saves[r.item] = Number(r.n);
+    return jsonRes({ votes, saves }, 200, "public, max-age=60");
+  }
+
+  if (path === "/api/item" && method === "GET") {
+    const item = cleanItem(url.searchParams.get("item"));
+    if (!item) return jsonRes({ error: "bad", message: "That is not a kit." }, 400);
+    const s = await sessionOf(request, env);
+    const saves = await store.saveCountFor(item);
+    const notes = (await store.approvedNotes(item, COMMUNITY.listMax)).map((n) => ({ id: n.id, login: n.login, text: n.text, at: String(n.created_at).slice(0, 10), mine: !!s && n.user_id === s.id }));
+    const mine = s ? await store.myNote(s.id, item) : null;
+    return jsonRes({ signedIn: !!s, votes: await store.voteCountFor(item), voted: s ? await store.hasVote(s.id, item) : false, saves: saves >= COMMUNITY.savesShownFrom ? saves : 0, notes, mine: mine ? { text: mine.text, status: mine.status } : null });
+  }
+
+  if (method !== "POST") return jsonRes({ error: "method" }, 405);
+  const s = await sessionOf(request, env);
+  if (!s) return jsonRes({ error: "not signed in", message: "Sign in first." }, 401);
+  if (!sameOrigin(request, env)) return jsonRes({ error: "refused", message: "That request did not come from this site." }, 403);
+  let f; try { f = await request.formData(); } catch { return jsonRes({ error: "bad", message: "That did not look right." }, 400); }
+  const now = new Date();
+
+  if (path === "/api/note/report") {
+    const id = Number(f.get("id"));
+    if (!Number.isInteger(id) || id < 1) return jsonRes({ error: "bad", message: "That did not look right." }, 400);
+    const state = await store.reportNote(id, s.id, now.toISOString());
+    return state ? jsonRes({ reported: true }) : jsonRes({ error: "gone", message: "That note is gone." }, 404);
+  }
+
+  const item = cleanItem(f.get("item"));
+  if (!item) return jsonRes({ error: "bad", message: "That is not a kit." }, 400);
+
+  if (path === "/api/note/delete") return jsonRes({ deleted: await store.deleteOwnNote(s.id, item) });
+
+  let catalogue; try { catalogue = await fetchCatalogue(env); } catch { return jsonRes({ error: "down", message: FLASH_ACCOUNT.down }, 503); }
+  if (!catalogue.has(item)) return jsonRes({ error: "gone", message: FLASH_ACCOUNT.gone }, 404);
+
+  if (path === "/api/vote") {
+    if (await store.hasVote(s.id, item)) { await store.removeVote(s.id, item); return jsonRes({ voted: false, votes: await store.voteCountFor(item) }); }
+    if ((await store.votesSince(s.id, new Date(now - 3600_000).toISOString())) >= COMMUNITY.votesPerHour) return jsonRes({ error: "slow", message: "That is a lot of votes in an hour. Try again later." }, 429);
+    await store.touchUser(s.id, s.sub, now.toISOString());
+    await store.addVote(s.id, item, now.toISOString());
+    return jsonRes({ voted: true, votes: await store.voteCountFor(item) });
+  }
+
+  if (path === "/api/note") {
+    const c = cleanNote(f.get("text"));
+    if (!c.ok) return jsonRes({ error: "bad", message: c.error }, 400);
+    if ((await store.notesSince(s.id, new Date(now - 86400_000).toISOString())) >= COMMUNITY.notesPerDay) return jsonRes({ error: "slow", message: "That is a lot of notes for one day. Try again tomorrow." }, 429);
+    const status = s.role === "admin" || (await store.hasApprovedNote(s.id)) ? "approved" : "pending";
+    await store.touchUser(s.id, s.sub, now.toISOString());
+    await store.saveNote(s.id, s.sub, item, c.text, status, now.toISOString());
+    return jsonRes({ saved: true, status });
+  }
+  return jsonRes({ error: "not found" }, 404);
+}
+
+async function notesAdmin(request, env, url, path, method) {
+  const s = await sessionOf(request, env);
+  const store = storeFor(env);
+  if (path === "/admin/notes" && method === "GET") {
+    if (!s) return send(signInPage("", { return: "/admin/notes" }));
+    if (s.role !== "admin") return send(messagePage("No access", "Only maintainers can review notes.", false), { status: 403 });
+    if (!store) return send(messagePage("Not open yet", "This app has no database connected yet.", false), { status: 503 });
+    return send(notesAdminPage({ session: s, rows: await store.notesToReview(), flash: FLASH_ACCOUNT[url.searchParams.get("m")] ?? "" }));
+  }
+  if (path === "/admin/notes/decide" && method === "POST") {
+    const stop = gate(request, env, s); if (stop) return stop;
+    if (!store) return send(messagePage("Not open yet", "This app has no database connected yet.", false), { status: 503 });
+    let f; try { f = await request.formData(); } catch { return back("/admin/notes", "bad"); }
+    const id = Number(f.get("id")), action = String(f.get("action") ?? "");
+    if (!Number.isInteger(id) || id < 1 || !["approve", "hide", "delete"].includes(action)) return back("/admin/notes", "bad");
+    await store.decideNote(id, action);
+    return back("/admin/notes", "noteDone");
+  }
+  return send(messagePage("Not found", "There is nothing here.", false), { status: 404 });
 }
 
 async function approveRoute(request, env, s, id) {
@@ -453,6 +547,8 @@ async function route(request, env) {
   if (path === "/collection" || path === "/api/collection" || path === "/collection/toggle" || path === "/profile" || path === "/settings" || path === "/collection/save" || path === "/collection/remove" || path === "/account/export" || path === "/account/delete") {
     return accountRoutes(request, env, url, path, method);
   }
+  if (["/api/counts", "/api/item", "/api/vote", "/api/note", "/api/note/delete", "/api/note/report"].includes(path)) return communityRoutes(request, env, url, path, method);
+  if (path === "/admin/notes" || path === "/admin/notes/decide") return notesAdmin(request, env, url, path, method);
 
 
   if (path === "/admin" && method === "GET") {
@@ -461,11 +557,12 @@ async function route(request, env) {
     if (s.role !== "admin") return send(messagePage("No access", `You are signed in as @${s.sub}, but only owners of ${env.ORG} and members of ${env.ORG}/${env.TEAM} can maintain the catalogue. If you are one of them, sign in again with organisation access. Ask an owner to add you to the team, then sign in again.`, false, { href: "/auth/login", text: "Sign in with organisation access" }), { status: 403 });
     let queueError = "", subs = null;
     const store = storeFor(env);
-    let recent = [];
+    let recent = [], noteCount = 0;
     if (store) {
+      try { noteCount = await store.notesToReviewCount(); } catch { /* the count is a convenience */ }
       try { await syncPublishing(env, store, listed(env)); await syncScans(env, store); subs = await store.pending(); recent = await store.recent(); } catch { queueError = queueError || "The submissions database could not be read just now."; }
     }
-    return send(adminPage({ session: s, env, queueError, subs, recent, flash: flashOf(url) }));
+    return send(adminPage({ session: s, env, queueError, noteCount, subs, recent, flash: flashOf(url) }));
   }
 
   if (path === "/admin/listings" && method === "GET") {

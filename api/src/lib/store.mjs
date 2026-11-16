@@ -70,10 +70,59 @@ export function d1Store(db) {
      */
     async deleteAccount(userId) {
       await db.prepare("DELETE FROM collection WHERE user_id = ?").bind(userId).run();
+      await db.prepare("DELETE FROM votes WHERE user_id = ?").bind(userId).run();
+      await db.prepare("DELETE FROM note_reports WHERE note_id IN (SELECT id FROM notes WHERE user_id = ?) OR user_id = ?").bind(userId, userId).run();
+      await db.prepare("DELETE FROM notes WHERE user_id = ?").bind(userId).run();
       await db.prepare("DELETE FROM submissions WHERE submitted_by_id = ? AND status = 'pending'").bind(userId).run();
       await db.prepare("UPDATE submissions SET submitted_by = 'deleted-account', submitted_by_id = 0 WHERE submitted_by_id = ?").bind(userId).run();
       await db.prepare("DELETE FROM users WHERE id = ?").bind(userId).run();
     },
+    // ---- votes ("this helped me") and short notes
+    async voteCounts() { return (await db.prepare("SELECT item, COUNT(*) AS n FROM votes GROUP BY item").all()).results ?? []; },
+    async saveCounts() { return (await db.prepare("SELECT item, COUNT(*) AS n FROM collection GROUP BY item").all()).results ?? []; },
+    async voteCountFor(item) { return Number((await db.prepare("SELECT COUNT(*) AS n FROM votes WHERE item = ?").bind(item).first())?.n ?? 0); },
+    async saveCountFor(item) { return Number((await db.prepare("SELECT COUNT(*) AS n FROM collection WHERE item = ?").bind(item).first())?.n ?? 0); },
+    async hasVote(userId, item) { return !!(await db.prepare("SELECT 1 AS x FROM votes WHERE user_id = ? AND item = ?").bind(userId, item).first()); },
+    async addVote(userId, item, at) { await db.prepare("INSERT OR IGNORE INTO votes (user_id, item, created_at) VALUES (?, ?, ?)").bind(userId, item, at).run(); },
+    async removeVote(userId, item) { await db.prepare("DELETE FROM votes WHERE user_id = ? AND item = ?").bind(userId, item).run(); },
+    async votesSince(userId, iso) { return Number((await db.prepare("SELECT COUNT(*) AS n FROM votes WHERE user_id = ? AND created_at >= ?").bind(userId, iso).first())?.n ?? 0); },
+    async approvedNotes(item, limit = 20) { return (await db.prepare("SELECT id, user_id, login, text, created_at FROM notes WHERE item = ? AND status = 'approved' ORDER BY id DESC LIMIT ?").bind(item, limit).all()).results ?? []; },
+    async myNote(userId, item) { return (await db.prepare("SELECT id, text, status, created_at FROM notes WHERE user_id = ? AND item = ?").bind(userId, item).first()) ?? null; },
+    async hasApprovedNote(userId) { return !!(await db.prepare("SELECT 1 AS x FROM notes WHERE user_id = ? AND status = 'approved'").bind(userId).first()); },
+    async notesSince(userId, iso) { return Number((await db.prepare("SELECT COUNT(*) AS n FROM notes WHERE user_id = ? AND created_at >= ?").bind(userId, iso).first())?.n ?? 0); },
+    /** One note per person per kit; writing again replaces it, goes back through review and clears old reports. */
+    async saveNote(userId, login, item, text, status, at) {
+      await db.prepare("INSERT INTO notes (user_id, login, item, text, status, reports, created_at) VALUES (?, ?, ?, ?, ?, 0, ?) ON CONFLICT(user_id, item) DO UPDATE SET text = excluded.text, status = excluded.status, reports = 0, created_at = excluded.created_at, login = excluded.login").bind(userId, login, item, text, status, at).run();
+      const row = await db.prepare("SELECT id FROM notes WHERE user_id = ? AND item = ?").bind(userId, item).first();
+      if (row) await db.prepare("DELETE FROM note_reports WHERE note_id = ?").bind(row.id).run();
+    },
+    async deleteOwnNote(userId, item) {
+      const row = await db.prepare("SELECT id FROM notes WHERE user_id = ? AND item = ?").bind(userId, item).first();
+      if (!row) return false;
+      await db.prepare("DELETE FROM note_reports WHERE note_id = ?").bind(row.id).run();
+      await db.prepare("DELETE FROM notes WHERE id = ?").bind(row.id).run();
+      return true;
+    },
+    /** Reports are one per person per note. Two different people hide a note until a maintainer looks. Returns the note's status, or "" if there is no such note. */
+    async reportNote(id, userId, at) {
+      const note = await db.prepare("SELECT id, user_id, status FROM notes WHERE id = ?").bind(id).first();
+      if (!note || note.user_id === userId || note.status !== "approved") return note ? note.status : "";
+      await db.prepare("INSERT OR IGNORE INTO note_reports (note_id, user_id, created_at) VALUES (?, ?, ?)").bind(id, userId, at).run();
+      const n = Number((await db.prepare("SELECT COUNT(*) AS n FROM note_reports WHERE note_id = ?").bind(id).first())?.n ?? 0);
+      await db.prepare("UPDATE notes SET reports = ? WHERE id = ?").bind(n, id).run();
+      if (n >= 2) { await db.prepare("UPDATE notes SET status = 'hidden' WHERE id = ?").bind(id).run(); return "hidden"; }
+      return "approved";
+    },
+    async notesToReview(limit = 50) { return (await db.prepare("SELECT id, login, item, text, status, reports, created_at FROM notes WHERE status = 'pending' OR (status = 'hidden' AND reports > 0) ORDER BY id LIMIT ?").bind(limit).all()).results ?? []; },
+    async notesToReviewCount() { return Number((await db.prepare("SELECT COUNT(*) AS n FROM notes WHERE status = 'pending' OR (status = 'hidden' AND reports > 0)").first())?.n ?? 0); },
+    async decideNote(id, action) {
+      if (action === "delete") { await db.prepare("DELETE FROM note_reports WHERE note_id = ?").bind(id).run(); await db.prepare("DELETE FROM notes WHERE id = ?").bind(id).run(); return true; }
+      if (action === "approve") { await db.prepare("DELETE FROM note_reports WHERE note_id = ?").bind(id).run(); const r = await db.prepare("UPDATE notes SET status = 'approved', reports = 0 WHERE id = ?").bind(id).run(); return Number(r.meta?.changes) === 1; }
+      if (action === "hide") { const r = await db.prepare("UPDATE notes SET status = 'hidden' WHERE id = ?").bind(id).run(); return Number(r.meta?.changes) === 1; }
+      return false;
+    },
+    async notesOf(userId) { return (await db.prepare("SELECT item, text, status, created_at FROM notes WHERE user_id = ?").bind(userId).all()).results ?? []; },
+    async votesOf(userId) { return (await db.prepare("SELECT item, created_at FROM votes WHERE user_id = ?").bind(userId).all()).results ?? []; },
     async byUser(userId, limit = 20) { return (await db.prepare("SELECT * FROM submissions WHERE submitted_by_id = ? ORDER BY id DESC LIMIT ?").bind(userId, limit).all()).results ?? []; },
   };
 }

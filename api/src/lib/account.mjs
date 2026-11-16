@@ -47,6 +47,7 @@ export const FLASH_ACCOUNT = {
   gone: "That kit is not in the catalogue any more, so it cannot be saved.",
   down: "The catalogue could not be read just now. Try again in a minute.",
   confirm: "The name you typed did not match your GitHub username, so nothing was deleted.",
+  noteDone: "Done.",
   bad: "That did not look right. Check the group name (letters, numbers and spaces, up to 24).",
 };
 

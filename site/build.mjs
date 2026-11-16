@@ -379,6 +379,96 @@ const SITE_JS = `
     }).catch(function () {});
   }
 
+  // ---- community: counts on cards, and "helped me" with short notes on a kit's own page
+  function apiCall(path, method, form) {
+    var init = { method: method || "GET", credentials: "same-origin", headers: { Accept: "application/json" } };
+    if (form) { var b = new URLSearchParams(); Object.keys(form).forEach(function (k) { b.set(k, form[k]); }); init.body = b.toString(); init.headers["Content-Type"] = "application/x-www-form-urlencoded"; }
+    return fetch(path, init).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); });
+  }
+  function node(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; }
+  var stats = [].slice.call(document.querySelectorAll("[data-stat]"));
+  if (stats.length && appOrigin && location.origin === appOrigin) {
+    fetch("/api/counts", { headers: { Accept: "application/json" } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (c) {
+      if (!c) return;
+      stats.forEach(function (el) {
+        var key = el.getAttribute("data-stat"), parts = [], v = c.votes && c.votes[key], s = c.saves && c.saves[key];
+        if (v) parts.push(v + (v === 1 ? " person found it useful" : " people found it useful"));
+        if (s) parts.push("saved by " + s);
+        if (parts.length) { el.textContent = parts.join(" · "); el.hidden = false; }
+      });
+    }).catch(function () {});
+  }
+  var com = document.getElementById("community-body"), comRoot = document.getElementById("community");
+  if (com && comRoot && appOrigin && location.origin === appOrigin) {
+    var comItem = comRoot.getAttribute("data-item");
+    var loadCom = function () {
+      apiCall("/api/item?item=" + encodeURIComponent(comItem)).then(function (x) { if (x.ok) renderCom(x.j); else com.textContent = "This could not be loaded just now."; }).catch(function () { com.textContent = "This could not be loaded just now."; });
+    };
+    var renderCom = function (d) {
+      com.textContent = "";
+      var bar = node("div", "vote-row");
+      var vote = node("button", "vote-btn"); vote.type = "button";
+      vote.setAttribute("aria-pressed", d.voted ? "true" : "false");
+      var thumb = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      thumb.setAttribute("viewBox", "0 0 24 24"); thumb.setAttribute("class", "ic"); thumb.setAttribute("aria-hidden", "true");
+      var tp = document.createElementNS("http://www.w3.org/2000/svg", "path"); tp.setAttribute("d", "M7 11v9H4v-9zM7 11l4-8c1.5 0 2.5 1 2.2 2.6L12.7 9H19a2 2 0 0 1 2 2.4l-1.2 6A2 2 0 0 1 17.8 19H7");
+      thumb.appendChild(tp); vote.appendChild(thumb);
+      vote.appendChild(node("span", "", d.voted ? "Helped me" : "This helped me"));
+      vote.appendChild(node("span", "count", String(d.votes)));
+      var msg = node("p", "com-msg muted"); msg.setAttribute("role", "status"); msg.setAttribute("aria-live", "polite");
+      vote.addEventListener("click", function () {
+        if (!d.signedIn) { location.href = "/auth/login?mode=user&return=" + encodeURIComponent(location.pathname); return; }
+        apiCall("/api/vote", "POST", { item: comItem }).then(function (x) { if (x.ok) loadCom(); else msg.textContent = x.j.message || "Could not save that."; });
+      });
+      bar.appendChild(vote);
+      if (d.saves) bar.appendChild(node("span", "muted", "Saved by " + d.saves + " people"));
+      com.appendChild(bar);
+      var list = node("ul", "notes");
+      d.notes.forEach(function (n) {
+        var li = node("li", "note-item");
+        var head = node("div", "note-head");
+        head.appendChild(node("strong", "", "@" + n.login)); head.appendChild(node("span", "muted", n.at));
+        li.appendChild(head); li.appendChild(node("p", "", n.text));
+        if (d.signedIn && !n.mine) {
+          var rep = node("button", "linklike", "Report"); rep.type = "button";
+          rep.addEventListener("click", function () { apiCall("/api/note/report", "POST", { id: String(n.id) }).then(function () { rep.textContent = "Reported"; rep.disabled = true; }); });
+          li.appendChild(rep);
+        }
+        list.appendChild(li);
+      });
+      if (d.notes.length) { com.appendChild(node("h3", "", "How it helped people")); com.appendChild(list); }
+      else com.appendChild(node("p", "muted", "No notes yet. If this kit helped you, say how in a sentence."));
+      if (!d.signedIn) {
+        var p = node("p", "muted"); var a = node("a", "", "Sign in with GitHub"); a.href = "/auth/login?mode=user&return=" + encodeURIComponent(location.pathname);
+        p.appendChild(a); p.appendChild(document.createTextNode(" to say it helped, or to add a note.")); com.appendChild(p); return;
+      }
+      var form = node("form", "note-form");
+      var lab = node("label", "", d.mine ? "Your note" : "Tell people how it helped"); lab.setAttribute("for", "note-text");
+      var ta = node("textarea"); ta.id = "note-text"; ta.maxLength = 240; ta.rows = 3; ta.value = d.mine ? d.mine.text : ""; ta.setAttribute("placeholder", "One or two sentences, in your own words. No links.");
+      var row = node("div", "note-row");
+      var send = node("button", "btn", d.mine ? "Update note" : "Share"); send.type = "submit";
+      var hint = node("span", "muted", "10 to 240 characters. Shown with your GitHub name. A first note is read by a maintainer before it appears.");
+      row.appendChild(send); form.appendChild(lab); form.appendChild(ta); form.appendChild(row); form.appendChild(hint);
+      if (d.mine && d.mine.status !== "approved") form.appendChild(node("p", "note", d.mine.status === "pending" ? "Your note is waiting for a maintainer. Only you can see it until then." : "Your note is hidden for now."));
+      if (d.mine) {
+        var del = node("button", "linklike", "Delete my note"); del.type = "button";
+        del.addEventListener("click", function () { apiCall("/api/note/delete", "POST", { item: comItem }).then(loadCom); });
+        form.appendChild(del);
+      }
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        send.disabled = true;
+        apiCall("/api/note", "POST", { item: comItem, text: ta.value }).then(function (x) {
+          send.disabled = false;
+          if (x.ok) { loadCom(); toast(x.j.status === "pending" ? "Thanks. A maintainer will read your note before it appears." : "Thanks. Your note is up."); }
+          else msg.textContent = x.j.message || "Could not save that.";
+        }).catch(function () { send.disabled = false; msg.textContent = "Could not reach the server. Try again."; });
+      });
+      com.appendChild(form); com.appendChild(msg);
+    };
+    loadCom();
+  }
+
   var tgl = document.getElementById("theme");
   if (tgl) tgl.addEventListener("click", function () {
     var cur = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
@@ -608,6 +698,8 @@ const MAX_CHIPS = 8; // a card shows at most two rows of tags; the rest are on t
 /** A Save button: a link to the app's confirmation page (so it works without scripts and signs you in first), which the site script turns into a one-press toggle once you are signed in. */
 const BOOKMARK = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16.2a.4.4 0 0 1-.64.32L12 16.9l-5.86 4.12a.4.4 0 0 1-.64-.32V4.5a1 1 0 0 1 1-1z"/></svg>';
 const saveLink = (key, name = "", text = false) => (APP ? `<a class="save-btn${text ? " with-text" : ""}" href="${esc(APP)}/collection/save?item=${encodeURIComponent(key)}" data-save="${esc(key)}" data-name="${esc(name)}" aria-label="Save ${esc(name)} to your collection" title="Save to your collection" rel="noopener">${BOOKMARK}${text ? "<span>Save</span>" : ""}</a>` : "");
+/** "What people say": filled in by the site script from the app (counts, notes, the vote button). */
+const communityBlock = (key) => (APP ? `<section class="community" id="community" data-item="${esc(key)}"><h2>What people say</h2><div id="community-body"><p class="muted">Loading…</p></div><noscript><p class="muted">Votes and notes need JavaScript.</p></noscript></section>` : "");
 function tagChips(item, up) {
   const all = tagsOf(item);
   if (!all.length) return "";
@@ -653,6 +745,7 @@ function extCard(l, up) {
 <p class="byline">by ${esc(l.author)}</p>
 <p class="promise">${esc(l.why)}</p>
 ${tagChips(l, up)}
+${APP ? `<p class="stat" data-stat="${esc(l.url)}" hidden></p>` : ""}
 ${l.pick ? `<p class="pick-note"><strong>How I use it</strong>${esc(l.note)}</p>` : ""}
 <div class="card-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>${d.warn ? esc(d.short) : "Reviewed"} <code>${esc(l.commit.slice(0, 7))}</code></span></span><span class="card-actions">${saveLink(l.url, l.name)}<a class="details" href="${esc(page)}">Details</a></span></div>
 </li>`;
@@ -672,6 +765,7 @@ function card(k, up) {
 <h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
 <p class="promise">${esc(k.promise)}</p>
 ${tagChips(k, up)}
+${APP ? `<p class="stat" data-stat="k/${esc(k.name)}/" hidden></p>` : ""}
 <div class="card-foot"><span class="muted">${esc(bits)}${bits && latest ? " · " : ""}${latest ? `updated ${esc(latest)}` : ""}</span><span class="card-actions">${copy}${saveLink(`k/${k.name}/`, k.name)}<a class="details" href="${up}k/${esc(k.name)}/">Details</a></span></div>
 </li>`;
 }
@@ -701,7 +795,8 @@ ${related.length ? `<section><h2>More like this</h2><ul class="cards few-3">${re
 <dt>Put forward by</dt><dd>${esc(sourceWord(l))}</dd></dl>
 <p class="muted">Installs follow the author's latest version, which can differ from the commit that was read. A daily check marks the listing if the repository moves on.</p>
 <p class="side-links"><a href="../../policy/#report">Report a problem with this listing</a></p></div></aside>
-</div></div>`;
+</div>
+${communityBlock(l.url)}</div>`;
   return page({ title: `${l.name} — Praxikit`, depth: 2, body, canonical: `${HOME_URL}${lpath(l)}`, description: l.why,
     ld: { "@context": "https://schema.org", "@type": "SoftwareSourceCode", name: l.name, description: l.why, codeRepository: l.url, author: { "@type": "Person", name: l.author }, url: `${HOME_URL}${lpath(l)}` } });
 }
@@ -933,7 +1028,8 @@ ${trustBlock(k)}
 <aside class="side"><div class="panel"><h2>Install</h2>${installBlock(k)}<p class="muted">Update later (Claude Code):</p>${copyCmd("/plugin marketplace update praxikit")}<p class="muted">then <code>/reload-plugins</code>.</p>
 ${checker([k], k.name) ? `<h2 class="ck-title">Am I up to date?</h2>${checker([k], k.name)}` : ""}
 <p class="side-links"><a href="${esc(REPO)}/tree/main/kits/${esc(k.name)}" rel="noopener noreferrer">Source on GitHub</a></p></div></aside>
-</div></div>`;
+</div>
+${communityBlock(`k/${k.name}/`)}</div>`;
   return page({ title: `${k.name} — Praxikit`, depth: 2, body, canonical: `${HOME_URL}k/${k.name}/`, description: k.promise, ld: { "@context": "https://schema.org", "@type": "SoftwareApplication", name: k.name, description: k.promise, softwareVersion: k.version, applicationCategory: "DeveloperApplication", operatingSystem: "Any", isAccessibleForFree: true, url: `${HOME_URL}k/${k.name}/`, offers: { "@type": "Offer", price: "0", priceCurrency: "USD" } } });
 }
 
@@ -962,7 +1058,7 @@ function privacyPage() {
 <p>Signing in happens in a separate app. It asks GitHub for your username only (the <code>read:user</code> permission), does not keep your GitHub access token, and stores your username, your numeric GitHub id, the dates you signed in, your saved kits and group names, and your submissions. It uses one sign-in cookie that lasts a few hours. Nothing is sold or shared, and no page shows your collection to anyone else.</p>
 <p>You can download your data and delete your account at any time from <em>My collection</em>. Deleting removes your collection, waiting submissions and account record; decided submissions stay in the catalogue's history without your name. Nothing in the app shows your collection to anyone else. Maintainers see your submissions and your username next to them. The person who runs the app can technically read the database, because that is how a database works; they do not look through collections.</p>
 <h2 class="sub">What exactly is kept</h2>
-<ul><li>Your GitHub username and numeric id, the date you first signed in and the date you last did.</li><li>The kits you saved and the group names you typed (up to 300 items; up to 40 can be added an hour).</li><li>Your submissions: the repository link, what GitHub says about it, the checks and the maintainers' decision.</li><li>One sign-in cookie that lasts a few hours. No advertising or analytics cookies; nothing is sold or shared.</li></ul>
+<ul><li>Your GitHub username and numeric id, the date you first signed in and the date you last did.</li><li>The kits you saved and the group names you typed (up to 300 items; up to 40 can be added an hour).</li><li>Your submissions: the repository link, what GitHub says about it, the checks and the maintainers' decision.</li><li>If you press <em>This helped me</em> or write a note: the vote, and the note with your GitHub username. A note is public once a maintainer has shown it; you can delete yours at any time. Only totals are shown for votes and saves.</li><li>One sign-in cookie that lasts a few hours. No advertising or analytics cookies; nothing is sold or shared.</li></ul>
 <h2 class="sub">Questions</h2>
 <p>Open an issue in the <a href="${esc(REPO)}/issues" rel="noopener noreferrer">repository</a>.</p></div>`;
   return page({ title: "Privacy — Praxikit", depth: 1, body, canonical: `${HOME_URL}privacy/`, description: "What Praxikit keeps about you: nothing on the website; a GitHub username and your collection if you sign in." });

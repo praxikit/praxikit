@@ -186,3 +186,20 @@ Setup, **once**, after pulling:
 npx wrangler d1 execute praxikit-admin --remote --file=migrations/0006_accounts.sql
 npx wrangler deploy
 ```
+
+### "This helped me" and short notes
+
+Signed-in people can press **This helped me** on a kit or listing page (one vote per person per kit; press again to take it back) and write one short note about how it helped (10 to 240 characters, plain text, **no links**, one per person per kit; writing again replaces it). Anyone can read the counts and the approved notes.
+
+- **A person's first note waits** for a maintainer (`/admin/notes`: Show, Hide, Delete). After one note is shown, that person's later notes appear at once. A maintainer's own notes appear at once.
+- **Reports:** any signed-in person can report someone else's note; two different people hide it until a maintainer decides. Showing a note again clears its reports.
+- **Limits:** 60 votes an hour, 5 notes a day per person.
+- **Totals on cards:** "N people found it useful" from one vote up; "saved by N" only from three people, from the existing collections (a number, never names).
+- **Privacy:** the vote and the note with the GitHub username; deleting an account removes them; the data download includes them. Only totals are shown for votes and saves.
+- Endpoints: `GET /api/counts` (public, cached a minute), `GET /api/item?item=`, `POST /api/vote`, `/api/note`, `/api/note/delete`, `/api/note/report`; admin: `/admin/notes`, `/admin/notes/decide`.
+
+Setup, **once**, after pulling (the site deploys itself; until this runs, the section says it could not be loaded):
+
+```bash
+npx wrangler d1 execute praxikit-admin --remote --file=migrations/0007_community.sql
+```
