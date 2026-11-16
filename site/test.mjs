@@ -154,6 +154,13 @@ must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('cl
   void keep;
 }
 
+// security.txt: where to report a vulnerability
+{
+  const st = readFileSync(join(out, ".well-known", "security.txt"), "utf8");
+  const exp = /^Expires: (\S+)$/m.exec(st);
+  must(/^Contact: https:\/\/github\.com\/praxikit\/praxikit\/security\/advisories\/new$/m.test(st) && exp && Date.parse(exp[1]) > Date.now() + 300 * 86400_000 && /^Canonical: https:\/\/praxikit\.com\/\.well-known\/security\.txt$/m.test(st), "security.txt names a private way to report, expires in about a year and says where it lives");
+}
+
 // share card, structured data and the about page
 {
   const home = readFileSync(join(out, "index.html"), "utf8"), evil = readFileSync(join(out, "k", "evil", "index.html"), "utf8");

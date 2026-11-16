@@ -1,0 +1,36 @@
+name: zap-baseline
+# A passive security scan of the live site with OWASP ZAP: it only looks at pages and headers, it does not attack or log in.
+# Runs weekly and on demand. The report is a downloadable artifact on the run and a summary on the run page; it never fails the build.
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  zap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Scan the live site
+        run: |
+          mkdir -p zap
+          chmod 777 zap
+          docker run --rm -v "$PWD/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://praxikit.com -r report.html -J report.json -I
+      - name: Summarise
+        run: |
+          cat > summarise.js <<'JS'
+          const fs = require("fs");
+          const r = JSON.parse(fs.readFileSync("zap/report.json", "utf8"));
+          const alerts = (r.site || []).flatMap((s) => s.alerts || []);
+          const lines = alerts.map((a) => "- [" + a.riskdesc + "] " + a.name + " (" + a.instances.length + (a.instances.length === 1 ? " place" : " places") + ")");
+          const text = lines.join("\n") || "No alerts.";
+          console.log(text);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, "## ZAP baseline\n" + text + "\n");
+          JS
+          node summarise.js
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: zap-report
+          path: zap/report.html
+          retention-days: 14

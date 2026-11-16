@@ -1,0 +1,15 @@
+# Keeps the pinned GitHub Actions and the deploy tool up to date, as pull requests that the checks run on.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+  - package-ecosystem: npm
+    directory: /api
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps"

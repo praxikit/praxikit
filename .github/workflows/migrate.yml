@@ -1,7 +1,7 @@
 name: migrate
 # Applies one database migration to the live database (Cloudflare D1), using the repository secrets that the deploy workflow uses.
 # Only migrations that are safe to run more than once are offered (every statement is IF NOT EXISTS). Run it from the Actions tab,
-# or:  gh workflow run migrate.yml -f file=0007_community.sql
+# or:  gh workflow run migrate.yml -f file=0010_events.sql
 on:
   workflow_dispatch:
     inputs:
@@ -14,6 +14,7 @@ on:
           - 0007_community.sql
           - 0008_profiles.sql
           - 0009_requests.sql
+          - 0010_events.sql
 permissions:
   contents: read
 concurrency:
@@ -23,24 +24,31 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      MIGRATION: ${{ inputs.file }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Install the pinned deploy tool
+        working-directory: api
+        run: npm ci --no-audit --no-fund
       - name: Apply
         working-directory: api
+        env:
+          MIGRATION: ${{ inputs.file }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           case "$MIGRATION" in
-            0006_accounts.sql|0007_community.sql|0008_profiles.sql|0009_requests.sql) ;;
+            0006_accounts.sql|0007_community.sql|0008_profiles.sql|0009_requests.sql|0010_events.sql) ;;
             *) echo "::error::That migration is not offered here."; exit 1 ;;
           esac
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "::error::Set the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID first."
             exit 1
           fi
-          npx --yes wrangler@4.162.0 d1 execute praxikit-admin --remote --file="migrations/$MIGRATION"
+          npx wrangler d1 execute praxikit-admin --remote --file="migrations/$MIGRATION"

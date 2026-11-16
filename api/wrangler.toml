@@ -38,3 +38,11 @@ REPO = "praxikit/praxikit"
 binding = "DB"
 database_name = "praxikit-admin"
 database_id = "f6deecda-fef5-4370-913c-6973b4db84bd"
+
+# Per-visitor limit on public reads and sign-in starts: 120 a minute from one address. (Signed-in actions have their own per-person limits.)
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+  [ratelimits.simple]
+  limit = 120
+  period = 60

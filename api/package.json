@@ -1,0 +1,8 @@
+{
+  "name": "praxikit-app",
+  "private": true,
+  "description": "The Praxikit Worker. It has no runtime dependencies; wrangler is the deploy tool, pinned here so that builds are repeatable.",
+  "devDependencies": {
+    "wrangler": "4.162.0"
+  }
+}

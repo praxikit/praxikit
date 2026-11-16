@@ -28,7 +28,8 @@ const SECRET = "s".repeat(40);
 const TOKEN = "ghp_readonlytoken_must_never_leak";
 const baseEnv = () => ({ BASE_URL: "https://admin.example.dev", ORG: "praxikit", TEAM: "maintainers", REPO: "praxikit/praxikit", GITHUB_CLIENT_ID: "cid", GITHUB_CLIENT_SECRET: "csecret", SESSION_SECRET: SECRET, GITHUB_TOKEN: TOKEN });
 const D1 = makeD1();
-const env = { ...baseEnv(), DB: D1 };
+const env = { ...baseEnv(), DB: D1, NTFY_TOPIC: "topic-for-tests-0123456789" };
+const pushes = [];
 
 // ---- a fake GitHub
 const SHA = "a".repeat(40);
@@ -66,6 +67,7 @@ const LISTINGS = JSON.stringify([{ name: "Listed", url: "https://github.com/List
 let downMode = "";
 globalThis.fetch = async (input, init = {}) => {
   const u = new URL(typeof input === "string" ? input : input.url);
+  if (u.hostname === "ntfy.sh") { pushes.push({ title: init.headers?.Title, body: String(init.body ?? ""), click: init.headers?.Click }); return new Response("ok"); }
   const auth = init.headers?.Authorization ?? "";
   calls.push({ url: u.href, auth });
   if (u.href === "https://github.com/login/oauth/access_token") { const b = JSON.parse(init.body); return CODES[b.code] ? json({ access_token: CODES[b.code] }) : json({ error: "bad" }); }
@@ -192,6 +194,7 @@ must(formPage.includes('name="url"') && formPage.includes('maxlength="200"') && 
 calls.length = 0;
 let r = await submit(carol.session, "https://github.com/alice/good", "Used it daily, it saves me an hour a week.");
 must(r.status === 303 && r.headers.get("Location") === "/profile?ok=1", `a good submission is accepted, got ${r.status}`);
+must(pushes.length === 1 && pushes[0].title === "New kit submission" && pushes[0].body.includes("alice/good") && pushes[0].body.includes("@carol") && /\/admin\/submissions\/\d+$/.test(pushes[0].click) && !pushes[0].body.includes("saves me an hour"), "a submission from a member sends one push naming the repository and the person, never their note");
 let row = rows()[0];
 must(row.source === "recommended" && row.owner === "alice" && row.submitted_by === "carol" && row.license === "MIT" && row.kind_guess === "plugin" && row.commit_sha === SHA, "someone else's repository is a recommendation, with owner, licence, kind and commit read from GitHub");
 must(row.readme_url === `https://github.com/alice/good/blob/${SHA}/README.md` && row.readme_excerpt.startsWith("A small tool that does things") && !/[<>@]/.test(row.readme_excerpt), "the README link is built by us and the excerpt is plain text");

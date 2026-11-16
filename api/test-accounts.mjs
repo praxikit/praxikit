@@ -171,11 +171,12 @@ must((await call("/collection/remove", { method: "POST", cookies: carol.session,
 const bulk = await signIn("u-dave", "");
 for (let i = 0; i < 60; i++) await save(bulk.session, `https://github.com/bulk/repo${i}`);
 const daveCount = rows("SELECT COUNT(*) AS n FROM collection WHERE user_id = 4")[0].n;
-must(daveCount === 40, `at most 40 additions in an hour: ${daveCount}`);
+const addEvents = rows("SELECT COUNT(*) AS n FROM events WHERE user_id = 4 AND kind = 'save'")[0].n;
+must(addEvents === 40 && daveCount <= 40, `at most 40 additions in an hour, counting ones that were added and taken back: ${addEvents} (${daveCount} saved now)`);
 must(loc(await save(bulk.session, "https://github.com/bulk/repo59")).endsWith("m=slow"), "the hourly limit is reported plainly");
 must(loc(await save(bulk.session, "k/keel/", "renamed")).endsWith("m=saved"), "changing a group on something already saved is not an addition");
 raw.prepare("UPDATE collection SET added_at = '2020-01-01T00:00:00.000Z' WHERE user_id = 4").run();
-for (let i = 0; i < 260; i++) raw.prepare("INSERT OR IGNORE INTO collection (user_id, item, label, added_at) VALUES (4, ?, '', '2020-01-01T00:00:00.000Z')").run(`https://github.com/filler/r${i}`);
+for (let i = 0; i < 280; i++) raw.prepare("INSERT OR IGNORE INTO collection (user_id, item, label, added_at) VALUES (4, ?, '', '2020-01-01T00:00:00.000Z')").run(`https://github.com/filler/r${i}`);
 must(rows("SELECT COUNT(*) AS n FROM collection WHERE user_id = 4")[0].n >= 300, "(test setup) the collection is at the cap");
 must(loc(await save(bulk.session, "https://github.com/bulk/repo50")).endsWith("m=limit"), "the total cap holds");
 

@@ -63,6 +63,8 @@ for (const p of ["/kits/", "/k/keel/", "/tags/", "/search/", "/submit/", "/priva
   must(x.status === 200 && (await x.text()).includes("<header"), `${p} is the site's page`);
   must(!/<script(?![^>]*(?:\ssrc=|ld\+json))[^>]*>/i.test(await (await call(p)).text()), `${p} has no inline script`);
 }
+must((await (await call("/.well-known/security.txt")).text()).includes("Contact: https://github.com/praxikit/praxikit/security/advisories/new"), "security.txt is served from the standard address");
+must(r.headers.get("Cross-Origin-Opener-Policy") === "same-origin", "site pages carry the same opener policy as the app");
 for (const p of ["/site.js", "/boot.js", "/style.css", "/search-index.json", "/versions.json", "/feed.xml", "/sitemap.xml", "/robots.txt", "/logo.svg"]) must((await call(p)).status === 200, `${p} is served`);
 must((await (await call("/robots.txt")).text()).includes("Disallow: /admin") && (await (await call("/sitemap.xml")).text()).includes("https://praxikit.com/kits/"), "robots and the sitemap use the real address");
 must(!(await (await call("/sitemap.xml")).text()).includes("/admin") && !(await (await call("/sitemap.xml")).text()).includes("app-shell"), "the sitemap lists no account or admin pages");

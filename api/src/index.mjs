@@ -19,6 +19,7 @@ import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, fetchListings, prech
 import { storeFor } from "./lib/store.mjs";
 import { parseTags } from "./lib/tags.mjs";
 import { dispatchApprove, dispatchEdit, dispatchRemove, dispatchScan, syncPublishing, syncScans, publishingConfigured } from "./lib/publish.mjs";
+import { notifyOwner, rememberContext } from "./lib/notify.mjs";
 import { COMMUNITY, cleanNote, notesAdminPage } from "./lib/community.mjs";
 import { REQUESTS, cleanRequest, FLASH_REQUESTS, requestsPage, requestsAdminPage } from "./lib/requests.mjs";
 import { boardFor, contributionsFor, contributorsPage, contributorProfilePage } from "./lib/contributors.mjs";
@@ -54,6 +55,7 @@ const SITE_HEADERS = {
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
   "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
+  "Cross-Origin-Opener-Policy": "same-origin",
 };
 // What the app answers itself. Everything else is a page of the site.
 const APP_EXACT = new Set(["/healthz", "/submit", "/requests", "/contributors", "/api/collection", "/collection", "/profile", "/settings", "/admin", "/api/me"]);
@@ -104,7 +106,12 @@ function configProblem(env) {
 async function sessionOf(request, env) {
   const raw = parseCookies(request.headers.get("Cookie"))[SESSION_COOKIE];
   const s = raw ? await verifyToken(raw, env.SESSION_SECRET) : null;
-  return s && typeof s.sub === "string" && Number.isInteger(s.id) && (s.role === "admin" || s.role === "user") ? s : null;
+  if (!(s && typeof s.sub === "string" && Number.isInteger(s.id) && (s.role === "admin" || s.role === "user"))) return null;
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    const st = storeFor(env);
+    if (st) { try { if (await st.recentlyDeleted(s.id, new Date().toISOString())) return null; } catch { /* the check is an extra; the signed session still stands */ } }
+  }
+  return s;
 }
 
 /** State-changing requests must come from this app's own origin. */
@@ -178,6 +185,8 @@ async function submit(request, env, session) {
     if (String(e?.message) === "duplicate") return fail("That repository is already waiting for review.", 409);
     throw e;
   }
+  await store.record(session.id, "submission", new Date().toISOString());
+  if (session.role !== "admin") await notifyOwner(env, { title: "New kit submission", message: `${repo.key} from @${session.sub} is waiting for review.`, path: `/admin/submissions/${newId}` });
   // a maintainer's own submission is published directly, after the same scan. It is held for review if it cannot be.
   if (session.role === "admin") {
     const text = oneLine(source === "recommended" && values.why ? values.why : info.excerpt || `${info.name} by ${info.owner}`, 400);
@@ -250,11 +259,12 @@ async function accountRoutes(request, env, url, path, method) {
     const key = cleanItem(f.get("item"));
     if (!key) return J({ error: "bad", message: FLASH_ACCOUNT.bad }, 400);
     if (await store.hasItem(s.id, key)) { await store.removeItem(s.id, key); return J({ saved: false }); }
-    let catalogue; try { catalogue = await fetchCatalogue(env); } catch { return J({ error: "down", message: FLASH_ACCOUNT.down }, 503); }
-    if (!catalogue.has(key)) return J({ error: "gone", message: FLASH_ACCOUNT.gone }, 404);
     if ((await store.collectionCount(s.id)) >= LIMITS.total) return J({ error: "limit", message: FLASH_ACCOUNT.limit }, 409);
     if ((await store.collectionSince(s.id, new Date(Date.now() - 3600_000).toISOString())) >= LIMITS.perHour) return J({ error: "slow", message: FLASH_ACCOUNT.slow }, 429);
+    let catalogue; try { catalogue = await fetchCatalogue(env); } catch { return J({ error: "down", message: FLASH_ACCOUNT.down }, 503); }
+    if (!catalogue.has(key)) return J({ error: "gone", message: FLASH_ACCOUNT.gone }, 404);
     await store.touchUser(s.id, s.sub, new Date().toISOString());
+    await store.record(s.id, "save", new Date().toISOString());
     await store.saveItem(s.id, key, "", new Date().toISOString());
     return J({ saved: true });
   }
@@ -291,12 +301,14 @@ async function accountRoutes(request, env, url, path, method) {
     let f; try { f = await request.formData(); } catch { return back("/collection", "bad"); }
     const key = cleanItem(f.get("item")), label = cleanLabel(f.get("label"));
     if (!key || String(f.get("label") ?? "").length > 200) return back("/collection", "bad");
-    let catalogue; try { catalogue = await fetchCatalogue(env); } catch { return back("/collection", "down"); }
-    if (!catalogue.has(key)) return back("/collection", "gone");
-    if (!(await g.store.hasItem(g.s.id, key))) {
+    const isNew = !(await g.store.hasItem(g.s.id, key));
+    if (isNew) {
       if ((await g.store.collectionCount(g.s.id)) >= LIMITS.total) return back("/collection", "limit");
       if ((await g.store.collectionSince(g.s.id, new Date(Date.now() - 3600_000).toISOString())) >= LIMITS.perHour) return back("/collection", "slow");
     }
+    let catalogue; try { catalogue = await fetchCatalogue(env); } catch { return back("/collection", "down"); }
+    if (!catalogue.has(key)) return back("/collection", "gone");
+    if (isNew) await g.store.record(g.s.id, "save", new Date().toISOString());
     await g.store.touchUser(g.s.id, g.s.sub, new Date().toISOString());
     await g.store.saveItem(g.s.id, key, label, new Date().toISOString());
     return back("/collection", "saved");
@@ -332,6 +344,17 @@ async function accountRoutes(request, env, url, path, method) {
   return send(messagePage("Not found", "There is no such page.", false), { status: 404 });
 }
 
+/** Answers from the edge cache when it can, so a busy home page does not read the database on every visit. Works only where the Cache API exists. */
+async function edgeCached(request, seconds, produce, keySuffix = "") {
+  const cache = typeof caches !== "undefined" ? caches.default : null;
+  const u = new URL(request.url);
+  const key = new Request(u.origin + u.pathname + (keySuffix ? "?item=" + encodeURIComponent(keySuffix) : ""), { method: "GET" }); // ignores the query and the cookies: these answers are the same for everyone
+  if (cache) { try { const hit = await cache.match(key); if (hit) return hit; } catch { /* fall through to a fresh answer */ } }
+  const res = await produce();
+  if (cache && res.status === 200) { try { const copy = new Response(res.clone().body, res); copy.headers.set("Cache-Control", `public, max-age=${seconds}`); await cache.put(key, copy); } catch { /* the answer is still returned */ } }
+  return res;
+}
+
 const jsonRes = (o, status = 200, cache = "no-store") => send(JSON.stringify(o), { status, type: "application/json", cache });
 
 /**
@@ -344,29 +367,36 @@ async function communityRoutes(request, env, url, path, method) {
   if (!store) return jsonRes({ error: "closed", message: "This is not open yet." }, 503);
 
   if (path === "/api/counts" && method === "GET") {
-    const votes = {}, saves = {};
-    for (const r of await store.voteCounts()) votes[r.item] = Number(r.n);
-    for (const r of await store.saveCounts()) if (Number(r.n) >= COMMUNITY.savesShownFrom) saves[r.item] = Number(r.n);
-    return jsonRes({ votes, saves }, 200, "public, max-age=60");
+    return edgeCached(request, 60, async () => {
+      const votes = {}, saves = {};
+      for (const r of await store.voteCounts()) votes[r.item] = Number(r.n);
+      for (const r of await store.saveCounts()) if (Number(r.n) >= COMMUNITY.savesShownFrom) saves[r.item] = Number(r.n);
+      return jsonRes({ votes, saves }, 200, "public, max-age=60");
+    });
   }
 
   if (path === "/api/community" && method === "GET") {
     // the home page's strip: the top three contributors and the three most wanted requests (names only for people who have not hidden theirs)
-    let contributors = [];
-    try { contributors = (await boardFor(store, await fetchCatalogue(env))).slice(0, 3).map((r) => ({ login: r.login, id: r.id, count: r.count })); } catch { /* an empty list is shown */ }
-    const requests = (await store.requestsPublic()).filter((r) => r.status === "open").slice(0, 3).map((r) => ({ id: r.id, title: r.title, needs: Number(r.needs) }));
-    return jsonRes({ contributors, requests }, 200, "public, max-age=60");
+    return edgeCached(request, 60, async () => {
+      let contributors = [];
+      try { contributors = (await boardFor(store, await fetchCatalogue(env))).slice(0, 3).map((r) => ({ login: r.login, id: r.id, count: r.count })); } catch { /* an empty list is shown */ }
+      const requests = (await store.requestsPublic()).filter((r) => r.status === "open").slice(0, 3).map((r) => ({ id: r.id, title: r.title, needs: Number(r.needs) }));
+      return jsonRes({ contributors, requests }, 200, "public, max-age=60");
+    });
   }
 
-  if (path === "/api/item" && method === "GET") {
-    const item = cleanItem(url.searchParams.get("item"));
-    if (!item) return jsonRes({ error: "bad", message: "That is not a kit." }, 400);
-    const s = await sessionOf(request, env);
+  const itemAnswer = async (item, s) => {
     const saves = await store.saveCountFor(item);
     const notes = (await store.approvedNotes(item, COMMUNITY.listMax)).map((n) => ({ id: n.id, login: n.login, text: n.text, at: String(n.created_at).slice(0, 10), mine: !!s && n.user_id === s.id }));
     const mine = s ? await store.myNote(s.id, item) : null;
     const by = item.startsWith("https://") ? await store.creditFor(item) : null;
     return jsonRes({ credit: by ? { login: by.login } : null, signedIn: !!s, votes: await store.voteCountFor(item), voted: s ? await store.hasVote(s.id, item) : false, saves: saves >= COMMUNITY.savesShownFrom ? saves : 0, notes, mine: mine ? { text: mine.text, status: mine.status } : null });
+  };
+  if (path === "/api/item" && method === "GET") {
+    const item = cleanItem(url.searchParams.get("item"));
+    if (!item) return jsonRes({ error: "bad", message: "That is not a kit." }, 400);
+    if (!parseCookies(request.headers.get("Cookie"))[SESSION_COOKIE]) return edgeCached(request, 30, () => itemAnswer(item, null), item);
+    return itemAnswer(item, await sessionOf(request, env));
   }
 
   if (method !== "POST") return jsonRes({ error: "method" }, 405);
@@ -379,7 +409,10 @@ async function communityRoutes(request, env, url, path, method) {
   if (path === "/api/note/report") {
     const id = Number(f.get("id"));
     if (!Number.isInteger(id) || id < 1) return jsonRes({ error: "bad", message: "That did not look right." }, 400);
+    if ((await store.eventsSince(s.id, "report", new Date(now - 86400_000).toISOString())) >= 20) return jsonRes({ error: "slow", message: "That is a lot of reports for one day." }, 429);
+    await store.record(s.id, "report", now.toISOString());
     const state = await store.reportNote(id, s.id, now.toISOString());
+    if (state === "hidden-now") await notifyOwner(env, { title: "A note was hidden", message: "Two people reported a note, so it is hidden until you decide.", path: "/admin/notes" });
     return state ? jsonRes({ reported: true }) : jsonRes({ error: "gone", message: "That note is gone." }, 404);
   }
 
@@ -388,12 +421,14 @@ async function communityRoutes(request, env, url, path, method) {
 
   if (path === "/api/note/delete") return jsonRes({ deleted: await store.deleteOwnNote(s.id, item) });
 
-  let catalogue; try { catalogue = await fetchCatalogue(env); } catch { return jsonRes({ error: "down", message: FLASH_ACCOUNT.down }, 503); }
-  if (!catalogue.has(item)) return jsonRes({ error: "gone", message: FLASH_ACCOUNT.gone }, 404);
+  const inCatalogue = async () => { try { return (await fetchCatalogue(env)).has(item) ? "yes" : "gone"; } catch { return "down"; } };
+  const refused = (where) => (where === "down" ? jsonRes({ error: "down", message: FLASH_ACCOUNT.down }, 503) : jsonRes({ error: "gone", message: FLASH_ACCOUNT.gone }, 404));
 
   if (path === "/api/vote") {
     if (await store.hasVote(s.id, item)) { await store.removeVote(s.id, item); return jsonRes({ voted: false, votes: await store.voteCountFor(item) }); }
     if ((await store.votesSince(s.id, new Date(now - 3600_000).toISOString())) >= COMMUNITY.votesPerHour) return jsonRes({ error: "slow", message: "That is a lot of votes in an hour. Try again later." }, 429);
+    const where = await inCatalogue(); if (where !== "yes") return refused(where);
+    await store.record(s.id, "vote", now.toISOString());
     await store.touchUser(s.id, s.sub, now.toISOString());
     await store.addVote(s.id, item, now.toISOString());
     return jsonRes({ voted: true, votes: await store.voteCountFor(item) });
@@ -403,9 +438,13 @@ async function communityRoutes(request, env, url, path, method) {
     const c = cleanNote(f.get("text"));
     if (!c.ok) return jsonRes({ error: "bad", message: c.error }, 400);
     if ((await store.notesSince(s.id, new Date(now - 86400_000).toISOString())) >= COMMUNITY.notesPerDay) return jsonRes({ error: "slow", message: "That is a lot of notes for one day. Try again tomorrow." }, 429);
-    const status = s.role === "admin" || (await store.hasApprovedNote(s.id)) ? "approved" : "pending";
+    const where = await inCatalogue(); if (where !== "yes") return refused(where);
+    const trusted = s.role === "admin" || ((await store.hasApprovedNote(s.id)) && !(await store.hasRecentStrike(s.id, now.toISOString())));
+    const status = trusted ? "approved" : "pending";
+    await store.record(s.id, "note", now.toISOString());
     await store.touchUser(s.id, s.sub, now.toISOString());
     await store.saveNote(s.id, s.sub, item, c.text, status, now.toISOString());
+    if (status === "pending") await notifyOwner(env, { title: "A note is waiting", message: `A first note from @${s.sub} is waiting for review.`, path: "/admin/notes" });
     return jsonRes({ saved: true, status });
   }
   return jsonRes({ error: "not found" }, 404);
@@ -468,9 +507,11 @@ async function requestRoutes(request, env, url, path, method) {
     const c = cleanRequest(f.get("title"), f.get("body"));
     if (!c.ok) return render({ error: c.error, values }, 400);
     if ((await store.requestsSince(s.id, new Date(now - 86400_000).toISOString())) >= REQUESTS.perDay) return render({ error: FLASH_REQUESTS.slow, values }, 429);
-    const status = s.role === "admin" || (await store.hasShownRequest(s.id)) ? "open" : "pending";
+    const status = s.role === "admin" || ((await store.hasShownRequest(s.id)) && !(await store.hasRecentStrike(s.id, now.toISOString()))) ? "open" : "pending";
+    await store.record(s.id, "request", now.toISOString());
     await store.touchUser(s.id, s.sub, now.toISOString());
     await store.addRequest(s.id, s.sub, c.title, c.body, status, now.toISOString());
+    if (status === "pending") await notifyOwner(env, { title: "A request is waiting", message: `A first request from @${s.sub} is waiting for review.`, path: "/admin/requests" });
     return back("/requests", status === "open" ? "posted" : "waiting");
   }
   const id = Number(f.get("id"));
@@ -478,6 +519,7 @@ async function requestRoutes(request, env, url, path, method) {
   if (path === "/requests/need") {
     if ((await store.needsSince(s.id, new Date(now - 3600_000).toISOString())) >= REQUESTS.needsPerHour) return back("/requests", "slow");
     const r = await store.toggleNeed(s.id, id, now.toISOString());
+    if (r && r.needed) await store.record(s.id, "need", now.toISOString());
     return back("/requests", r ? (r.needed ? "needed" : "unneeded") : "gone");
   }
   if (path === "/requests/delete") return back("/requests", (await store.deleteOwnRequest(s.id, id)) ? "deleted" : "gone");
@@ -572,13 +614,19 @@ async function retryRoute(request, env, s, id) {
   return back(base, state === "dispatched" ? "retried" : "failed");
 }
 
+/** True if this visitor is over the rate limit for public reads. Needs the LIMITER binding; without it nothing is limited here (Cloudflare's own rules still apply). */
+async function overLimit(env, request) {
+  if (!env.LIMITER || typeof env.LIMITER.limit !== "function") return false;
+  try { const { success } = await env.LIMITER.limit({ key: request.headers.get("CF-Connecting-IP") ?? "unknown" }); return !success; } catch { return false; }
+}
+
 async function route(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
   const method = request.method;
 
   // www goes to the main address, so cookies and links never split between two names
-  if (url.hostname.startsWith("www.") && env.BASE_URL) return send("", { status: 301, location: new URL(url.pathname + url.search, env.BASE_URL).href });
+  if (url.hostname.startsWith("www.") && env.BASE_URL) return send("", { status: 301, location: String(env.BASE_URL).replace(/\/+$/, "") + "/" + url.pathname.replace(/^\/+/, "") + url.search });
   // two pages that no longer exist: old links still land somewhere useful
   if (path === "/picks" || path === "/picks/") return send("", { status: 301, location: "/kits/?show=pick" });
   if (path === "/updates" || path === "/updates/") { const kit = url.searchParams.get("kit") ?? ""; return send("", { status: 301, location: /^[a-z0-9-]{1,40}$/.test(kit) ? `/k/${kit}/` : "/kits/" }); }
@@ -588,6 +636,8 @@ async function route(request, env) {
   if (path === "/healthz") return send("ok", { type: "text/plain; charset=utf-8" });
   if (path === "/assets/app.css") return send(CSS, { type: "text/css; charset=utf-8", cache: "public, max-age=3600" });
 
+  if ((path.startsWith("/api/") || path === "/auth/login") && (await overLimit(env, request))) return send(JSON.stringify({ error: "slow", message: "Too many requests. Try again in a minute." }), { status: 429, type: "application/json" });
+  if (method === "POST" && Number(request.headers.get("Content-Length") ?? 0) > 20_000) return send(messagePage("Too large", "That request is too large.", false), { status: 413 });
   const problem = configProblem(env);
   if (problem) return send(messagePage("Not configured", "This admin app is missing configuration. The owner needs to finish the setup.", false), { status: 503 });
 
@@ -706,7 +756,8 @@ async function route(request, env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
+    rememberContext(ctx);
     try { return await route(request, env); }
     catch { return send(messagePage("Something went wrong", "The request could not be handled. Nothing was changed.", false), { status: 500 }); } // never echo the error
   },

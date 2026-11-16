@@ -236,3 +236,16 @@ gh workflow run migrate.yml -f file=0008_profiles.sql
 
 Setup, **once** (from Actions, or `gh workflow run migrate.yml -f file=0009_requests.sql`):
 `0009_requests.sql`. The 0008 profiles table stays: it now only records people who chose to hide.
+
+### Alerts to the owner
+
+When something waits for review (a first submission, note or request from a person, or a note hidden by two reports) the app sends a short push to your phone through ntfy.sh. The message names the kind of thing and the GitHub username, never the text. Set it up once:
+
+1. Install the ntfy app on your phone and subscribe to a topic with a long random name.
+2. `gh secret set NTFY_TOPIC` (paste the topic at the hidden prompt), then `gh workflow run sync-secret.yml -f name=NTFY_TOPIC`.
+
+Without the secret, nothing is sent and nothing else changes.
+
+### Hardening notes (2026-11-17)
+
+`api/migrations/0010_events.sql` adds an event log (limits and strikes), indexes for the public reads, and a unique case-insensitive login. Run it once: `gh workflow run migrate.yml -f file=0010_events.sql`. The Worker also uses an optional `LIMITER` rate-limit binding (120 reads a minute per visitor) declared in `wrangler.toml`. See `docs/security.md`.

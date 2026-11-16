@@ -206,3 +206,9 @@
 
 ## 2026-11-17 — Leaderboard card and the home strip
 - Contributors page is a leaderboard card: podium (2nd, 1st with a crown, 3rd), then everyone in a ranked list with a score box. Home page shows the top three contributors and the three most wanted requests, from a small public endpoint `/api/community` (cached a minute; hidden names excluded).
+
+## 2026-11-17 — Security pass
+- An independent read of the whole app found no critical issue and these real ones, all fixed and each covered by `api/test-hardening.mjs`: open redirect on the www address, hidden names on notes and requests, limits reset by deleting things (now an event log), moderation sidestep (strikes), sign-ins surviving account deletion, shared logins after a rename, non-atomic delete, unindexed public reads (now indexed, cached at the edge, per-visitor limiter).
+- Workflows: every Action pinned to a commit, the Cloudflare token only in the step that deploys, wrangler locked with a lockfile, Dependabot, a weekly passive ZAP scan, `security.txt`, a `sync-secret` workflow.
+- New: push alerts to the owner via ntfy for things waiting for review (`NTFY_TOPIC`). See `docs/security.md`.
+- Needs the owner: migration 0010, and the ntfy topic (steps in api/README.md).
