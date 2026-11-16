@@ -58,7 +58,7 @@ must(csp.includes("script-src 'self' https://static.cloudflareinsights.com;") &&
 must(csp.includes("script-src 'self'") && csp.includes("frame-ancestors 'none'") && !csp.includes("unsafe-inline") && !csp.includes("unsafe-eval") && r.headers.get("X-Content-Type-Options") === "nosniff" && (r.headers.get("Strict-Transport-Security") ?? "").includes("max-age"), `static pages carry strict headers: ${csp}`);
 must(!/<script(?![^>]*(?:\ssrc=|ld\+json))[^>]*>/i.test(html), "no inline script is left on any page");
 must(html.includes('defer data-site>'), "the site script is deferred so it never blocks the first paint");
-for (const p of ["/kits/", "/k/keel/", "/tags/", "/search/", "/submit/", "/privacy/", "/policy/", "/updates/", "/picks/"]) {
+for (const p of ["/kits/", "/k/keel/", "/tags/", "/search/", "/submit/", "/privacy/", "/policy/", "/about/"]) {
   const x = await call(p);
   must(x.status === 200 && (await x.text()).includes("<header"), `${p} is the site's page`);
   must(!/<script(?![^>]*(?:\ssrc=|ld\+json))[^>]*>/i.test(await (await call(p)).text()), `${p} has no inline script`);
@@ -97,16 +97,24 @@ must(!existsSync(join(out, "recommended")) && !existsSync(join(out, ".nojekyll")
 r = await call("/auth/logout", { method: "POST", cookies: carol, origin: "https://praxikit.com" });
 must(r.status === 302 && r.headers.get("Location") === "/", "signing out returns to the home page");
 
+// ---- the removed pages send people somewhere useful
+{
+  let r0 = await call("/picks/"); must(r0.status === 301 && r0.headers.get("Location") === "/kits/?show=pick", "the old Picks address opens the kits list filtered to picks");
+  r0 = await call("/updates/?kit=keel&v=0.6.1"); must(r0.status === 301 && r0.headers.get("Location") === "/k/keel/", "an old update-check link opens that kit's page");
+  r0 = await call("/updates/?kit=" + encodeURIComponent("../evil")); must(r0.status === 301 && r0.headers.get("Location") === "/kits/", "a hostile kit name goes to the kits list");
+  r0 = await call("/updates"); must(r0.status === 301 && r0.headers.get("Location") === "/kits/", "no kit named: the kits list");
+}
+
 // ---- regression: every address the app answers must reach the app, not the static files (a form once posted to an address the
 // router did not know and got the file server's 405). The app's answers carry Referrer-Policy: same-origin; the site's files do not.
 {
   const ME = { cookies: carol, origin: "https://praxikit.com" };
   const APP_ROUTES = [
     ["GET", "/submit"], ["GET", "/profile"], ["GET", "/settings"], ["GET", "/collection"], ["GET", "/collection/save?item=k%2Fpitch-panel%2F"], ["GET", "/account/export"], ["GET", "/admin"], ["GET", "/admin/listings"], ["GET", "/admin/notes"],
-    ["GET", "/contributors"], ["GET", "/u/nobody"], ["GET", "/api/me"], ["GET", "/api/collection"], ["GET", "/api/counts"], ["GET", "/api/item?item=k%2Fpitch-panel%2F"], ["GET", "/auth/login?mode=user"], ["GET", "/assets/app.css"], ["GET", "/healthz"],
+    ["GET", "/contributors"], ["GET", "/requests"], ["GET", "/admin/requests"], ["GET", "/u/nobody"], ["GET", "/api/me"], ["GET", "/api/collection"], ["GET", "/api/counts"], ["GET", "/api/item?item=k%2Fpitch-panel%2F"], ["GET", "/auth/login?mode=user"], ["GET", "/assets/app.css"], ["GET", "/healthz"],
     ["POST", "/settings/public", { public: "yes" }], ["POST", "/collection/save", { item: "k/pitch-panel/" }], ["POST", "/collection/remove", { item: "k/pitch-panel/" }], ["POST", "/collection/toggle", { item: "k/pitch-panel/" }], ["POST", "/account/delete", { confirm: "not-me" }],
     ["POST", "/api/vote", { item: "k/pitch-panel/" }], ["POST", "/api/note", { item: "k/pitch-panel/", text: "short" }], ["POST", "/api/note/delete", { item: "k/pitch-panel/" }], ["POST", "/api/note/report", { id: "1" }],
-    ["POST", "/admin/listings/edit", {}], ["POST", "/admin/listings/remove", {}], ["POST", "/admin/notes/decide", {}], ["POST", "/admin/submissions/1/approve", {}], ["POST", "/auth/logout", {}],
+    ["POST", "/requests/new", { title: "short" }], ["POST", "/requests/need", { id: "1" }], ["POST", "/requests/delete", { id: "1" }], ["POST", "/admin/requests/decide", {}], ["POST", "/admin/listings/edit", {}], ["POST", "/admin/listings/remove", {}], ["POST", "/admin/notes/decide", {}], ["POST", "/admin/submissions/1/approve", {}], ["POST", "/auth/logout", {}],
     ...(globalThis.EXTRA_APP_ROUTES ?? []),
   ];
   for (const [method, path, form] of APP_ROUTES) {

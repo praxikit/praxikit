@@ -50,8 +50,8 @@ export const FLASH_ACCOUNT = {
   down: "The catalogue could not be read just now. Try again in a minute.",
   confirm: "The name you typed did not match your GitHub username, so nothing was deleted.",
   noteDone: "Done.",
-  publicOn: "You are now credited publicly. Your username shows on the kits you put forward and on the Contributors board.",
-  publicOff: "Public credit is off. Nothing about you is shown publicly.",
+  publicOn: "Your name is shown again on the kits you put forward and on the Contributors board.",
+  publicOff: "Your name is hidden. You are not on the board and not named on any kit.",
   bad: "That did not look right. Check the group name (letters, numbers and spaces, up to 24).",
 };
 

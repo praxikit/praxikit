@@ -20,6 +20,7 @@ import { storeFor } from "./lib/store.mjs";
 import { parseTags } from "./lib/tags.mjs";
 import { dispatchApprove, dispatchEdit, dispatchRemove, dispatchScan, syncPublishing, syncScans, publishingConfigured } from "./lib/publish.mjs";
 import { COMMUNITY, cleanNote, notesAdminPage } from "./lib/community.mjs";
+import { REQUESTS, cleanRequest, FLASH_REQUESTS, requestsPage, requestsAdminPage } from "./lib/requests.mjs";
 import { boardFor, contributionsFor, contributorsPage, contributorProfilePage } from "./lib/contributors.mjs";
 import { cleanItem, cleanLabel, fetchCatalogue, LIMITS, FLASH_ACCOUNT, savePage, collectionPage, profilePage, settingsPage } from "./lib/account.mjs";
 import { CSS, setShell, signInPage, messagePage, listingsPage, adminPage, submitPage, minePage, detailPage, FLASH } from "./lib/html.mjs";
@@ -55,8 +56,8 @@ const SITE_HEADERS = {
   "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
 };
 // What the app answers itself. Everything else is a page of the site.
-const APP_EXACT = new Set(["/healthz", "/submit", "/contributors", "/api/collection", "/collection", "/profile", "/settings", "/admin", "/api/me"]);
-const APP_PREFIX = ["/u/", "/api/", "/auth/", "/admin/", "/collection/", "/settings/", "/account/", "/assets/"];
+const APP_EXACT = new Set(["/healthz", "/submit", "/requests", "/contributors", "/api/collection", "/collection", "/profile", "/settings", "/admin", "/api/me"]);
+const APP_PREFIX = ["/requests/", "/u/", "/api/", "/auth/", "/admin/", "/collection/", "/settings/", "/account/", "/assets/"];
 const isAppPath = (p) => APP_EXACT.has(p) || APP_PREFIX.some((x) => p.startsWith(x));
 
 let shellAt = 0;
@@ -144,8 +145,8 @@ async function submit(request, env, session) {
   if (!sameOrigin(request, env)) return send(messagePage("Refused", "That request did not come from this site."), { status: 403 });
   if (Number(request.headers.get("Content-Length") ?? 0) > 4096) return send(messagePage("Too large", "That submission is too large.", false), { status: 413 });
 
-  let url = "", why = "", credit = false;
-  try { const f = await request.formData(); url = String(f.get("url") ?? "").trim(); why = String(f.get("why") ?? ""); credit = f.get("credit") === "yes"; } catch { return send(submitPage({ session, error: "That form could not be read. Try again." }), { status: 400 }); }
+  let url = "", why = "";
+  try { const f = await request.formData(); url = String(f.get("url") ?? "").trim(); why = String(f.get("why") ?? ""); } catch { return send(submitPage({ session, error: "That form could not be read. Try again." }), { status: 400 }); }
   const values = { url: url.slice(0, 200), why: oneLine(why, 200) };
   const isPublic = await store.isPublic(session.id);
   const fail = (error, status = 400) => send(submitPage({ session, error, values, isPublic }), { status });
@@ -177,7 +178,6 @@ async function submit(request, env, session) {
     if (String(e?.message) === "duplicate") return fail("That repository is already waiting for review.", 409);
     throw e;
   }
-  if (credit) { const at = new Date().toISOString(); await store.touchUser(session.id, session.sub, at); await store.setPublic(session.id, true, at); }
   // a maintainer's own submission is published directly, after the same scan. It is held for review if it cannot be.
   if (session.role === "admin") {
     const text = oneLine(source === "recommended" && values.why ? values.why : info.excerpt || `${info.name} by ${info.owner}`, 400);
@@ -313,6 +313,8 @@ async function accountRoutes(request, env, url, path, method) {
     const user = await g.store.getUser(g.s.id), subs = await g.store.byUser(g.s.id, 200);
     const data = { public_credit: await g.store.isPublic(g.s.id), github_login: g.s.sub, github_id: g.s.id, account_created: user?.created_at ?? null, last_seen: user?.last_seen ?? null,
       collection: (await g.store.collectionOf(g.s.id)).map((r) => ({ item: r.item, group: r.label, saved: r.added_at })),
+      requests: (await g.store.requestsOf(g.s.id)).map((r) => ({ title: r.title, details: r.body, status: r.status, asked: r.created_at })),
+      needed_too: (await g.store.needsOf(g.s.id)).map((r) => ({ request: r.request_id, at: r.created_at })),
       helped_me: (await g.store.votesOf(g.s.id)).map((r) => ({ item: r.item, at: r.created_at })),
       notes: (await g.store.notesOf(g.s.id)).map((r) => ({ item: r.item, text: r.text, status: r.status, written: r.created_at })),
       submissions: subs.map((r) => ({ repository: r.repo_url, status: r.status, submitted: r.created_at, note: r.why })) };
@@ -436,6 +438,70 @@ async function contributorRoutes(request, env, path, method) {
   return send(contributorProfilePage({ session: s, user, c }));
 }
 
+/** Kit requests: read by anyone; asking and "I need this too" need a sign-in from this site. Maintainers show, hide, delete and solve (see requestsAdmin). */
+async function requestRoutes(request, env, url, path, method) {
+  const store = storeFor(env);
+  if (!store) return send(messagePage("Not open yet", "This app has no database connected yet.", false), { status: 503 });
+  const s = await sessionOf(request, env);
+  const render = async (extra = {}, status = 200) => {
+    let catalogue = null; try { catalogue = await fetchCatalogue(env); } catch { /* names of solving kits are left generic */ }
+    const all = await store.requestsPublic();
+    return send(requestsPage({ session: s, open: all.filter((r) => r.status === "open"), solved: all.filter((r) => r.status === "solved"), mine: s ? await store.myRequests(s.id) : [], needed: new Set(s ? await store.neededBy(s.id) : []), catalogue, flash: FLASH_REQUESTS[url.searchParams.get("m")] ?? "", signedIn: !!s, ...extra }), { status });
+  };
+  if (path === "/requests" && method === "GET") return render();
+  if (method !== "POST") return send(messagePage("Not found", "There is nothing here.", false), { status: 404 });
+  if (!s) return send(signInPage("Sign in first.", { return: "/requests" }), { status: 401 });
+  if (!sameOrigin(request, env)) return send(messagePage("Refused", "That request did not come from this site."), { status: 403 });
+  let f; try { f = await request.formData(); } catch { return back("/requests", "bad"); }
+  const now = new Date();
+
+  if (path === "/requests/new") {
+    const values = { title: String(f.get("title") ?? "").slice(0, 300), body: String(f.get("body") ?? "").slice(0, 2000) };
+    const c = cleanRequest(f.get("title"), f.get("body"));
+    if (!c.ok) return render({ error: c.error, values }, 400);
+    if ((await store.requestsSince(s.id, new Date(now - 86400_000).toISOString())) >= REQUESTS.perDay) return render({ error: FLASH_REQUESTS.slow, values }, 429);
+    const status = s.role === "admin" || (await store.hasShownRequest(s.id)) ? "open" : "pending";
+    await store.touchUser(s.id, s.sub, now.toISOString());
+    await store.addRequest(s.id, s.sub, c.title, c.body, status, now.toISOString());
+    return back("/requests", status === "open" ? "posted" : "waiting");
+  }
+  const id = Number(f.get("id"));
+  if (!Number.isInteger(id) || id < 1) return back("/requests", "bad");
+  if (path === "/requests/need") {
+    if ((await store.needsSince(s.id, new Date(now - 3600_000).toISOString())) >= REQUESTS.needsPerHour) return back("/requests", "slow");
+    const r = await store.toggleNeed(s.id, id, now.toISOString());
+    return back("/requests", r ? (r.needed ? "needed" : "unneeded") : "gone");
+  }
+  if (path === "/requests/delete") return back("/requests", (await store.deleteOwnRequest(s.id, id)) ? "deleted" : "gone");
+  return send(messagePage("Not found", "There is nothing here.", false), { status: 404 });
+}
+
+async function requestsAdmin(request, env, url, path, method) {
+  const s = await sessionOf(request, env), store = storeFor(env);
+  if (path === "/admin/requests" && method === "GET") {
+    if (!s) return send(signInPage("", { return: "/admin/requests" }));
+    if (s.role !== "admin") return send(messagePage("No access", "Only maintainers can review requests.", false), { status: 403 });
+    if (!store) return send(messagePage("Not open yet", "This app has no database connected yet.", false), { status: 503 });
+    return send(requestsAdminPage({ session: s, rows: await store.requestsToReview(), flash: FLASH_REQUESTS[url.searchParams.get("m")] ?? "" }));
+  }
+  if (path === "/admin/requests/decide" && method === "POST") {
+    const stop = gate(request, env, s); if (stop) return stop;
+    if (!store) return send(messagePage("Not open yet", "This app has no database connected yet.", false), { status: 503 });
+    let f; try { f = await request.formData(); } catch { return back("/admin/requests", "bad"); }
+    const id = Number(f.get("id")), action = String(f.get("action") ?? "");
+    if (!Number.isInteger(id) || id < 1 || !["show", "hide", "delete", "solve"].includes(action)) return back("/admin/requests", "bad");
+    let item = "";
+    if (action === "solve") {
+      item = cleanItem(f.get("item"));
+      let catalogue; try { catalogue = await fetchCatalogue(env); } catch { return back("/admin/requests", "bad"); }
+      if (!item || !catalogue.has(item)) return back("/admin/requests", "unsolved");
+    }
+    await store.decideRequest(id, action, item);
+    return back("/admin/requests", "decided");
+  }
+  return send(messagePage("Not found", "There is nothing here.", false), { status: 404 });
+}
+
 async function approveRoute(request, env, s, id) {
   const stop = gate(request, env, s); if (stop) return stop;
   const store = storeFor(env); const base = `/admin/submissions/${id}`;
@@ -505,6 +571,9 @@ async function route(request, env) {
 
   // www goes to the main address, so cookies and links never split between two names
   if (url.hostname.startsWith("www.") && env.BASE_URL) return send("", { status: 301, location: new URL(url.pathname + url.search, env.BASE_URL).href });
+  // two pages that no longer exist: old links still land somewhere useful
+  if (path === "/picks" || path === "/picks/") return send("", { status: 301, location: "/kits/?show=pick" });
+  if (path === "/updates" || path === "/updates/") { const kit = url.searchParams.get("kit") ?? ""; return send("", { status: 301, location: /^[a-z0-9-]{1,40}$/.test(kit) ? `/k/${kit}/` : "/kits/" }); }
   if (env.ASSETS && !isAppPath(path)) return serveSite(request, env);
   await loadShell(env, request);
 
@@ -580,6 +649,8 @@ async function route(request, env) {
   if (["/api/counts", "/api/item", "/api/vote", "/api/note", "/api/note/delete", "/api/note/report"].includes(path)) return communityRoutes(request, env, url, path, method);
   if (path === "/admin/notes" || path === "/admin/notes/decide") return notesAdmin(request, env, url, path, method);
   if (path === "/contributors" || path.startsWith("/u/")) return contributorRoutes(request, env, path, method);
+  if (path === "/requests" || path.startsWith("/requests/")) return requestRoutes(request, env, url, path, method);
+  if (path === "/admin/requests" || path === "/admin/requests/decide") return requestsAdmin(request, env, url, path, method);
 
 
   if (path === "/admin" && method === "GET") {
@@ -588,12 +659,12 @@ async function route(request, env) {
     if (s.role !== "admin") return send(messagePage("No access", `You are signed in as @${s.sub}, but only owners of ${env.ORG} and members of ${env.ORG}/${env.TEAM} can maintain the catalogue. If you are one of them, sign in again with organisation access. Ask an owner to add you to the team, then sign in again.`, false, { href: "/auth/login", text: "Sign in with organisation access" }), { status: 403 });
     let queueError = "", subs = null;
     const store = storeFor(env);
-    let recent = [], noteCount = 0;
+    let recent = [], noteCount = 0, requestCount = 0;
     if (store) {
-      try { noteCount = await store.notesToReviewCount(); } catch { /* the count is a convenience */ }
+      try { noteCount = await store.notesToReviewCount(); requestCount = await store.requestsToReviewCount(); } catch { /* the count is a convenience */ }
       try { await syncPublishing(env, store, listed(env)); await syncScans(env, store); subs = await store.pending(); recent = await store.recent(); } catch { queueError = queueError || "The submissions database could not be read just now."; }
     }
-    return send(adminPage({ session: s, env, queueError, noteCount, subs, recent, flash: flashOf(url) }));
+    return send(adminPage({ session: s, env, queueError, noteCount, requestCount, subs, recent, flash: flashOf(url) }));
   }
 
   if (path === "/admin/listings" && method === "GET") {

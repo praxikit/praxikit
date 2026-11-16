@@ -38,8 +38,33 @@ export const CSS = `
 .app .cards a{display:block;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:12px 14px;text-decoration:none;color:var(--fg)}
 .app .cards a:hover{border-color:var(--accent)}
 .app .cards strong{display:block}
+.app .requests{list-style:none;padding:0;margin:0 0 1.5rem;display:grid;gap:12px}
+.app .request{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 20px;box-shadow:var(--shadow-sm)}
+.app .request h3{margin:0 0 .25rem;font-size:1.1rem}.app .request p{margin:.2rem 0}
+.app .request.solved{border-left:4px solid var(--accent)}
+.app .req-main{min-width:0}
+.app .need-btn{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-weight:650;font-size:.93rem;text-decoration:none;cursor:pointer}
+.app .need-btn:hover{border-color:var(--accent);color:var(--accent)}
+.app .need-btn[aria-pressed="true"]{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
+.app .need-btn .count{padding:0 8px;border-radius:99px;background:var(--code-bg);color:var(--muted);font-size:.82rem}
+.app .req-form{max-width:640px;margin:1rem 0 2rem}
+@media (max-width:560px){.app .request{flex-direction:column}}
+.app .podium{list-style:none;padding:0;margin:1.2rem 0 2rem;display:grid;gap:14px;grid-template-columns:repeat(3,minmax(0,1fr));align-items:end}
+.app .place{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--line);border-radius:14px;padding:18px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;box-shadow:var(--shadow-sm)}
+.app .place .medal{font-weight:800;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.app .place img{border-radius:50%;border:2px solid var(--line)}
+.app .place .login{font-weight:700;text-decoration:none;overflow-wrap:anywhere}
+.app .place .big{color:var(--muted);font-size:.93rem}
+.app .place .big strong{display:block;font-size:2rem;line-height:1.1;color:var(--fg);font-variant-numeric:tabular-nums}
+.app .place .badge-row{justify-content:center}
+.app .place-1{order:2;border-top-color:#d9a21b;padding-block:28px}.app .place-1 .medal{color:#b9860f}.app .place-1 img{border-color:#d9a21b;width:92px;height:92px}
+.app .place-2{order:1;border-top-color:#9aa6a3}
+.app .place-3{order:3;border-top-color:#c27a4c}.app .place-3 .medal{color:#a8643b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .app .place-1 .medal{color:#e6b93a}:root:not([data-theme="light"]) .app .place-3 .medal{color:#d9926a}}
+:root[data-theme="dark"] .app .place-1 .medal{color:#e6b93a}:root[data-theme="dark"] .app .place-3 .medal{color:#d9926a}
+@media (max-width:640px){.app .podium{grid-template-columns:1fr}.app .place-1,.app .place-2,.app .place-3{order:0}.app .place-1{padding-block:18px}.app .place-1 img{width:72px;height:72px}}
 .app .board{list-style:none;padding:0;margin:0 0 1.5rem;display:grid;gap:10px}
-.app .board li{display:grid;grid-template-columns:2.2rem 40px 1fr auto;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
+.app .board > li{display:grid;grid-template-columns:2.2rem 40px 1fr auto;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
 .app .board .rank{font-weight:750;font-size:1.1rem;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .app .board img{border-radius:50%;border:1px solid var(--line)}
 .app .board .login{font-weight:650;text-decoration:none}
@@ -49,7 +74,7 @@ export const CSS = `
 .app .badge-chip{font-size:.75rem;font-weight:650;padding:2px 10px;border-radius:99px;background:var(--accent-bg);color:var(--accent)}
 .app .badge-list{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))}
 .app .badge-list li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column}
-@media (max-width:520px){.app .board li{grid-template-columns:1.6rem 36px 1fr;}.app .board .score{grid-column:3}}
+@media (max-width:520px){.app .board > li{grid-template-columns:1.6rem 36px 1fr;}.app .board .score{grid-column:3}}
 .app .danger-zone{border:1px solid var(--bad);border-radius:8px;padding:6px 16px 14px;margin-top:2rem}
 `;
 
@@ -98,7 +123,7 @@ ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${error ? `<p class="note">${es
 <form method="post" action="/submit">
 <label for="url">Repository link</label><input id="url" name="url" type="url" required maxlength="200" placeholder="https://github.com/owner/repo" value="${esc(values.url ?? "")}">
 <label for="why">Note <span class="hint">(optional, up to 200 characters; shown if you are recommending someone else's kit)</span></label><textarea id="why" name="why" maxlength="200">${esc(values.why ?? "")}</textarea>
-${isPublic ? '<p class="muted">You are credited publicly for kits you put forward (change this in <a href="/settings">Settings</a>).</p>' : '<label class="check"><input type="checkbox" name="credit" value="yes"> Credit me publicly: show my GitHub username on the listing and on the Contributors board <span class="hint">(you can turn it off any time)</span></label>'}
+<p class="muted">${isPublic ? "Your GitHub username is shown on the listing and on the Contributors board if this is listed." : "Your name is hidden, so you will not be named on the listing or the board."} You can change this in <a href="/settings">Settings</a>.</p>
 <p><button type="submit">Submit for review</button> <a class="btn ghost" href="/profile">My profile</a></p>
 </form>
 <p class="muted">If you are the repository's owner (or a public member of its organisation), it is listed as a community kit by its author. Otherwise it is a recommendation. GitHub decides which, not the form.</p>`);
@@ -170,13 +195,13 @@ export function minePage({ session, rows, flash }) {
   return page("My submissions — Praxikit", `${nav(session)}<h1>My submissions</h1>${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${body}<p><a class="btn" href="/submit">Submit another</a></p>`);
 }
 
-export function adminPage({ session, env, queueError, noteCount = 0, subs, recent, flash }) {
+export function adminPage({ session, env, queueError, noteCount = 0, requestCount = 0, subs, recent, flash }) {
   const via = session.via === "owner" ? `an owner of ${esc(env.ORG)}` : `a member of ${esc(env.ORG)}/${esc(env.TEAM)}`;
   const subRows = (subs ?? []).map((s) => `<tr><td><a href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a><br><span class="muted">${esc(s.owner)}</span></td><td>${esc(s.kind_guess || "?")}</td><td>${esc(s.source)}</td><td>${esc(s.license || "none")}</td><td>${status(s.precheck_status)}</td><td>${esc(s.scan_state === "done" ? (s.scan_label === "no-flags-found" ? "nothing found" : s.scan_label === "checks-flagged" ? "read the report" : s.scan_label) : s.scan_state === "running" ? "running" : s.scan_state === "failed" ? "did not finish" : "not run")}</td><td>${esc(s.submitted_by)}</td><td>${esc(String(s.created_at).slice(0, 10))}</td></tr>`).join("");
   const recentRows = (recent ?? []).map((s) => `<tr><td><a href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a></td><td>${esc(s.status)}</td><td>${esc(s.status === "approved" ? (PUBLISH[s.publish_state] ?? s.publish_state) : s.status === "rejected" ? s.decision_note : "")}</td><td>${esc(s.decided_by)}</td><td>${esc(String(s.decided_at).slice(0, 10))}</td></tr>`).join("");
   return page("Admin — Praxikit", `${nav(session)}
 <h1>Catalogue admin</h1>
-<p class="actions"><a class="btn ghost" href="/admin/listings">Manage live listings</a><a class="btn ghost" href="/admin/notes">Review notes${noteCount ? ` (${Number(noteCount)})` : ""}</a></p>
+<p class="actions"><a class="btn ghost" href="/admin/listings">Manage live listings</a><a class="btn ghost" href="/admin/notes">Review notes${noteCount ? ` (${Number(noteCount)})` : ""}</a><a class="btn ghost" href="/admin/requests">Review requests${requestCount ? ` (${Number(requestCount)})` : ""}</a></p>
 <p class="muted">You can maintain the catalogue because you are ${via}.</p>
 ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
 ${subs ? `<h2>New submissions (${subs.length})</h2>${subRows ? `<table><thead><tr><th>Repository</th><th>Type</th><th>As</th><th>Licence</th><th>Quick check</th><th>Full checks</th><th>By</th><th>Opened</th></tr></thead><tbody>${subRows}</tbody></table><p class="muted">Open one to approve or reject it.</p>` : '<p class="muted">Nothing is waiting.</p>'}` : ""}

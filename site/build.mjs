@@ -186,7 +186,7 @@ const SITE_JS = `
 (function () {
   var root = document.documentElement;
   // links printed by older Keel versions pointed at the home page; the checker now lives on the Updates page
-  if (document.body.hasAttribute("data-home") && location.search.indexOf("kit=") > -1) { location.replace("updates/" + location.search + "#updates"); return; }
+  if (document.body.hasAttribute("data-home") && location.search.indexOf("kit=") > -1) { var kitName = new URLSearchParams(location.search).get("kit") || ""; location.replace(/^[a-z0-9-]{1,40}$/.test(kitName) ? "k/" + kitName + "/" : "kits/"); return; }
   function copyText(text, done) {
     function fallback() {
       var ta = document.createElement("textarea");
@@ -478,6 +478,7 @@ const SITE_JS = `
     loadCom();
   }
 
+  [].slice.call(document.querySelectorAll("[data-nav]")).forEach(function (a) { if (a.pathname && location.pathname.indexOf(a.pathname) === 0) a.setAttribute("aria-current", "page"); });
   var tgl = document.getElementById("theme");
   if (tgl) tgl.addEventListener("click", function () {
     var cur = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
@@ -575,6 +576,7 @@ const SITE_JS = `
   function hrefOf(e) {
     var u = String(e.p || e.u || "");
     if (u.indexOf("https://github.com/") === 0) return u;
+    if (u.charAt(0) === "/" && u.charAt(1) !== "/" && u.indexOf("://") < 0) return u;
     if (u.indexOf("://") > -1 || u.charAt(0) === "/") return "";
     return siteRoot + u;
   }
@@ -663,7 +665,7 @@ ${head}
 <header class="top"><div class="wrap bar">
 <a class="brand" href="${up}" aria-label="Praxikit home">${LOGO}<span>Praxikit</span></a>
 <form class="site-search" role="search" action="${up}search/" method="get"><label class="vh" for="site-q">Search the catalogue</label><input id="site-q" name="q" type="search" placeholder="Search  ( / )" autocomplete="off" spellcheck="false" maxlength="100"></form>
-<nav aria-label="Main" id="site-nav"><a href="${up}kits/"${cur("kits")}>Kits</a><a href="${up}updates/"${cur("updates")}>Updates</a><a href="${up}picks/"${cur("picks")}>Picks</a><a href="${up}submit/"${cur("submit")}>Submit</a><a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
+<nav aria-label="Main" id="site-nav"><a href="${up}kits/"${cur("kits")}>Kits</a>${APP ? `<a href="${esc(APP)}/contributors" data-nav>Contributors</a><a href="${esc(APP)}/requests" data-nav>Requests</a>` : ""}<a href="${up}submit/"${cur("submit")}>Submit</a><a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
 <button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false" title="Toggle dark mode"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg><span class="icon-label">Light or dark</span></button></nav>
 <div class="acct" id="acct">${APP ? `<a class="signin" href="${esc(APP)}/auth/login?mode=user">Sign in</a>` : ""}</div>
 <button class="icon-btn menu-toggle" id="menu-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="site-nav"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
@@ -896,7 +898,7 @@ ${topTags.length ? `<section class="wrap sec"><h2>Find a kit for…</h2><ul clas
 ${listHtml(featured, "./")}
 </section>
 
-<section class="wrap sec"><div class="sec-head"><h2>My picks</h2><a class="viewall" href="picks/">${picks.length ? `View all ${picks.length}` : "About picks"}</a></div>
+<section class="wrap sec"><div class="sec-head"><h2>My picks</h2><a class="viewall" href="kits/?show=pick">${picks.length ? `View all ${picks.length}` : "About picks"}</a></div>
 ${picks.length ? `<ul class="cards">${picks.slice(0, 3).map((r) => recCard(r)).join("")}</ul>` : `<p class="muted">Nothing here yet. Picks are kits made by other people that the owner has actually used, each with a note on how.</p>`}</section>
 
 <section class="wrap sec"><h2>Why you can trust what is here</h2>
@@ -910,7 +912,7 @@ ${picks.length ? `<ul class="cards">${picks.slice(0, 3).map((r) => recCard(r)).j
 
 <section class="wrap sec faq"><h2>Questions</h2>
 <details><summary>What happens when I install a kit?</summary><p>Claude Code copies the kit's files and registers its skills, agents and hooks. Each kit page lists the hooks it runs and what it reads, writes and sends, and the source is in the repository it links to.</p></details>
-<details><summary>How do updates reach me?</summary><p>Run <code>/plugin marketplace update praxikit</code>, then <code>/reload-plugins</code>. Kits use semantic versions and keep a changelog; the <a href="updates/">updates page</a> shows what changed since the version you have.</p></details>
+<details><summary>How do updates reach me?</summary><p>Run <code>/plugin marketplace update praxikit</code>, then <code>/reload-plugins</code>. Kits use semantic versions and keep a changelog: each kit page shows what changed in every release. You can also follow new releases with the <a href="feed.xml">release feed</a>.</p></details>
 <details><summary>What do the build checks on a kit page mean?</summary><p>They are computed from the files when the site is built: the manifest is complete, the changelog matches the version, the scripts contain no network code. They show the kit is consistent with what it says about itself, not that it is safe.</p></details>
 <details><summary>What is the difference between built, picked and listed?</summary><p><strong>Built</strong> kits are made here. <strong>My picks</strong> are other people's kits the owner actually uses, with a note on how. <strong>Listed</strong> kits were submitted, scanned and read, but are not endorsed.</p></details>
 </section>`;
@@ -944,26 +946,6 @@ ${empty}
   return page({ title: `${title} — Praxikit`, depth, body, current: "kits", canonical: `${HOME_URL}kits/${group ? `${group.id}/` : ""}`, description: group ? `${group.label}: ${group.blurb}` : "All Praxikit kits: plugins, skills, MCP configs and templates." });
 }
 
-function updatesPage(kits) {
-  const items = releaseFeed(kits).slice(0, 15);
-  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Updates</p><h1>Updates</h1>
-<p class="lead">Check whether you are up to date, and see what changed in each release.</p>
-<div class="updates">
-<div><h2>Am I up to date?</h2><p class="muted">Pick the version you have to see only what changed since. Or run <code>/keel:status</code>, which prints a link that fills this in.</p>${checker(kits) || '<p class="muted">No versioned kits yet.</p>'}</div>
-<div><h2>Latest releases</h2><ul class="feed">${releaseList(items, "../") || '<li class="muted">No releases yet.</li>'}</ul><p><a href="../feed.xml">Subscribe with the release feed</a> (Atom, works in any feed reader).</p></div>
-</div></div>`;
-  return page({ title: "Updates — Praxikit", depth: 1, body, current: "updates", canonical: `${HOME_URL}updates/`, description: "Check which version of a Praxikit kit you have and what changed since, or subscribe to the release feed." });
-}
-
-function picksPage(picks) {
-  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Picks</p><h1>My picks</h1>
-<p class="lead">Kits made by other people that the owner has actually used, each with a note on how. Everything else in the catalogue is just <em>listed</em>: scanned and read by a person, but not necessarily used.</p>
-<p class="note">Praxikit did not build these and does not promise they are safe; read the source before installing anything.</p>
-${picks.length ? `<ul class="recs">${picks.map((r) => recCard(r, "../")).join("")}</ul>` : `<div class="empty"><p><strong>Nothing here yet.</strong> Picks appear when the owner marks a kit as used. You can <a href="../submit/">suggest a kit</a>; it is listed after the checks and a read-through.</p></div>`}</div>`;
-  return page({ title: "My picks — Praxikit", depth: 1, body, current: "picks", canonical: `${HOME_URL}picks/`, description: "Kits by other people that the owner uses, with a note on how." });
-}
-
-/** The old address of the picks page: a plain redirect, so links that were shared keep working. */
 
 function submitPage() {
   const form = APP
@@ -1080,7 +1062,7 @@ function privacyPage() {
 <p>Signing in happens in a separate app. It asks GitHub for your username only (the <code>read:user</code> permission), does not keep your GitHub access token, and stores your username, your numeric GitHub id, the dates you signed in, your saved kits and group names, and your submissions. It uses one sign-in cookie that lasts a few hours. Nothing is sold or shared, and no page shows your collection to anyone else.</p>
 <p>You can download your data and delete your account at any time from <em>My collection</em>. Deleting removes your collection, waiting submissions and account record; decided submissions stay in the catalogue's history without your name. Nothing in the app shows your collection to anyone else. Maintainers see your submissions and your username next to them. The person who runs the app can technically read the database, because that is how a database works; they do not look through collections.</p>
 <h2 class="sub">What exactly is kept</h2>
-<ul><li>Your GitHub username and numeric id, the date you first signed in and the date you last did.</li><li>The kits you saved and the group names you typed (up to 300 items; up to 40 can be added an hour).</li><li>Your submissions: the repository link, what GitHub says about it, the checks and the maintainers' decision.</li><li>If you press <em>This helped me</em> or write a note: the vote, and the note with your GitHub username. A note is public once a maintainer has shown it; you can delete yours at any time. Only totals are shown for votes and saves.</li><li>Public credit, only if you switch it on: your GitHub username is shown on the kits you put forward and on the Contributors board, with a count of your listed kits. It is off by default and you can turn it off at any time.</li><li>One sign-in cookie that lasts a few hours. No advertising or analytics cookies; nothing is sold or shared.</li></ul>
+<ul><li>Your GitHub username and numeric id, the date you first signed in and the date you last did.</li><li>The kits you saved and the group names you typed (up to 300 items; up to 40 can be added an hour).</li><li>Your submissions: the repository link, what GitHub says about it, the checks and the maintainers' decision.</li><li>If you press <em>This helped me</em> or write a note: the vote, and the note with your GitHub username. A note is public once a maintainer has shown it; you can delete yours at any time. Only totals are shown for votes and saves.</li><li>Your name on kits you put forward: when a kit you submitted is listed, your GitHub username is shown on its page and on the Contributors board, with a count of your listed kits. You can hide your name at any time in Settings.</li><li>Kit requests: if you ask for a kit or press <em>I need this too</em>, the request is public with your GitHub username; only a total is shown for "I need this too". You can delete your own requests.</li><li>One sign-in cookie that lasts a few hours. No advertising or analytics cookies; nothing is sold or shared.</li></ul>
 <h2 class="sub">Questions</h2>
 <p>Open an issue in the <a href="${esc(REPO)}/issues" rel="noopener noreferrer">repository</a>.</p></div>`;
   return page({ title: "Privacy — Praxikit", depth: 1, body, canonical: `${HOME_URL}privacy/`, description: "What Praxikit keeps about you: nothing on the website; a GitHub username and your collection if you sign in." });
@@ -1170,7 +1152,7 @@ function buildSearchIndex(kits, listings, tagMap) {
   }
   for (const l of listings) out.push({ t: l.name, k: l.pick ? "pick" : "listed", u: l.url, p: lpath(l), ext: 1, d: [l.pick ? `How I use it: ${l.note}` : "", l.why].filter(Boolean).join(" "), g: tagsOf(l).join(" ") });
   for (const [t, l] of sortedTags(tagMap)) out.push({ t: `#${t}`, k: "tag", u: `tags/${t}/`, d: plural(l.length, "kit"), g: t });
-  for (const [t, u, d] of [["Kits", "kits/", "Every kit, by type"], ["Updates", "updates/", "Check your version and see what changed"], ["My picks", "picks/", "Kits the owner uses, with a note on how"], ["Submit a kit", "submit/", "Submit a public GitHub repository"], ["About", "about/", "Why Praxikit exists and how it is run"], ["Policy", "policy/", "What a listing means, reports and removals"], ["Privacy", "privacy/", "What is kept about you if you sign in"], ["Tags", "tags/", "Browse by tag"], ["Release feed", "feed.xml", "Subscribe to new versions"]]) out.push({ t, k: "page", u, d, g: "" });
+  for (const [t, u, d] of [["Kits", "kits/", "Every kit, by type"], ["My picks", "kits/?show=pick", "Kits the owner uses, with a note on how"], ["Contributors", "/contributors", "People who put kits forward, ranked"], ["Requests", "/requests", "Ask for a kit, or build one someone needs"], ["Submit a kit", "submit/", "Submit a public GitHub repository"], ["About", "about/", "Why Praxikit exists and how it is run"], ["Policy", "policy/", "What a listing means, reports and removals"], ["Privacy", "privacy/", "What is kept about you if you sign in"], ["Tags", "tags/", "Browse by tag"], ["Release feed", "feed.xml", "Subscribe to new versions"]]) out.push({ t, k: "page", u, d, g: "" });
   return out;
 }
 
@@ -1191,8 +1173,6 @@ copyFileSync(join(here, "style.css"), join(OUT, "style.css"));
 write("index.html", homePage(items, picks));
 write("kits/index.html", kitsPage(items, null));
 for (const g of GROUPS) write(`kits/${g.id}/index.html`, kitsPage(items, g));
-write("updates/index.html", updatesPage(kits));
-write("picks/index.html", picksPage(picks));
 write("submit/index.html", submitPage());
 write("policy/index.html", policyPage());
 write("privacy/index.html", privacyPage());

@@ -197,3 +197,9 @@
 ## 2026-11-17 — Contributor profiles
 - Public only by choice (Settings, or a tickbox on the submit form). `/contributors` ranks by kits live in the catalogue now (then picks, then name; ties share a rank); `/u/<name>` shows badges and kits; listing pages credit the person who put a kit forward. Badges: First listing, Five listed, Ten listed, Picked, Author. Everyone sees their own count and next milestone on their profile.
 - Needs the owner: migration 0008 (`gh workflow run migrate.yml -f file=0008_profiles.sql`).
+
+## 2026-11-17 — Podium, requests, a simpler navigation
+- Fixed: `/settings/public` was not known to the router, so the form got the file server's 405. A test now posts to every app address with static files present.
+- Contributors are public by default (hide in Settings); the board has a podium for the top three and a list below. Updates and Picks pages are gone (old links redirect; picks are a filter on Kits). Navigation: Kits, Contributors, Requests, Submit, GitHub.
+- New: kit requests (`/requests`): ask for a kit, "I need this too", most wanted first, first request reviewed, maintainers mark solved with the listed kit that answers it.
+- Needs the owner: migration 0009 (`gh workflow run migrate.yml -f file=0009_requests.sql`).

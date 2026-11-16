@@ -220,3 +220,19 @@ Setup, **once** (the site deploys itself; until then the Settings switch fails w
 ```bash
 gh workflow run migrate.yml -f file=0008_profiles.sql
 ```
+
+### Kit requests (plain-words board)
+
+`/requests`: anyone can read it; a signed-in person can **Ask for a kit** (a title of 8 to 100 characters and optional detail up to 500, plain text, **no links**) and press **I need this too** on others' requests (one press each, press again to take it back; the person asking counts as needing it). Most-needed first.
+
+- A person's **first request waits** for a maintainer (`/admin/requests`: Show, Hide, Delete, **Mark solved**); after one is shown, their later ones appear at once; maintainers' appear at once.
+- **Solving:** a maintainer pastes the address of the listed kit that answers a request (a GitHub link as listed, or a built kit such as `k/keel/`); it must be in the live catalogue. The request moves to **Solved** and links to that kit.
+- Limits: 3 requests a day, 60 presses an hour. A person can delete their own request unless it is solved. Hidden requests are visible only to their author, who is told.
+- Deleting an account removes the person's requests and presses; the data download includes them.
+
+### Contributors (public by default)
+
+`/contributors` shows a podium for the top three and a list below it, ranked by kits that are live in the catalogue right now (then picks, then name; ties share a place). Everyone with a live listing appears; a person can hide their name any time in **Settings → Your name on the site** (the board, their page and the credit on listings all go at once).
+
+Setup, **once** (from Actions, or `gh workflow run migrate.yml -f file=0009_requests.sql`):
+`0009_requests.sql`. The 0008 profiles table stays: it now only records people who chose to hide.

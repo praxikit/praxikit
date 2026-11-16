@@ -1,6 +1,6 @@
 /**
  * Contributors: people who put a kit forward that is now listed. Counting is by listings that are live right now, never by
- * submissions sent, so sending a lot earns nothing. A person appears publicly only when they switched it on.
+ * submissions sent, so sending a lot earns nothing. A person is shown publicly unless they chose to hide their name.
  */
 import { esc, page, nav } from "./html.mjs";
 
@@ -58,14 +58,22 @@ const avatar = (id, size = 64) => `https://avatars.githubusercontent.com/u/${Num
 const chips = (c) => badgesFor(c).map((b) => `<li class="badge-chip" title="${esc(b.blurb)}">${esc(b.name)}</li>`).join("");
 const listingLink = (i) => (i.path ? `<a href="/${esc(i.path)}">${esc(i.title)}</a>` : esc(i.title));
 
+const ordinal = (n) => (n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : n + "th");
+
 export function contributorsPage({ session, rows }) {
-  const body = rows.length
-    ? `<ol class="board">${rows.map((r) => `<li><span class="rank">${Number(r.rank)}</span><img src="${avatar(r.id)}" alt="" width="40" height="40"><div class="who"><a class="login" href="/u/${esc(encodeURIComponent(r.login))}">@${esc(r.login)}</a><ul class="badge-row">${chips(r)}</ul></div><span class="score"><strong>${Number(r.count)}</strong> listed</span></li>`).join("")}</ol>`
-    : `<div class="empty"><p><strong>Nobody is on the board yet.</strong> Put a kit forward and tick <em>Credit me publicly</em>, and you will be the first. <a href="/submit/">Submit a kit</a>.</p></div>`;
+  const top = rows.slice(0, 3), rest = rows.slice(3);
+  const total = rows.reduce((n, r) => n + r.count, 0);
+  const podium = top.length
+    ? `<ol class="podium">${top.map((r, i) => `<li class="place place-${i + 1}"><span class="medal">${ordinal(r.rank)}</span><img src="${avatar(r.id, 144)}" alt="" width="72" height="72"><a class="login" href="/u/${esc(encodeURIComponent(r.login))}">@${esc(r.login)}</a><span class="big"><strong>${Number(r.count)}</strong> ${r.count === 1 ? "kit" : "kits"} listed</span><ul class="badge-row">${chips(r)}</ul></li>`).join("")}</ol>`
+    : `<div class="empty"><p><strong>Nobody is on the board yet.</strong> Put a kit forward and be the first. <a href="/submit/">Submit a kit</a>.</p></div>`;
+  const list = rest.length
+    ? `<h2>Everyone else</h2><ol class="board" start="4">${rest.map((r) => `<li><span class="rank">${Number(r.rank)}</span><img src="${avatar(r.id)}" alt="" width="40" height="40"><div class="who"><a class="login" href="/u/${esc(encodeURIComponent(r.login))}">@${esc(r.login)}</a><ul class="badge-row">${chips(r)}</ul></div><span class="score"><strong>${Number(r.count)}</strong> ${r.count === 1 ? "kit" : "kits"}</span></li>`).join("")}</ol>`
+    : "";
   return page("Contributors — Praxikit", `${nav(session)}<h1>Contributors</h1>
-<p class="lead">People who put kits forward that are now listed. Ranked by kits that are live in the catalogue, not by how many were sent, so quality is what counts. Everyone here chose to be listed.</p>
-${body}
-<p class="muted">Want to be here? <a href="/submit/">Submit a kit</a> and tick <em>Credit me publicly</em>, or switch it on in <a href="/settings">Settings</a>. You can switch it off at any time.</p>`);
+<p class="lead">The people who put kits forward. The count is how many of their kits are listed in the catalogue right now, so sending a lot earns nothing and quality is what counts.${rows.length ? ` <strong>${rows.length}</strong> ${rows.length === 1 ? "person" : "people"}, <strong>${total}</strong> ${total === 1 ? "kit" : "kits"}.` : ""}</p>
+${podium}
+${list}
+<p class="muted">Want to be here? <a href="/submit/">Submit a kit</a>. Your GitHub username is shown on the kits you put forward; you can hide it any time in <a href="/settings">Settings</a>.</p>`);
 }
 
 export function contributorProfilePage({ session, user, c }) {
@@ -84,10 +92,10 @@ export function myContributionsHtml({ c, pending, isPublic, login }) {
   return `<h2>My contributions</h2>
 <div class="listing"><p><strong>${Number(c.count)}</strong> ${c.count === 1 ? "kit" : "kits"} listed${pending ? `, ${Number(pending)} waiting for review` : ""}.${next ? ` ${Number(next.need)} more for <em>${esc(next.name)}</em>.` : " You have every count badge."}</p>
 ${badgesFor(c).length ? `<ul class="badge-row">${chips(c)}</ul>` : '<p class="muted">Badges appear when a kit you put forward is listed.</p>'}
-<p class="muted">${isPublic ? `You are credited publicly. <a href="/u/${esc(encodeURIComponent(login))}">See your public profile</a>.` : "Your contributions are private. Switch on public credit in Settings to appear on the board and be named on the listings you put forward."} <a href="/settings">Settings</a></p></div>`;
+<p class="muted">${isPublic ? `Your username is shown on the kits you put forward. <a href="/u/${esc(encodeURIComponent(login))}">See your public page</a>.` : "Your name is hidden: you are not on the board and not named on the listings."} <a href="/settings">Settings</a></p></div>`;
 }
 
-export const publicSettingHtml = ({ isPublic }) => `<h2>Public credit</h2>
-<p>Choose whether your GitHub username is shown on the kits you put forward and on the <a href="/contributors">Contributors</a> board. It is off until you turn it on, and you can turn it off at any time.</p>
-<form method="post" action="/settings/public"><input type="hidden" name="public" value="${isPublic ? "no" : "yes"}"><p class="muted">Right now: <strong>${isPublic ? "credited publicly" : "private"}</strong>.</p>
-<button type="submit" class="${isPublic ? "ghost" : ""}">${isPublic ? "Turn off public credit" : "Turn on public credit"}</button></form>`;
+export const publicSettingHtml = ({ isPublic }) => `<h2>Your name on the site</h2>
+<p>When a kit you put forward is listed, your GitHub username is shown on its page and on the <a href="/contributors">Contributors</a> board, with a count of your listed kits. You can hide it at any time.</p>
+<form method="post" action="/settings/public"><input type="hidden" name="public" value="${isPublic ? "no" : "yes"}"><p class="muted">Right now: <strong>${isPublic ? "shown" : "hidden"}</strong>.</p>
+<button type="submit" class="ghost">${isPublic ? "Hide my name" : "Show my name"}</button></form>`;

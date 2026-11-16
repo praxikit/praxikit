@@ -37,7 +37,7 @@ const must = (cond, msg) => { if (!cond) failures.push(msg); };
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
-must(htmlFiles.length === 25, `expected the 23 earlier pages plus a page for each of the 2 listings = 25 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 23, `expected 25 earlier pages, minus the Updates and Picks pages = 23 html files, got ${htmlFiles.length}`);
 for (const f of htmlFiles) {
   const h = readFileSync(f, "utf8");
   // drop only our own inline scripts (marked data-site); any other <script> is a failure
@@ -61,9 +61,9 @@ const mcpPage = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
 must(mcpPage.includes("My pick") && mcpPage.includes("How I use it") && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("l/o-rec/") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
 must(idx.includes("Changed since review") && recHtml.includes('href="https://github.com/o/rec/compare/' + SHA + '...HEAD"'), "a listing whose repository moved on says so, and its page links to the comparison");
 must(skillsPage.includes("Repository not reachable") && !skillsPage.includes("Changed since review"), "an unreachable listing says so, and a 'same' or unknown status adds nothing");
-const picksHtml = readFileSync(join(out, "picks/index.html"), "utf8");
-must(picksHtml.includes("l/o-rec/") && !picksHtml.includes("l/o-comm/") && picksHtml.includes("My pick") && picksHtml.includes("How I use it"), "the Picks page shows picks only, with the owner's note");
-must(!idx.includes(">Recommended<") && idx.includes(">Picks<") && idx.includes("My picks"), "the word Recommended is gone from the navigation and the home page");
+const picksHtml = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
+must(picksHtml.includes("l/o-rec/") && picksHtml.includes("My pick") && picksHtml.includes("How I use it") && !existsSync(join(out, "picks")) && !existsSync(join(out, "updates")), "picks live on the kits page with the owner's note, and there are no separate Picks or Updates pages");
+must(!idx.includes(">Recommended<") && !idx.includes(">Picks<") && idx.includes("My picks"), "the word Recommended is gone, and picks are a section on the home page, not a navigation tab");
 must(!/href="https:\/\/github\.com[^"]*"(?![^>]*rel=)/.test(idx), "external GitHub link without rel");
 must(existsSync(join(out, "k/evil/index.html")) && existsSync(join(out, "c/planning/index.html")) && existsSync(join(out, "c/design-and-3d/index.html")), "kit or collection pages missing");
 must(!/href="\//.test(idx), "absolute href found; links must be relative");
@@ -72,13 +72,13 @@ must(existsSync(join(out, "404.html")), "404.html missing");
 const feed = readFileSync(join(out, "feed.xml"), "utf8");
 must(feed.startsWith("<?xml") && feed.includes("<entry>") && !feed.includes("<script>alert") && !feed.includes("<img src=x") && feed.includes("&lt;script&gt;"), "feed.xml missing, not escaped, or empty");
 must(idx.includes('rel="alternate" type="application/atom+xml"'), "feed link missing from the page head");
-const upd = readFileSync(join(out, "updates/index.html"), "utf8");
-must(upd.includes("data-ck-paste") && upd.includes("claude plugin list") && /data-checker="[^"]*1\.2\.3/.test(upd), "paste-to-detect checker missing from the Updates page");
+const upd = readFileSync(join(out, "k/evil/index.html"), "utf8");
+must(upd.includes("data-ck-paste") && upd.includes("claude plugin list") && /data-checker="[^"]*1.2.3/.test(upd), "the paste-to-detect update checker is on each kit page");
 const sub = readFileSync(join(out, "submit/index.html"), "utf8");
 must(!sub.includes("template=suggest-kit.yml") && !sub.includes("template=recommend.yml"), "submitting is the form on the site; the old issue forms are gone");
 // routes: the home page shows a few kits and links on to pages instead of holding everything
 must(idx.includes('href="kits/"') && idx.includes('href="kits/plugins/"') && idx.includes('href="kits/skills/"') && idx.includes('href="kits/mcp/"') && idx.includes('href="kits/other/"'), "home must link to the kits page and each type page");
-must(idx.includes('href="updates/"') && idx.includes('href="picks/"') && idx.includes('href="submit/"') && idx.includes("<body data-home data-root=\"./\" data-app=\"\">"), "home must link to updates, picks and submit");
+must(idx.includes('href="kits/"') && idx.includes('href="kits/?show=pick"') && idx.includes('href="submit/"') && !idx.includes('href="updates/"') && !idx.includes('href="picks/"') && idx.includes("<body data-home data-root=\"./\" data-app=\"\">"), "home links to kits, the picks filter and submit, and no longer to Updates or Picks pages");
 must((idx.match(/<li class="card[ "]/g) ?? []).length <= 3 + 3, "home should show at most three kits (and three picks)");
 const pol = readFileSync(join(out, "policy/index.html"), "utf8");
 must(pol.includes("security/advisories/new") && pol.includes("template=report-listing.yml") && pol.includes("docs/removals.md") && pol.includes("not a safety guarantee") && pol.includes("one maintainer"), "policy page needs the private channel, the report form, the removal log and honest limits");
@@ -91,7 +91,7 @@ const plug = readFileSync(join(out, "kits/plugins/index.html"), "utf8"), skl = r
 must(plug.includes('href="../../k/a/"') && !plug.includes('href="../../k/evil/"'), "plugins page lists plugin kits only");
 must(skl.includes('href="../../k/evil/"') && !skl.includes('href="../../k/a/"'), "skills page lists skill kits only");
 must(mcp.includes("No templates, adapters, agents or hooks yet") && mcp.includes("../../submit/"), "an empty type page says so and points to submit");
-for (const f of [kitsAll, plug, mcp, upd, sub, picksHtml]) must(!/href="\//.test(f), "absolute href on a route page");
+for (const f of [kitsAll, plug, mcp, upd, sub]) must(!/href="\//.test(f), "absolute href on a route page");
 const kp = readFileSync(join(out, "k/evil/index.html"), "utf8");
 must(kp.includes('role="tablist"') && kp.includes('role="tabpanel"'), "install tabs missing on a kit with installBy");
 must(kp.includes("What you'll see") && kp.includes("What it does on your machine"), "preview or access sections missing");

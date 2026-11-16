@@ -72,21 +72,66 @@ export function d1Store(db) {
       await db.prepare("DELETE FROM collection WHERE user_id = ?").bind(userId).run();
       await db.prepare("DELETE FROM votes WHERE user_id = ?").bind(userId).run();
       await db.prepare("DELETE FROM profiles WHERE user_id = ?").bind(userId).run();
+      await db.prepare("DELETE FROM request_needs WHERE request_id IN (SELECT id FROM requests WHERE user_id = ?) OR user_id = ?").bind(userId, userId).run();
+      await db.prepare("DELETE FROM requests WHERE user_id = ?").bind(userId).run();
       await db.prepare("DELETE FROM note_reports WHERE note_id IN (SELECT id FROM notes WHERE user_id = ?) OR user_id = ?").bind(userId, userId).run();
       await db.prepare("DELETE FROM notes WHERE user_id = ?").bind(userId).run();
       await db.prepare("DELETE FROM submissions WHERE submitted_by_id = ? AND status = 'pending'").bind(userId).run();
       await db.prepare("UPDATE submissions SET submitted_by = 'deleted-account', submitted_by_id = 0 WHERE submitted_by_id = ?").bind(userId).run();
       await db.prepare("DELETE FROM users WHERE id = ?").bind(userId).run();
     },
+    // ---- kit requests
+    async requestsPublic(limit = 200) { return (await db.prepare("SELECT r.id AS id, r.login AS login, r.title AS title, r.body AS body, r.status AS status, r.solved_item AS solved_item, r.created_at AS created_at, (SELECT COUNT(*) FROM request_needs n WHERE n.request_id = r.id) AS needs FROM requests r WHERE r.status IN ('open','solved') ORDER BY needs DESC, r.id DESC LIMIT ?").bind(limit).all()).results ?? []; },
+    async myRequests(userId) { return (await db.prepare("SELECT id, title, body, status, created_at FROM requests WHERE user_id = ? AND status IN ('pending','hidden') ORDER BY id DESC LIMIT 20").bind(userId).all()).results ?? []; },
+    async neededBy(userId) { return ((await db.prepare("SELECT request_id FROM request_needs WHERE user_id = ?").bind(userId).all()).results ?? []).map((r) => Number(r.request_id)); },
+    async requestById(id) { return (await db.prepare("SELECT id, user_id, login, title, status, solved_item FROM requests WHERE id = ?").bind(id).first()) ?? null; },
+    async requestsSince(userId, iso) { return Number((await db.prepare("SELECT COUNT(*) AS n FROM requests WHERE user_id = ? AND created_at >= ?").bind(userId, iso).first())?.n ?? 0); },
+    async hasShownRequest(userId) { return !!(await db.prepare("SELECT 1 AS x FROM requests WHERE user_id = ? AND status IN ('open','solved')").bind(userId).first()); },
+    async needsSince(userId, iso) { return Number((await db.prepare("SELECT COUNT(*) AS n FROM request_needs WHERE user_id = ? AND created_at >= ?").bind(userId, iso).first())?.n ?? 0); },
+    /** Adds a request; the person asking counts as needing it. Returns its id. */
+    async addRequest(userId, login, title, body, status, at) {
+      const r = await db.prepare("INSERT INTO requests (user_id, login, title, body, status, created_at) VALUES (?, ?, ?, ?, ?, ?)").bind(userId, login, title, body, status, at).run();
+      const id = Number(r.meta?.last_row_id);
+      await db.prepare("INSERT OR IGNORE INTO request_needs (request_id, user_id, created_at) VALUES (?, ?, ?)").bind(id, userId, at).run();
+      return id;
+    },
+    /** "I need this too": press again to take it back. Only a request that is shown can be pressed. Returns { needed, needs } or null. */
+    async toggleNeed(userId, id, at) {
+      const r = await db.prepare("SELECT status FROM requests WHERE id = ?").bind(id).first();
+      if (!r || !["open", "solved"].includes(r.status)) return null;
+      const has = await db.prepare("SELECT 1 AS x FROM request_needs WHERE request_id = ? AND user_id = ?").bind(id, userId).first();
+      if (has) await db.prepare("DELETE FROM request_needs WHERE request_id = ? AND user_id = ?").bind(id, userId).run();
+      else await db.prepare("INSERT OR IGNORE INTO request_needs (request_id, user_id, created_at) VALUES (?, ?, ?)").bind(id, userId, at).run();
+      return { needed: !has, needs: Number((await db.prepare("SELECT COUNT(*) AS n FROM request_needs WHERE request_id = ?").bind(id).first())?.n ?? 0) };
+    },
+    async deleteOwnRequest(userId, id) {
+      const r = await db.prepare("SELECT id FROM requests WHERE id = ? AND user_id = ? AND status <> 'solved'").bind(id, userId).first();
+      if (!r) return false;
+      await db.prepare("DELETE FROM request_needs WHERE request_id = ?").bind(id).run();
+      await db.prepare("DELETE FROM requests WHERE id = ?").bind(id).run();
+      return true;
+    },
+    async requestsToReview(limit = 100) { return (await db.prepare("SELECT r.id AS id, r.login AS login, r.title AS title, r.body AS body, r.status AS status, (SELECT COUNT(*) FROM request_needs n WHERE n.request_id = r.id) AS needs FROM requests r WHERE r.status IN ('pending','open') ORDER BY CASE r.status WHEN 'pending' THEN 0 ELSE 1 END, r.id LIMIT ?").bind(limit).all()).results ?? []; },
+    async requestsToReviewCount() { return Number((await db.prepare("SELECT COUNT(*) AS n FROM requests WHERE status = 'pending'").first())?.n ?? 0); },
+    /** A maintainer's decision: show (open), hide, delete, or solve with the listed kit that answers it. */
+    async decideRequest(id, action, item = "") {
+      if (action === "delete") { await db.prepare("DELETE FROM request_needs WHERE request_id = ?").bind(id).run(); await db.prepare("DELETE FROM requests WHERE id = ?").bind(id).run(); return true; }
+      const map = { show: ["open", ""], hide: ["hidden", ""], solve: ["solved", item] };
+      if (!map[action]) return false;
+      const r = await db.prepare("UPDATE requests SET status = ?, solved_item = ? WHERE id = ?").bind(map[action][0], map[action][1], id).run();
+      return Number(r.meta?.changes) === 1;
+    },
+    async requestsOf(userId) { return (await db.prepare("SELECT title, body, status, created_at FROM requests WHERE user_id = ?").bind(userId).all()).results ?? []; },
+    async needsOf(userId) { return (await db.prepare("SELECT request_id, created_at FROM request_needs WHERE user_id = ?").bind(userId).all()).results ?? []; },
     // ---- contributor profiles. A profile is public only when its owner switched it on.
     async setPublic(userId, on, at) { await db.prepare("INSERT INTO profiles (user_id, public, updated_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET public = excluded.public, updated_at = excluded.updated_at").bind(userId, on ? 1 : 0, at).run(); },
-    async isPublic(userId) { return Number((await db.prepare("SELECT public FROM profiles WHERE user_id = ?").bind(userId).first())?.public ?? 0) === 1; },
+    async isPublic(userId) { return Number((await db.prepare("SELECT public FROM profiles WHERE user_id = ?").bind(userId).first())?.public ?? 1) === 1; },
     /** Every approved and published submission with the person behind it: the raw material for counting contributions. */
     async listedSubmissions() { return (await db.prepare("SELECT submitted_by_id AS id, repo_url, source FROM submissions WHERE status = 'approved' AND publish_state = 'listed' AND submitted_by_id > 0").all()).results ?? []; },
-    async publicUsers() { return (await db.prepare("SELECT u.id AS id, u.login AS login FROM users u JOIN profiles p ON p.user_id = u.id AND p.public = 1").all()).results ?? []; },
-    async userByLogin(login) { return (await db.prepare("SELECT u.id AS id, u.login AS login, COALESCE(p.public, 0) AS public FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE lower(u.login) = lower(?)").bind(login).first()) ?? null; },
+    async publicUsers() { return (await db.prepare("SELECT u.id AS id, u.login AS login FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE COALESCE(p.public, 1) = 1").all()).results ?? []; },
+    async userByLogin(login) { return (await db.prepare("SELECT u.id AS id, u.login AS login, COALESCE(p.public, 1) AS public FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE lower(u.login) = lower(?)").bind(login).first()) ?? null; },
     /** Who put this repository forward, if they chose to be credited. */
-    async creditFor(repoUrl) { return (await db.prepare("SELECT u.id AS id, u.login AS login FROM submissions s JOIN users u ON u.id = s.submitted_by_id JOIN profiles p ON p.user_id = s.submitted_by_id AND p.public = 1 WHERE lower(s.repo_url) = lower(?) AND s.status = 'approved' AND s.publish_state = 'listed' ORDER BY s.id DESC LIMIT 1").bind(repoUrl).first()) ?? null; },
+    async creditFor(repoUrl) { return (await db.prepare("SELECT u.id AS id, u.login AS login FROM submissions s JOIN users u ON u.id = s.submitted_by_id LEFT JOIN profiles p ON p.user_id = s.submitted_by_id WHERE COALESCE(p.public, 1) = 1 AND lower(s.repo_url) = lower(?) AND s.status = 'approved' AND s.publish_state = 'listed' ORDER BY s.id DESC LIMIT 1").bind(repoUrl).first()) ?? null; },
     async pendingCountFor(userId) { return Number((await db.prepare("SELECT COUNT(*) AS n FROM submissions WHERE submitted_by_id = ? AND status = 'pending'").bind(userId).first())?.n ?? 0); },
     // ---- votes ("this helped me") and short notes
     async voteCounts() { return (await db.prepare("SELECT item, COUNT(*) AS n FROM votes GROUP BY item").all()).results ?? []; },

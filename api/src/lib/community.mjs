@@ -7,7 +7,7 @@ import { esc, page, nav } from "./html.mjs";
 export const COMMUNITY = { votesPerHour: 60, notesPerDay: 5, min: 10, max: 240, listMax: 20, savesShownFrom: 3 };
 
 // a web address in any common form: a scheme, "www.", or a word followed by a usual top-level domain
-const LINKISH = /(?:https?:|ftp:|www\.|:\/\/)|\b[a-z0-9-]{2,}\.(?:com|net|org|io|dev|app|ai|co|xyz|ru|cn|me|info|biz|link|top|site|online|shop|club|tk|ly|gl)\b/i;
+export const LINKISH = /(?:https?:|ftp:|www\.|:\/\/)|\b[a-z0-9-]{2,}\.(?:com|net|org|io|dev|app|ai|co|xyz|ru|cn|me|info|biz|link|top|site|online|shop|club|tk|ly|gl)\b/i;
 
 /** Cleans a note and says why it was refused. Returns { ok: true, text } or { ok: false, error }. */
 export function cleanNote(raw) {
