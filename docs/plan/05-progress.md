@@ -166,3 +166,8 @@
 - Maintainers are recognised automatically: the callback checks org ownership and team membership with a server-side `GITHUB_ORG_TOKEN` (Members: read), so no one grants organisation access. Without the token, the "Sign in with organisation access" button still works.
 
 - Sign-in returns to the page you were on: the header button and any page that needs a sign-in pass a checked same-site path (kept in a short-lived cookie); saving a kit and submit prefill take priority; unsafe addresses fall back to the profile.
+
+## 2026-11-16 — Design pass 1
+- New stylesheet (type scale, 4px spacing, warm paper and teal palette, surfaces with soft shadows, 44px touch targets, reduced-motion respected). The header collapses to a menu button below 1040px, with search and theme inside it.
+- Cards: bookmark icon button (filled when saved), one-press save with a toast, "View details" with an arrow, text clamped, tags max two rows. Kit pages get a labelled Save button.
+- Endpoints for the button: GET /api/collection, POST /collection/toggle (same-origin, limits as before).

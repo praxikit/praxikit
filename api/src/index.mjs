@@ -53,7 +53,7 @@ const SITE_HEADERS = {
   "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
 };
 // What the app answers itself. Everything else is a page of the site.
-const APP_EXACT = new Set(["/healthz", "/submit", "/collection", "/profile", "/settings", "/admin", "/api/me"]);
+const APP_EXACT = new Set(["/healthz", "/submit", "/api/collection", "/collection", "/profile", "/settings", "/admin", "/api/me"]);
 const APP_PREFIX = ["/auth/", "/admin/", "/collection/", "/account/", "/assets/"];
 const isAppPath = (p) => APP_EXACT.has(p) || APP_PREFIX.some((x) => p.startsWith(x));
 
@@ -230,6 +230,28 @@ async function accountRoutes(request, env, url, path, method) {
     const g = await personGate(request, env, method, { forPage: true }); if (g instanceof Response) return g;
     let catalogue = null; try { catalogue = await fetchCatalogue(env); } catch { /* names are not shown; the list still is */ }
     return send(collectionPage({ session: g.s, env, rows: await g.store.collectionOf(g.s.id), catalogue, flash: flashAccount(url), user: await g.store.getUser(g.s.id) }));
+  }
+  if (path === "/api/collection" && method === "GET") {
+    const s = await sessionOf(request, env), store = storeFor(env);
+    if (!s || !store) return send(JSON.stringify({ error: "not signed in" }), { status: 401, type: "application/json" });
+    return send(JSON.stringify({ items: (await store.collectionOf(s.id)).map((r) => r.item) }), { type: "application/json" });
+  }
+  if (path === "/collection/toggle" && isPost) {
+    const J = (o, status = 200) => send(JSON.stringify(o), { status, type: "application/json" });
+    const s = await sessionOf(request, env), store = storeFor(env);
+    if (!s || !store) return J({ error: "not signed in", message: "Sign in to save kits." }, 401);
+    if (!sameOrigin(request, env)) return J({ error: "refused", message: "That request did not come from this site." }, 403);
+    let f; try { f = await request.formData(); } catch { return J({ error: "bad", message: FLASH_ACCOUNT.bad }, 400); }
+    const key = cleanItem(f.get("item"));
+    if (!key) return J({ error: "bad", message: FLASH_ACCOUNT.bad }, 400);
+    if (await store.hasItem(s.id, key)) { await store.removeItem(s.id, key); return J({ saved: false }); }
+    let catalogue; try { catalogue = await fetchCatalogue(env); } catch { return J({ error: "down", message: FLASH_ACCOUNT.down }, 503); }
+    if (!catalogue.has(key)) return J({ error: "gone", message: FLASH_ACCOUNT.gone }, 404);
+    if ((await store.collectionCount(s.id)) >= LIMITS.total) return J({ error: "limit", message: FLASH_ACCOUNT.limit }, 409);
+    if ((await store.collectionSince(s.id, new Date(Date.now() - 3600_000).toISOString())) >= LIMITS.perHour) return J({ error: "slow", message: FLASH_ACCOUNT.slow }, 429);
+    await store.touchUser(s.id, s.sub, new Date().toISOString());
+    await store.saveItem(s.id, key, "", new Date().toISOString());
+    return J({ saved: true });
   }
   if (path === "/profile" && method === "GET") {
     const g = await personGate(request, env, method, { forPage: true }); if (g instanceof Response) return g;
@@ -428,7 +450,7 @@ async function route(request, env) {
   }
 
 
-  if (path === "/collection" || path === "/profile" || path === "/settings" || path === "/collection/save" || path === "/collection/remove" || path === "/account/export" || path === "/account/delete") {
+  if (path === "/collection" || path === "/api/collection" || path === "/collection/toggle" || path === "/profile" || path === "/settings" || path === "/collection/save" || path === "/collection/remove" || path === "/account/export" || path === "/account/delete") {
     return accountRoutes(request, env, url, path, method);
   }
 

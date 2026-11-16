@@ -110,6 +110,9 @@ must(js0().includes('signin.href = signin.getAttribute("href") + "&return=" + en
 // ---- the site script's account code only acts where the app lives, and builds with text nodes
 const js = readFileSync(join(out, "site.js"), "utf8");
 must(js.includes('data-app') && js.includes("location.origin === appOrigin") && js.includes("textContent") && !js.includes("innerHTML") && !js.includes("document.write") && !js.includes("eval("), "the account code compares origins and never uses innerHTML or eval");
+must(js.includes('"/collection/toggle"') && js.includes('"aria-pressed"') && js.includes("savedMap === null") && js.includes('getElementById("menu-toggle")') && js.includes('"aria-expanded"'), "the script turns Save links into a one-press toggle only when signed in, and runs the mobile menu");
+const home = await (await call("/kits/")).text();
+must(home.includes('class="save-btn"') && home.includes('data-save="k/keel/"') && home.includes('aria-label="Save keel to your collection"') && home.includes('id="menu-toggle"') && home.includes('aria-controls="site-nav"'), "cards carry a labelled bookmark button and the page has the menu button");
 must(js.includes('link("/collection", "My collection")') && js.includes('nav.insertBefore(mine,'), "signed-in people get a My collection tab in the navigation");
 must(js.includes('"/admin"') && js.includes("nav.insertBefore(a, nav.firstChild)") && js.includes('me.role === "admin"'), "the Admin tab is added first in the nav, only for the admin role");
 

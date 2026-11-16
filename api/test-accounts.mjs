@@ -118,6 +118,24 @@ must(loc(await save(carol.session, "tags/")).endsWith("m=bad") && loc(await save
 must((await save(carol.session, "k/keel/", "", { origin: "https://evil.example" })).status === 403 && (await save(carol.session, "k/keel/", "", { origin: undefined })).status === 403, "a save from another origin, or with no proof of origin, is refused");
 siteDown = true; must(loc(await save(carol.session, "k/keel/")).endsWith("m=down"), "if the catalogue cannot be read, nothing is saved"); siteDown = false;
 
+// ---- the one-press toggle used by the Save icon
+{
+  const toggle = async (session, item, over = {}) => note(await call("/collection/toggle", { method: "POST", cookies: session, origin: OK, form: { item }, ...over }));
+  const dave2 = await signIn("u-dave", "");
+  must((await call("/api/collection")).status === 401, "the saved list needs a sign-in");
+  const list = async () => (await (await call("/api/collection", { cookies: dave2.session })).json()).items;
+  const was = (await list()).includes("k/keel/");
+  let r2 = await toggle(dave2.session, "k/keel/");
+  must(r2.status === 200 && (await r2.json()).saved === !was && (await list()).includes("k/keel/") === !was, "pressing the icon flips the saved state, and the list agrees");
+  r2 = await toggle(dave2.session, "k/keel/");
+  must((await r2.json()).saved === was && (await list()).includes("k/keel/") === was, "pressing again flips it back");
+  must((await toggle(dave2.session, "k/nope/")).status === 404, "an item that is not in the catalogue cannot be toggled on");
+  must((await toggle(dave2.session, "k/keel/", { origin: "https://evil.example" })).status === 403, "a toggle from another origin is refused");
+  must((await toggle({}, "k/keel/")).status === 401, "a toggle without a sign-in is refused");
+  const mine = (await (await call("/api/collection", { cookies: carol.session })).json()).items;
+  must(!mine.includes("k/nope/") && Array.isArray(mine), "the list is each person's own");
+}
+
 // ---- the collection page
 const page = await (await note(await call("/collection", { cookies: carol.session }))).text();
 must(page.includes("Playwright MCP") && page.includes("Work") && page.includes("keel") && page.includes("/settings") && !page.includes("Delete my account"), "the collection page lists saved kits by group and links to settings");

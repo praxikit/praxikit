@@ -267,6 +267,59 @@ const SITE_JS = `
       }
     } catch (e) {}
   });
+  // ---- menu button (small screens)
+  var mt = document.getElementById("menu-toggle"), hdr = document.querySelector("header.top");
+  if (mt && hdr) mt.addEventListener("click", function () {
+    var open = hdr.hasAttribute("data-open");
+    if (open) hdr.removeAttribute("data-open"); else hdr.setAttribute("data-open", "");
+    mt.setAttribute("aria-expanded", String(!open));
+  });
+
+  // ---- save to collection: stays a plain link until we know you are signed in
+  var savedMap = null, toastEl = null, toastTimer = 0;
+  function toast(msg, href, label) {
+    if (!toastEl) { toastEl = document.createElement("div"); toastEl.className = "toast"; toastEl.setAttribute("role", "status"); toastEl.setAttribute("aria-live", "polite"); document.body.appendChild(toastEl); }
+    toastEl.textContent = msg;
+    if (href) { var a = document.createElement("a"); a.href = href; a.textContent = label; toastEl.appendChild(a); }
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 3800);
+  }
+  function paintSaved(btn, on) {
+    var name = btn.getAttribute("data-name") || "this kit";
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.setAttribute("aria-label", (on ? "Remove " + name + " from" : "Save " + name + " to") + " your collection");
+    btn.title = on ? "Saved. Press to remove" : "Save to your collection";
+    var t = btn.querySelector("span"); if (t) t.textContent = on ? "Saved" : "Save";
+  }
+  function paintAll() {
+    [].slice.call(document.querySelectorAll("[data-save]")).forEach(function (b) { paintSaved(b, !!savedMap[b.getAttribute("data-save")]); });
+  }
+  function loadSaved() {
+    fetch("/api/collection", { credentials: "same-origin", headers: { Accept: "application/json" } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      if (!d || !Array.isArray(d.items)) return;
+      savedMap = {}; d.items.forEach(function (i) { savedMap[i] = true; });
+      paintAll();
+    }).catch(function () {});
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("[data-save]") : null;
+    if (!b || savedMap === null) return;
+    e.preventDefault();
+    if (b.getAttribute("data-busy")) return;
+    b.setAttribute("data-busy", "1");
+    var item = b.getAttribute("data-save"), body = new URLSearchParams();
+    body.set("item", item);
+    fetch("/collection/toggle", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" }, body: body.toString() })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (x) {
+        if (x.ok && typeof x.j.saved === "boolean") { savedMap[item] = x.j.saved; paintAll(); toast(x.j.saved ? "Saved to your collection" : "Removed from your collection", "/collection", "View"); }
+        else toast(typeof x.j.message === "string" ? x.j.message : "Could not save that. Try again.");
+      })
+      .catch(function () { toast("Could not reach the server. Try again."); })
+      .then(function () { b.removeAttribute("data-busy"); });
+  });
+
   // ---- account: only where the site and the app share one address; the page works the same without it
   var appOrigin = document.body.getAttribute("data-app") || "";
   var slot = document.getElementById("acct");
@@ -292,6 +345,7 @@ const SITE_JS = `
       document.addEventListener("click", function (e) { if (!d.contains(e.target)) d.removeAttribute("open"); });
       document.addEventListener("keydown", function (e) { if (e.key === "Escape") d.removeAttribute("open"); });
     }).catch(function () {});
+    loadSaved();
   }
 
   var tgl = document.getElementById("theme");
@@ -443,14 +497,15 @@ ${head}
 <header class="top"><div class="wrap bar">
 <a class="brand" href="${up}" aria-label="Praxikit home">${LOGO}<span>Praxikit</span></a>
 <form class="site-search" role="search" action="${up}search/" method="get"><label class="vh" for="site-q">Search the catalogue</label><input id="site-q" name="q" type="search" placeholder="Search  ( / )" autocomplete="off" spellcheck="false" maxlength="100"></form>
-<nav aria-label="Main"><a href="${up}kits/"${cur("kits")}>Kits</a><a href="${up}updates/"${cur("updates")}>Updates</a><a href="${up}picks/"${cur("picks")}>Picks</a><a href="${up}submit/"${cur("submit")}>Submit</a><a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
-<button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg></button></nav>
+<nav aria-label="Main" id="site-nav"><a href="${up}kits/"${cur("kits")}>Kits</a><a href="${up}updates/"${cur("updates")}>Updates</a><a href="${up}picks/"${cur("picks")}>Picks</a><a href="${up}submit/"${cur("submit")}>Submit</a><a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
+<button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false" title="Toggle dark mode"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg><span class="icon-label">Light or dark</span></button></nav>
 <div class="acct" id="acct">${APP ? `<a class="signin" href="${esc(APP)}/auth/login?mode=user">Sign in</a>` : ""}</div>
+<button class="icon-btn menu-toggle" id="menu-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="site-nav"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
 </div></header>
 <main id="main">
 ${body}
 </main>
-<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>Kits for AI coding agents. MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a></div></div></footer>
+<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>A catalogue of kits for AI coding agents.<br>Free, open source, MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a></div></div></footer>
 <script src="${up}site.js?v=${hashStr(SITE_JS)}" data-site></script>
 </body>
 </html>
@@ -490,8 +545,9 @@ function loadDrift() {
 const SLUG_OK = /^[a-z0-9-]{1,40}$/;
 const tagsOf = (item) => (Array.isArray(item.tags) ? item.tags.map(String).filter(Boolean) : []);
 const MAX_CHIPS = 8; // a card shows at most two rows of tags; the rest are on the tag pages and in the tooltip of "+N"
-/** A Save link goes to the app, which asks you to sign in and confirm (a link cannot change anything by itself). */
-const saveLink = (key) => (APP ? `<a class="save" href="${esc(APP)}/collection/save?item=${encodeURIComponent(key)}" rel="noopener">Save</a>` : "");
+/** A Save button: a link to the app's confirmation page (so it works without scripts and signs you in first), which the site script turns into a one-press toggle once you are signed in. */
+const BOOKMARK = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16.2a.4.4 0 0 1-.64.32L12 16.9l-5.86 4.12a.4.4 0 0 1-.64-.32V4.5a1 1 0 0 1 1-1z"/></svg>';
+const saveLink = (key, name = "", text = false) => (APP ? `<a class="save-btn${text ? " with-text" : ""}" href="${esc(APP)}/collection/save?item=${encodeURIComponent(key)}" data-save="${esc(key)}" data-name="${esc(name)}" aria-label="Save ${esc(name)} to your collection" title="Save to your collection" rel="noopener">${BOOKMARK}${text ? "<span>Save</span>" : ""}</a>` : "");
 function tagChips(item, up) {
   const all = tagsOf(item);
   if (!all.length) return "";
@@ -517,7 +573,7 @@ function extCard(l, up) {
 <p class="promise">${esc(l.why)}</p>
 ${tagChips(l, up)}
 ${l.pick ? `<p class="pick-note"><strong>How I use it:</strong> ${esc(l.note)}</p>` : ""}
-<div class="card-foot"><span>Reviewed at <code>${esc(l.commit.slice(0, 7))}</code>, ${esc(CHECK_WORDS[l.checks] ?? l.checks)}. Installs follow the author's latest version, which can differ.${drift.note}</span><a class="details" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a>${saveLink(l.url)}</div>
+<div class="card-foot"><span>Reviewed at <code>${esc(l.commit.slice(0, 7))}</code>, ${esc(CHECK_WORDS[l.checks] ?? l.checks)}. Installs follow the author's latest version, which can differ.${drift.note}</span><span class="card-actions">${saveLink(l.url, l.name)}<a class="details" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a></span></div>
 </li>`;
 }
 
@@ -533,7 +589,7 @@ function card(k, up) {
 <h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
 <p class="promise">${esc(k.promise)}</p>
 ${tagChips(k, up)}
-<div class="card-foot"><span>${esc(bits)}${bits && latest ? " · " : ""}${latest ? `updated ${esc(latest)}` : ""}</span><a class="details" href="${up}k/${esc(k.name)}/">View details</a>${saveLink(`k/${k.name}/`)}</div>
+<div class="card-foot"><span>${esc(bits)}${bits && latest ? " · " : ""}${latest ? `updated ${esc(latest)}` : ""}</span><span class="card-actions">${saveLink(`k/${k.name}/`, k.name)}<a class="details" href="${up}k/${esc(k.name)}/">View details</a></span></div>
 </li>`;
 }
 
@@ -731,7 +787,7 @@ function kitPage(k) {
 <p class="meta-line">${badge(k)}${latest ? `<span>released ${esc(latest)}</span>` : ""}<span>${k.collections.map((c) => `<a href="../../c/${slug(c)}/">${esc(c)}</a>`).join(", ")}</span></p>
 <p class="lead">${esc(k.promise)}</p>
 ${tagChips(k, "../../")}
-${APP ? `<p>${saveLink(`k/${k.name}/`)}</p>` : ""}
+${APP ? `<p class="actions">${saveLink(`k/${k.name}/`, k.name, true)}</p>` : ""}
 <div class="two">
 <div class="main-col">
 ${previewBlock(k)}
