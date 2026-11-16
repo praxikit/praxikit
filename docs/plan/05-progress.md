@@ -171,3 +171,8 @@
 - New stylesheet (type scale, 4px spacing, warm paper and teal palette, surfaces with soft shadows, 44px touch targets, reduced-motion respected). The header collapses to a menu button below 1040px, with search and theme inside it.
 - Cards: bookmark icon button (filled when saved), one-press save with a toast, "View details" with an arrow, text clamped, tags max two rows. Kit pages get a labelled Save button.
 - Endpoints for the button: GET /api/collection, POST /collection/toggle (same-origin, limits as before).
+
+## 2026-11-16 — Design pass 2
+- Submit page as a panel with numbered step cards; FAQ with open/closed markers; releases as a card list; long-text pages with a comfortable measure; tables scroll sideways on small screens.
+- New About page, a generated 1200x630 share image (og.png), structured data (site and organisation on the home page, software on kit pages, with "<" escaped), canonical addresses on kit pages, theme-colour meta.
+- New `site/a11y.test.mjs` (in CI): text contrast at least 4.5:1 for 30 pairs in both themes; every page has one h1, landmarks, a skip link and named controls.

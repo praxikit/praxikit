@@ -55,11 +55,11 @@ let html = await r.text();
 must(r.status === 200 && html.includes("<title>") && html.includes('data-app="https://praxikit.com"') && html.includes('id="acct"'), "the home page is the built site, with the account slot");
 const csp = r.headers.get("Content-Security-Policy") ?? "";
 must(csp.includes("script-src 'self'") && csp.includes("frame-ancestors 'none'") && !csp.includes("unsafe-inline") && !csp.includes("unsafe-eval") && r.headers.get("X-Content-Type-Options") === "nosniff" && (r.headers.get("Strict-Transport-Security") ?? "").includes("max-age"), `static pages carry strict headers: ${csp}`);
-must(!/<script(?![^>]*\ssrc=)[^>]*>/i.test(html), "no inline script is left on any page");
+must(!/<script(?![^>]*(?:\ssrc=|ld\+json))[^>]*>/i.test(html), "no inline script is left on any page");
 for (const p of ["/kits/", "/k/keel/", "/tags/", "/search/", "/submit/", "/privacy/", "/policy/", "/updates/", "/picks/"]) {
   const x = await call(p);
   must(x.status === 200 && (await x.text()).includes("<header"), `${p} is the site's page`);
-  must(!/<script(?![^>]*\ssrc=)[^>]*>/i.test(await (await call(p)).text()), `${p} has no inline script`);
+  must(!/<script(?![^>]*(?:\ssrc=|ld\+json))[^>]*>/i.test(await (await call(p)).text()), `${p} has no inline script`);
 }
 for (const p of ["/site.js", "/boot.js", "/style.css", "/search-index.json", "/versions.json", "/feed.xml", "/sitemap.xml", "/robots.txt", "/logo.svg"]) must((await call(p)).status === 200, `${p} is served`);
 must((await (await call("/robots.txt")).text()).includes("Disallow: /admin") && (await (await call("/sitemap.xml")).text()).includes("https://praxikit.com/kits/"), "robots and the sitemap use the real address");
@@ -78,7 +78,7 @@ html = await r.text();
 must(r.status === 200 && html.includes("<header") && html.includes('class="brand"') && html.includes("<footer") && html.includes("Profile — Praxikit") && !html.includes("@@TITLE@@") && !html.includes("@@BODY@@") && !html.includes("@@HEAD@@"), "the profile uses the site's header and footer, with the title filled in");
 must(html.includes("@carol") && html.includes('href="/assets/app.css?v=') && html.includes('content="noindex,nofollow"') && html.includes('data-root="/"'), "the profile shows the person, loads the app styles, is not indexed and links from the root");
 must(!html.includes('href="./') && !html.includes('href="../'), "no relative links on an app page (they would break on /admin/submissions/5)");
-must(!/<script(?![^>]*\ssrc=)[^>]*>/i.test(html), "app pages carry no inline script");
+must(!/<script(?![^>]*(?:\ssrc=|ld\+json))[^>]*>/i.test(html), "app pages carry no inline script");
 const css = await call("/assets/app.css");
 must(css.status === 200 && (css.headers.get("Content-Type") ?? "").includes("text/css") && (await css.text()).includes(".app "), "the app's styles are served and scoped to .app");
 r = await call("/admin");

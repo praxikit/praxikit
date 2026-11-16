@@ -50,12 +50,13 @@ export const CSS_V = hash(CSS);
 let SHELL = "";
 export const setShell = (text) => { SHELL = typeof text === "string" && text.includes("<!--@@BODY@@-->") && text.includes("@@TITLE@@") ? text : ""; };
 const HEAD_EXTRA = `<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/app.css?v=${CSS_V}">`;
-export const page = (title, body) => SHELL
+const wrapTables = (b) => b.split("<table>").join('<div class="table-wrap"><table>').split("</table>").join("</table></div>");
+export const page = (title, rawBody) => { const body = wrapTables(rawBody); return SHELL
   ? SHELL.split("@@TITLE@@").join(esc(title)).replace("<!--@@HEAD@@-->", () => HEAD_EXTRA).replace("<!--@@BODY@@-->", () => `<div class="wrap app">${body}</div>`)
   : `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>${HEAD_EXTRA}<link rel="stylesheet" href="/style.css"></head>
-<body><main class="wrap app"><p><a href="/">Praxikit</a></p>${body}</main></body></html>`;
+<body><main class="wrap app"><p><a href="/">Praxikit</a></p>${body}</main></body></html>`; };
 
 // the site header already shows who is signed in, so pages no longer draw their own bar
 export const nav = () => "";

@@ -37,11 +37,11 @@ const must = (cond, msg) => { if (!cond) failures.push(msg); };
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
-must(htmlFiles.length === 22, `expected home, 404, kits, 4 type pages, updates, picks, submit, policy, 2 collections, 4 kit pages, tags index, 1 tag page, search, privacy, app frame = 22 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 23, `expected home, 404, kits, 4 type pages, updates, picks, submit, policy, 2 collections, 4 kit pages, tags index, 1 tag page, search, privacy, about, app frame = 23 html files, got ${htmlFiles.length}`);
 for (const f of htmlFiles) {
   const h = readFileSync(f, "utf8");
   // drop only our own inline scripts (marked data-site); any other <script> is a failure
-  const stripped = h.replace(/<script src="[^"]*" data-site><\/script>/g, "");
+  const stripped = h.replace(/<script src="[^"]*" data-site><\/script>/g, "").replace(/<script type="application\/ld\+json">[^<]*<\/script>/g, "");
   must(!/<script/i.test(stripped), `unexpected <script> in ${f}`);
   must(!/<img src=x/.test(h), `raw <img> payload in ${f}`);
   const noValues = stripped.replace(/="[^"]*"/g, '=""'); // attribute values are inert text; look at attribute names only
@@ -147,6 +147,20 @@ must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes("Vi
   execFileSync("node", [join(here, "build.mjs"), "--root", root, "--out", out4], { stdio: "pipe" });
   must(!readFileSync(join(out4, "kits", "index.html"), "utf8").includes("collection/save") && !readFileSync(join(out4, "kits", "index.html"), "utf8").includes("javascript:alert(1)\""), "an app address that is not an https origin is ignored");
   void keep;
+}
+
+// share card, structured data and the about page
+{
+  const home = readFileSync(join(out, "index.html"), "utf8"), evil = readFileSync(join(out, "k", "evil", "index.html"), "utf8");
+  const png = readFileSync(join(out, "og.png"));
+  must(png.subarray(1, 4).toString() === "PNG" && png.readUInt32BE(16) === 1200 && png.readUInt32BE(20) === 630, "the share image is a 1200x630 PNG");
+  must(home.includes('property="og:image"') && home.includes('name="twitter:card" content="summary_large_image"') && home.includes('name="theme-color"'), "pages carry a share image and theme colours");
+  const blocks = [...home.matchAll(/<script type="application\/ld\+json">([^<]*)<\/script>/g)].map((x) => JSON.parse(x[1]));
+  must(blocks.length === 1 && blocks[0]["@graph"].some((n) => n["@type"] === "WebSite") && blocks[0]["@graph"].some((n) => n["@type"] === "Organization"), "the home page describes the site and its organisation in structured data");
+  const kitLd = [...evil.matchAll(/<script type="application\/ld\+json">([^<]*)<\/script>/g)];
+  must(kitLd.length === 1 && JSON.parse(kitLd[0][1])["@type"] === "SoftwareApplication", "a kit page describes the kit in structured data");
+  must(!evil.includes('"description":"<') && !kitLd[0][1].includes("</script") && kitLd[0][1].includes("\\" + "u003cscript>alert(1)"), "hostile text cannot end the structured-data block");
+  must(readFileSync(join(out, "about", "index.html"), "utf8").includes("About Praxikit") && readFileSync(join(out, "index.html"), "utf8").includes('about/"'), "there is an About page, linked from the footer");
 }
 
 // a non-https listing url must be refused

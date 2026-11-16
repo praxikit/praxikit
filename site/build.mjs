@@ -15,6 +15,7 @@
 import { readFileSync, readdirSync, existsSync, mkdirSync, writeFileSync, rmSync, copyFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
+import { deflateSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { validateListing } from "./listings.mjs";
 
@@ -149,6 +150,35 @@ const LOGO = `<svg class="logo" viewBox="0 0 22 30" width="22" height="30" aria-
 const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1 30 32" width="240" height="256">${mark("#0f8a7e", "#d97a14")}</svg>`;
 const FAVICON = "data:image/svg+xml," + encodeURIComponent(LOGO_SVG.replace(' width="240" height="256"', ""));
 const ISSUE = (t) => `${REPO}/issues/new?template=${t}`;
+
+/** Structured data for search engines. "<" is escaped so no text from a kit can end the script block. */
+const jsonLd = (obj) => JSON.stringify(obj).split("<").join(String.fromCharCode(92) + "u003c");
+
+function ogPng() {
+  const W = 1200, H = 630, rows = [];
+  const crcT = new Uint32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc = (buf) => { let c = 0xffffffff; for (const b of buf) c = crcT[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([len, td, c]); };
+  const sc = 15, ox = 600 - (22 * sc) / 2, oy = 315 - (30 * sc) / 2; // the mark, centred
+  const rects = [...BLOCKS.map(([x, y]) => [x, y, [15, 138, 126]]), [SPARK[0], SPARK[1], [217, 122, 20]]].map(([x, y, col]) => ({ x: ox + x * sc, y: oy + y * sc, w: 6 * sc, r: 1.4 * sc, col }));
+  const cover = (px, py, q) => { // anti-aliased rounded square
+    const cx = q.x + q.w / 2, cy = q.y + q.w / 2, hx = q.w / 2 - q.r;
+    const dx = Math.max(Math.abs(px - cx) - hx, 0), dy = Math.max(Math.abs(py - cy) - hx, 0);
+    return Math.min(1, Math.max(0, q.r - Math.hypot(dx, dy) + 0.5));
+  };
+  for (let y = 0; y < H; y++) {
+    const row = Buffer.alloc(1 + W * 3);
+    for (let x = 0; x < W; x++) {
+      const g = Math.max(0, 1 - Math.hypot((x - 600) / 620, (y - 315) / 380)); // soft glow behind the mark
+      let r = 11 + 20 * g * g, gr = 18 + 56 * g * g, b = 17 + 50 * g * g;
+      for (const q of rects) { const a = cover(x + 0.5, y + 0.5, q); if (a > 0) { r += (q.col[0] - r) * a; gr += (q.col[1] - gr) * a; b += (q.col[2] - b) * a; } }
+      row[1 + x * 3] = Math.round(r); row[2 + x * 3] = Math.round(gr); row[3 + x * 3] = Math.round(b);
+    }
+    rows.push(row);
+  }
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4); ihdr[8] = 8; ihdr[9] = 2;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("IDAT", deflateSync(Buffer.concat(rows), { level: 9 })), chunk("IEND", Buffer.alloc(0))]);
+}
 
 const THEME_BOOT = `try{var t=localStorage.getItem("praxikit-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}`;
 // No regular expressions in here: this is a template literal, where backslashes would be eaten.
@@ -470,7 +500,7 @@ const SITE_JS = `
 })();
 `;
 
-const page = ({ title, depth, body, description, canonical, home = false, current = "", head = "", abs = false }) => {
+const page = ({ title, depth, body, description, canonical, home = false, current = "", head = "", abs = false, ld = null }) => {
   const cur = (id) => (id === current ? ' aria-current="page"' : "");
   const up = abs ? "/" : depth ? "../".repeat(depth) : "./";
   return `<!doctype html>
@@ -485,7 +515,15 @@ const page = ({ title, depth, body, description, canonical, home = false, curren
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Praxikit">
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:image" content="${esc(HOME_URL)}og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Praxikit mark: six teal blocks forming a P, with one amber block set apart.">
+<meta name="twitter:image" content="${esc(HOME_URL)}og.png">
+${canonical ? `<meta property="og:url" content="${esc(canonical)}">\n` : ""}<meta name="theme-color" content="#f8f7f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1211" media="(prefers-color-scheme: dark)">
+${ld ? `<script type="application/ld+json">${jsonLd(ld)}</script>\n` : ""}
 ${canonical ? `<link rel="canonical" href="${esc(canonical)}">\n` : ""}<link rel="alternate" type="application/atom+xml" title="Praxikit releases" href="${up}feed.xml">
 ${head}
 <link rel="icon" href="${FAVICON}">
@@ -505,7 +543,7 @@ ${head}
 <main id="main">
 ${body}
 </main>
-<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>A catalogue of kits for AI coding agents.<br>Free, open source, MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a></div></div></footer>
+<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>A catalogue of kits for AI coding agents.<br>Free, open source, MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}about/">About</a><a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a></div></div></footer>
 <script src="${up}site.js?v=${hashStr(SITE_JS)}" data-site></script>
 </body>
 </html>
@@ -670,14 +708,14 @@ ${picks.length ? `<ul class="recs">${picks.slice(0, 3).map(recCard).join("")}</u
 <details><summary>How do updates reach me?</summary><p>Run <code>/plugin marketplace update praxikit</code>, then <code>/reload-plugins</code>. Kits use semantic versions and keep a changelog; the <a href="updates/">updates page</a> shows what changed since your version.</p></details>
 <details><summary>What do the build checks on a kit page mean?</summary><p>They are computed from the files when the site is built: the manifest is complete, the changelog matches the version, the scripts contain no network code. They show the kit is consistent. They are not a security audit.</p></details>
 </section>`;
-  return page({ title: "Praxikit — a catalogue of kits for AI coding agents", depth: 0, body, home: true, canonical: HOME_URL, description: "A catalogue of versioned, readable kits for AI coding agents: plugins, skills, MCP configs and templates, each with a changelog and a list of what it reads, writes and sends." });
+  return page({ title: "Praxikit — a catalogue of kits for AI coding agents", depth: 0, body, home: true, canonical: HOME_URL, ld: { "@context": "https://schema.org", "@graph": [{ "@type": "WebSite", name: "Praxikit", url: HOME_URL, description: "A catalogue of versioned, readable kits for AI coding agents.", potentialAction: { "@type": "SearchAction", target: `${HOME_URL}search/?q={search_term_string}`, "query-input": "required name=search_term_string" } }, { "@type": "Organization", name: "Praxikit", url: HOME_URL, logo: `${HOME_URL}logo.svg`, sameAs: [REPO] }] }, description: "A catalogue of versioned, readable kits for AI coding agents: plugins, skills, MCP configs and templates, each with a changelog and a list of what it reads, writes and sends." });
 }
 
 function kitsPage(kits, group) {
   const list = group ? inGroup(kits, group) : kits;
   const depth = group ? 2 : 1, up = "../".repeat(depth);
   const title = group ? group.label : "All kits";
-  const search = kits.length >= 4 ? `<div class="toolbar"><label class="search"><span class="vh">Search kits</span><input id="q" type="search" placeholder="Filter these kits" autocomplete="off" spellcheck="false"></label></div>` : "";
+  const search = kits.length >= 4 ? `<div class="toolbar"><label class="search"><span class="vh">Search kits</span><input id="q" type="search" aria-label="Filter these kits" placeholder="Filter these kits" autocomplete="off" spellcheck="false"></label></div>` : "";
   const empty = group && !list.length ? `<div class="empty"><p><strong>No ${esc(group.noun)} yet.</strong> <a href="${up}submit/">Submit one</a> or <a href="${up}kits/">see all kits</a>.</p></div>` : "";
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="${up}">Home</a> / ${group ? `<a href="${up}kits/">Kits</a> / ${esc(group.label)}` : "Kits"}</p>
 <div class="sec-head"><h1>${esc(title)}</h1><p class="muted" id="count" aria-live="polite">${plural(list.length, "kit")}</p></div>
@@ -715,9 +753,9 @@ ${picks.length ? `<ul class="recs">${picks.map(recCard).join("")}</ul>` : `<div 
 
 function submitPage() {
   const form = APP
-    ? `<form class="submit-form" method="get" action="${esc(APP)}/submit">
+    ? `<form class="submit-form panel" method="get" action="${esc(APP)}/submit">
 <label for="repo">Repository link</label>
-<div class="row"><input id="repo" name="url" type="url" required maxlength="200" placeholder="https://github.com/owner/repo" autocomplete="off"><button class="btn" type="submit">Continue with GitHub</button></div>
+<div class="row"><input id="repo" name="url" type="url" required maxlength="200" inputmode="url" autocapitalize="off" placeholder="https://github.com/owner/repo" autocomplete="off"><button class="btn" type="submit">Continue with GitHub</button></div>
 <p class="muted">You will sign in with GitHub (only your username is read) and confirm on the next screen. Your link is passed along so you do not paste it twice.</p>
 </form>
 <p class="muted">Prefer GitHub issues, or the app is down? <a href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Open an issue instead</a>.</p>`
@@ -801,7 +839,23 @@ ${trustBlock(k)}
 ${checker([k], k.name) ? `<h2 class="ck-title">Am I up to date?</h2>${checker([k], k.name)}` : ""}
 <p class="side-links"><a href="${esc(REPO)}/tree/main/kits/${esc(k.name)}" rel="noopener noreferrer">Source on GitHub</a></p></div></aside>
 </div></div>`;
-  return page({ title: `${k.name} — Praxikit`, depth: 2, body, description: k.promise });
+  return page({ title: `${k.name} — Praxikit`, depth: 2, body, canonical: `${HOME_URL}k/${k.name}/`, description: k.promise, ld: { "@context": "https://schema.org", "@type": "SoftwareApplication", name: k.name, description: k.promise, softwareVersion: k.version, applicationCategory: "DeveloperApplication", operatingSystem: "Any", isAccessibleForFree: true, url: `${HOME_URL}k/${k.name}/`, offers: { "@type": "Offer", price: "0", priceCurrency: "USD" } } });
+}
+
+function aboutPage() {
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / About</p><h1>About Praxikit</h1>
+<p class="lead">A small, honest catalogue of the skills, plugins and MCP servers worth giving an AI coding agent, each one readable before you install it.</p>
+<h2 class="sub">Why it exists</h2>
+<p>Kits for coding agents are easy to find and hard to trust. Praxikit started as one person's own collection of the kits they actually use, with a plain list of what each one reads, writes and sends. It stays small on purpose: a catalogue you can read in one sitting beats a directory you have to search.</p>
+<h2 class="sub">What you will find here</h2>
+<ul><li><strong>Built by Praxikit.</strong> Kits made here, with a version, a changelog and a full account of what they touch.</li>
+<li><strong>My picks.</strong> Kits by other people that the owner really uses, each with a note on how.</li>
+<li><strong>Listed.</strong> Kits that were submitted, scanned and read by a person. Listing is not an endorsement.</li></ul>
+<h2 class="sub">How it is run</h2>
+<p>Praxikit is free, open source (MIT) and run by one maintainer, part-time. Nothing is listed for payment and nothing is sold. The checks never run a kit's code. Read the <a href="../policy/">policy</a> for what a listing means, how to report a problem and how removals work, and the <a href="../privacy/">privacy page</a> for what is kept if you sign in.</p>
+<h2 class="sub">Get involved</h2>
+<p>Built a kit? <a href="../submit/">Submit it</a>. Found a problem? Open an issue in the <a href="${esc(REPO)}/issues" rel="noopener noreferrer">repository</a>. The maintainer is <a href="https://github.com/royal-programmer" rel="noopener noreferrer">@royal-programmer</a> on GitHub.</p></div>`;
+  return page({ title: "About — Praxikit", depth: 1, body, canonical: `${HOME_URL}about/`, description: "Why Praxikit exists, what is in it, and how it is run: free, open source and read by a person before anything is listed." });
 }
 
 function privacyPage() {
@@ -903,7 +957,7 @@ function buildSearchIndex(kits, listings, tagMap) {
   }
   for (const l of listings) out.push({ t: l.name, k: l.pick ? "pick" : "listed", u: l.url, ext: 1, d: [l.pick ? `How I use it: ${l.note}` : "", l.why].filter(Boolean).join(" "), g: tagsOf(l).join(" ") });
   for (const [t, l] of sortedTags(tagMap)) out.push({ t: `#${t}`, k: "tag", u: `tags/${t}/`, d: plural(l.length, "kit"), g: t });
-  for (const [t, u, d] of [["Kits", "kits/", "Every kit, by type"], ["Updates", "updates/", "Check your version and see what changed"], ["My picks", "picks/", "Kits the owner uses, with a note on how"], ["Submit a kit", "submit/", "Submit a public GitHub repository"], ["Policy", "policy/", "What a listing means, reports and removals"], ["Privacy", "privacy/", "What is kept about you if you sign in"], ["Tags", "tags/", "Browse by tag"], ["Release feed", "feed.xml", "Subscribe to new versions"]]) out.push({ t, k: "page", u, d, g: "" });
+  for (const [t, u, d] of [["Kits", "kits/", "Every kit, by type"], ["Updates", "updates/", "Check your version and see what changed"], ["My picks", "picks/", "Kits the owner uses, with a note on how"], ["Submit a kit", "submit/", "Submit a public GitHub repository"], ["About", "about/", "Why Praxikit exists and how it is run"], ["Policy", "policy/", "What a listing means, reports and removals"], ["Privacy", "privacy/", "What is kept about you if you sign in"], ["Tags", "tags/", "Browse by tag"], ["Release feed", "feed.xml", "Subscribe to new versions"]]) out.push({ t, k: "page", u, d, g: "" });
   return out;
 }
 
@@ -928,6 +982,8 @@ write("picks/index.html", picksPage(picks));
 write("submit/index.html", submitPage());
 write("policy/index.html", policyPage());
 write("privacy/index.html", privacyPage());
+write("about/index.html", aboutPage());
+writeFileSync(join(OUT, "og.png"), ogPng());
 const tagMap = collectTags(items);
 write("tags/index.html", tagsIndexPage(tagMap));
 for (const [t, l] of tagMap) write(`tags/${t}/index.html`, tagPage(t, l));
