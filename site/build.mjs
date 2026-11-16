@@ -361,6 +361,7 @@ const SITE_JS = `
   if (slot && appOrigin && location.origin === appOrigin && hinted) {
     fetch("/api/me", { credentials: "same-origin", headers: { Accept: "application/json" } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (me) {
       if (!me || typeof me.login !== "string") { document.cookie = "praxikit-in=; Max-Age=0; Path=/; Secure; SameSite=Lax"; return; }
+      loadSaved();
       var nav = document.querySelector("header nav"), admin = me.role === "admin";
       if (admin && nav) { var a = link("/admin", "Admin"); a.className = "admin-tab"; if (location.pathname.indexOf("/admin") === 0) a.setAttribute("aria-current", "page"); nav.insertBefore(a, nav.firstChild); }
       if (nav) { var mine = link("/collection", "My collection"); if (location.pathname.indexOf("/collection") === 0) mine.setAttribute("aria-current", "page"); nav.insertBefore(mine, nav.querySelector('a[href^="https://github.com"]')); }
@@ -376,7 +377,6 @@ const SITE_JS = `
       document.addEventListener("click", function (e) { if (!d.contains(e.target)) d.removeAttribute("open"); });
       document.addEventListener("keydown", function (e) { if (e.key === "Escape") d.removeAttribute("open"); });
     }).catch(function () {});
-    loadSaved();
   }
 
   var tgl = document.getElementById("theme");
@@ -417,7 +417,7 @@ const SITE_JS = `
   }
 
   // ---- site search: a prebuilt index, matched in the browser. Results are built with textContent only.
-  var root = document.body.getAttribute("data-root") || "./";
+  var siteRoot = document.body.getAttribute("data-root") || "./";
   /*search-start*/
   function searchIndex(index, query) {
     var words = String(query || "").toLowerCase().split(" ").filter(function (w) { return w.length > 0; });
@@ -442,14 +442,14 @@ const SITE_JS = `
   var KIND_NAME = { kit: "Praxikit kit", skill: "Skill or command", pick: "My pick", listed: "Listed", tag: "Tag", page: "Page" };
   var indexPromise = null;
   function loadIndex() {
-    if (!indexPromise) indexPromise = fetch(root + "search-index.json").then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; });
+    if (!indexPromise) indexPromise = fetch(siteRoot + "search-index.json").then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; });
     return indexPromise;
   }
   function hrefOf(e) {
     var u = String(e.u || "");
     if (u.indexOf("https://github.com/") === 0) return u;
     if (u.indexOf("://") > -1 || u.charAt(0) === "/") return "";
-    return root + u;
+    return siteRoot + u;
   }
   function renderResults(list, into, limit) {
     into.textContent = "";

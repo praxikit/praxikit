@@ -97,6 +97,17 @@ must(!existsSync(join(out, "recommended")) && !existsSync(join(out, ".nojekyll")
 r = await call("/auth/logout", { method: "POST", cookies: carol, origin: "https://praxikit.com" });
 must(r.status === 302 && r.headers.get("Location") === "/", "signing out returns to the home page");
 
+// ---- regression: Saving read the catalogue over the internet, which a Worker cannot do to its own address; it must use its own files
+// (the fake network in this test answers 404 to everything, exactly like an unreachable address)
+{
+  const page = await (await call("/collection/save?item=" + encodeURIComponent("k/keel/"), { cookies: carol })).text();
+  must(page.includes("Save to your collection") && !page.includes("could not be read"), "the Save confirmation page finds the kit in the site's own files");
+  const t = await call("/collection/toggle", { method: "POST", cookies: carol, origin: "https://praxikit.com", form: { item: "k/keel/" } });
+  must(t.status === 200 && (await t.json()).saved === true, "the one-press Save works without any network");
+  const t2 = await call("/collection/toggle", { method: "POST", cookies: carol, origin: "https://praxikit.com", form: { item: "k/keel/" } });
+  must((await t2.json()).saved === false, "and pressing again removes it");
+}
+
 // ---- regression: the header's script must be allowed to run on the app's own pages too (it was blocked, so the header kept showing "Sign in")
 for (const [p, ck] of [["/profile", carol], ["/settings", carol], ["/collection", carol], ["/admin", admin], ["/admin", {}]]) {
   const x = await call(p, { cookies: ck });

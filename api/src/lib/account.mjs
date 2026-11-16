@@ -23,7 +23,8 @@ export const cleanLabel = (text) => String(text ?? "").normalize("NFKC").replace
 export async function fetchCatalogue(env) {
   const base = String(env.SITE_URL || "https://praxikit.com/").replace(/\/*$/, "/");
   let r;
-  try { r = await fetch(`${base}search-index.json`, { headers: { "User-Agent": "praxikit-admin" } }); } catch { throw new Error("catalogue unreachable"); }
+  // The site's files are bound to this Worker, so read them directly: a Worker cannot reliably fetch its own public address.
+  try { r = env.ASSETS ? await env.ASSETS.fetch(new Request(new URL("/search-index.json", base))) : await fetch(`${base}search-index.json`, { headers: { "User-Agent": "praxikit-admin" } }); } catch { throw new Error("catalogue unreachable"); }
   if (!r.ok) throw new Error("catalogue unreadable");
   let list; try { list = JSON.parse(await r.text()); } catch { throw new Error("catalogue unreadable"); }
   const out = new Map();
