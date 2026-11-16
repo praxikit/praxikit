@@ -56,7 +56,7 @@ const SITE_HEADERS = {
 };
 // What the app answers itself. Everything else is a page of the site.
 const APP_EXACT = new Set(["/healthz", "/submit", "/contributors", "/api/collection", "/collection", "/profile", "/settings", "/admin", "/api/me"]);
-const APP_PREFIX = ["/u/", "/api/", "/auth/", "/admin/", "/collection/", "/account/", "/assets/"];
+const APP_PREFIX = ["/u/", "/api/", "/auth/", "/admin/", "/collection/", "/settings/", "/account/", "/assets/"];
 const isAppPath = (p) => APP_EXACT.has(p) || APP_PREFIX.some((x) => p.startsWith(x));
 
 let shellAt = 0;

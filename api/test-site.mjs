@@ -97,6 +97,26 @@ must(!existsSync(join(out, "recommended")) && !existsSync(join(out, ".nojekyll")
 r = await call("/auth/logout", { method: "POST", cookies: carol, origin: "https://praxikit.com" });
 must(r.status === 302 && r.headers.get("Location") === "/", "signing out returns to the home page");
 
+// ---- regression: every address the app answers must reach the app, not the static files (a form once posted to an address the
+// router did not know and got the file server's 405). The app's answers carry Referrer-Policy: same-origin; the site's files do not.
+{
+  const ME = { cookies: carol, origin: "https://praxikit.com" };
+  const APP_ROUTES = [
+    ["GET", "/submit"], ["GET", "/profile"], ["GET", "/settings"], ["GET", "/collection"], ["GET", "/collection/save?item=k%2Fpitch-panel%2F"], ["GET", "/account/export"], ["GET", "/admin"], ["GET", "/admin/listings"], ["GET", "/admin/notes"],
+    ["GET", "/contributors"], ["GET", "/u/nobody"], ["GET", "/api/me"], ["GET", "/api/collection"], ["GET", "/api/counts"], ["GET", "/api/item?item=k%2Fpitch-panel%2F"], ["GET", "/auth/login?mode=user"], ["GET", "/assets/app.css"], ["GET", "/healthz"],
+    ["POST", "/settings/public", { public: "yes" }], ["POST", "/collection/save", { item: "k/pitch-panel/" }], ["POST", "/collection/remove", { item: "k/pitch-panel/" }], ["POST", "/collection/toggle", { item: "k/pitch-panel/" }], ["POST", "/account/delete", { confirm: "not-me" }],
+    ["POST", "/api/vote", { item: "k/pitch-panel/" }], ["POST", "/api/note", { item: "k/pitch-panel/", text: "short" }], ["POST", "/api/note/delete", { item: "k/pitch-panel/" }], ["POST", "/api/note/report", { id: "1" }],
+    ["POST", "/admin/listings/edit", {}], ["POST", "/admin/listings/remove", {}], ["POST", "/admin/notes/decide", {}], ["POST", "/admin/submissions/1/approve", {}], ["POST", "/auth/logout", {}],
+    ...(globalThis.EXTRA_APP_ROUTES ?? []),
+  ];
+  for (const [method, path, form] of APP_ROUTES) {
+    const x = await call(path, { method, ...ME, form });
+    const app = x.headers.get("Referrer-Policy") === "same-origin"; // the app's pages say this; the site's files say something else
+    must(x.status !== 405 && app, `${method} ${path} is answered by the app (status ${x.status}), not by the static files`);
+  }
+  must((await call("/settings/public", { method: "POST", ...ME, form: { public: "no" } })).status === 303, "the public-credit form reaches the app and is accepted");
+}
+
 // ---- regression: Saving read the catalogue over the internet, which a Worker cannot do to its own address; it must use its own files
 // (the fake network in this test answers 404 to everything, exactly like an unreachable address)
 {
