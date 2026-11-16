@@ -75,8 +75,7 @@ must(cleanLabel("  Work & <b>Plans</b>  ") === "Work & b Plans b" && cleanLabel(
 const so = await note(await call("/collection"));
 must(so.status === 200 && (await so.clone().text()).includes("Sign in with GitHub"), "signed out, My collection asks to sign in");
 must((await call("/collection/save", { method: "POST", origin: OK, form: { item: "k/keel/" } })).status === 401, "saving needs a sign-in");
-const priv = await note(await call("/privacy"));
-must(priv.status === 301 && loc(priv) === "/privacy/", "the privacy text lives on the site; the app only points to it");
+must((await call("/privacy")).status === 404, "the app has no privacy page of its own: the text lives on the site");
 
 // ---- the Save link: sign in, land on the confirmation, then save
 const link = await (await note(await call("/collection/save?item=" + encodeURIComponent("k/keel/")))).text();

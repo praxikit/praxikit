@@ -48,5 +48,5 @@ jobs:
           git commit -m "listings: remove an entry (remove-listing workflow)"
           git pull --rebase origin main
           git push origin HEAD:main
-          gh workflow run pages.yml --ref main
+          gh workflow run deploy.yml --ref main
           echo "Removed and logged. The site is redeploying." >> "$GITHUB_STEP_SUMMARY"

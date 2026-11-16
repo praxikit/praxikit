@@ -134,6 +134,6 @@ jobs:
           git commit -m "listings: add submission #$SUBMISSION (approved by $DECIDED_BY)"
           git pull --rebase origin main
           git push origin HEAD:main
-          gh workflow run pages.yml --ref main
+          gh workflow run deploy.yml --ref main
           gh workflow run listing-drift.yml --ref main
           echo "Listed. The site is redeploying." >> "$GITHUB_STEP_SUMMARY"

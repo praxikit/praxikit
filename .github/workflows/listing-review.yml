@@ -119,7 +119,7 @@ jobs:
           git commit -m "listings: add entry from issue #$ISSUE"
           git pull --rebase origin main
           git push origin HEAD:main
-          gh workflow run pages.yml --ref main
+          gh workflow run deploy.yml --ref main
           gh issue edit "$ISSUE" --add-label listed
           gh issue comment "$ISSUE" --body "Listed. The catalogue entry is pinned to the commit the checks read, and the site is redeploying."
           gh issue close "$ISSUE" --reason completed

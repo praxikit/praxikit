@@ -43,7 +43,7 @@ const SITE_HEADERS = {
   "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
 };
 // What the app answers itself. Everything else is a page of the site.
-const APP_EXACT = new Set(["/healthz", "/submit", "/mine", "/privacy", "/collection", "/profile", "/settings", "/admin", "/api/me"]);
+const APP_EXACT = new Set(["/healthz", "/submit", "/collection", "/profile", "/settings", "/admin", "/api/me"]);
 const APP_PREFIX = ["/auth/", "/admin/", "/collection/", "/account/", "/assets/"];
 const isAppPath = (p) => APP_EXACT.has(p) || APP_PREFIX.some((x) => p.startsWith(x));
 
@@ -65,7 +65,7 @@ async function serveSite(request, env) {
 }
 
 const HEADERS = {
-  "Content-Security-Policy": "default-src 'none'; style-src 'self'; img-src https://avatars.githubusercontent.com; form-action 'self' https://github.com; base-uri 'none'; frame-ancestors 'none'",
+  "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: https://avatars.githubusercontent.com; connect-src 'self'; form-action 'self' https://github.com; base-uri 'none'; frame-ancestors 'none'",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "same-origin", // "no-referrer" makes browsers send "Origin: null" on same-origin form posts
   "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
@@ -351,11 +351,9 @@ async function route(request, env) {
   if (url.hostname.startsWith("www.") && env.BASE_URL) return send("", { status: 301, location: new URL(url.pathname + url.search, env.BASE_URL).href });
   if (env.ASSETS && !isAppPath(path)) return serveSite(request, env);
   await loadShell(env, request);
-  if (path === "/privacy") return send("", { status: 301, location: "/privacy/" });
-  if (path === "/mine") return send("", { status: 302, location: "/profile" + url.search });
 
   if (path === "/healthz") return send("ok", { type: "text/plain; charset=utf-8" });
-  if (path === "/assets/app.css" || path === "/assets/admin.css") return send(CSS, { type: "text/css; charset=utf-8", cache: "public, max-age=3600" });
+  if (path === "/assets/app.css") return send(CSS, { type: "text/css; charset=utf-8", cache: "public, max-age=3600" });
 
   const problem = configProblem(env);
   if (problem) return send(messagePage("Not configured", "This admin app is missing configuration. The owner needs to finish the setup.", false), { status: 503 });
@@ -426,7 +424,7 @@ async function route(request, env) {
   if (path === "/admin" && method === "GET") {
     const s = await sessionOf(request, env);
     if (!s) return send(signInPage());
-    if (s.role !== "admin") return send(messagePage("No access", `You are signed in as @${s.sub}, but only owners of ${env.ORG} and members of ${env.ORG}/${env.TEAM} can maintain the catalogue. If you are one of them, sign in again with organisation access. Ask an owner to add you to the team, then sign in again.`, false).replace("</div></body>", '<form method="post" action="/auth/logout"><button class="ghost" type="submit">Sign out</button></form></div></body>'), { status: 403 });
+    if (s.role !== "admin") return send(messagePage("No access", `You are signed in as @${s.sub}, but only owners of ${env.ORG} and members of ${env.ORG}/${env.TEAM} can maintain the catalogue. If you are one of them, sign in again with organisation access. Ask an owner to add you to the team, then sign in again.`, false, { href: "/auth/login", text: "Sign in with organisation access" }), { status: 403 });
     let queue = [], queueError = "", subs = null;
     try { queue = await listPending(env); } catch { queueError = "The waiting list could not be loaded from GitHub just now. Reload in a minute."; }
     const store = storeFor(env);

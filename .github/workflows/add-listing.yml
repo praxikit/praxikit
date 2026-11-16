@@ -133,6 +133,6 @@ jobs:
           git commit -m "listings: add entry (Add listing workflow)"
           git pull --rebase origin main
           git push origin HEAD:main
-          gh workflow run pages.yml --ref main
+          gh workflow run deploy.yml --ref main
           if [ "$REPLACE" = "true" ]; then gh workflow run listing-drift.yml --ref main; fi
           echo "Listed. The site is redeploying." >> "$GITHUB_STEP_SUMMARY"

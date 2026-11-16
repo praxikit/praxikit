@@ -9,7 +9,7 @@
  * Writes <out>/index.html, 404.html, c/<collection>/index.html, k/<kit>/index.html, versions.json, style.css
  *
  * Every string that comes from a manifest or data file goes through esc(). Links are relative so the
- * site works at praxikit.github.io/praxikit/ and later at a custom domain with no change.
+ * site lives at one address, set in site/config.json.
  * Our own inline scripts carry a data-site attribute so the test can prove no other script exists.
  */
 import { readFileSync, readdirSync, existsSync, mkdirSync, writeFileSync, rmSync, copyFileSync } from "node:fs";
@@ -28,10 +28,7 @@ const CONFIG = (() => { try { return JSON.parse(readFileSync(arg("--config", joi
 const APP = typeof CONFIG.app === "string" && /^https:\/\/[A-Za-z0-9.-]+(:\d+)?$/.test(CONFIG.app.replace(/\/+$/, "")) ? CONFIG.app.replace(/\/+$/, "") : "";
 // site/config.json "site" is the public address of the site (with the app on the same address, accounts live there too)
 const SITE_OK = typeof CONFIG.site === "string" && /^https:\/\/[A-Za-z0-9.-]+(:\d+)?\/?$/.test(CONFIG.site) ? CONFIG.site.replace(/\/+$/, "") + "/" : "";
-const HOME_URL = SITE_OK || "https://praxikit.github.io/praxikit/";
-// --mirror <address>: every page becomes a redirect to the same page there. Used for the old github.io address, which keeps
-// serving versions.json and the feed because installed kits check those.
-const MIRROR = arg("--mirror", "");
+const HOME_URL = SITE_OK || "https://praxikit.com/";
 const hashStr = (t) => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) >>> 0; return h.toString(36); };
 
 const KIND_LABEL = { plugin: "Plugin", skill: "Skill", agent: "Agent", hook: "Hook", mcp: "MCP config", template: "Template", adapter: "Adapter" };
@@ -547,7 +544,7 @@ function atomFeed(kits) {
   const items = releaseFeed(kits);
   const updated = items[0]?.date ? `${items[0].date}T00:00:00Z` : `${BUILT}T00:00:00Z`;
   const entry = ({ k, e, date, v }) => `<entry>
-<id>tag:praxikit.github.io,${date || BUILT}:${esc(k.name)}-${esc(v)}</id>
+<id>tag:praxikit.com,${date || BUILT}:${esc(k.name)}-${esc(v)}</id>
 <title>${esc(k.name)} ${esc(v)}</title>
 <updated>${date || BUILT}T00:00:00Z</updated>
 <link rel="alternate" href="${esc(HOME_URL)}k/${esc(k.name)}/"/>
@@ -555,7 +552,7 @@ function atomFeed(kits) {
 </entry>`;
   return `<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-<id>tag:praxikit.github.io,2026:releases</id>
+<id>tag:praxikit.com,2026:releases</id>
 <title>Praxikit releases</title>
 <subtitle>New versions of Praxikit kits, from their changelogs.</subtitle>
 <updated>${updated}</updated>
@@ -656,10 +653,6 @@ ${picks.length ? `<ul class="recs">${picks.map(recCard).join("")}</ul>` : `<div 
 }
 
 /** The old address of the picks page: a plain redirect, so links that were shared keep working. */
-function movedPage() {
-  const body = `<div class="wrap sec page-head"><h1>This page moved</h1><p class="lead">It is now <a href="../picks/">My picks</a>.</p></div>`;
-  return page({ title: "Moved — Praxikit", depth: 1, body, current: "picks", canonical: `${HOME_URL}picks/`, description: "This page moved to My picks.", head: '<meta http-equiv="refresh" content="0; url=../picks/">' });
-}
 
 function submitPage() {
   const form = APP
@@ -856,13 +849,8 @@ function buildSearchIndex(kits, listings, tagMap) {
 }
 
 // ---------- write ----------
-const stub = (rel) => {
-  const path = rel === "404.html" ? "" : rel.replace(/index\.html$/, "");
-  const to = MIRROR.replace(/\/+$/, "") + "/" + path;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Praxikit has moved</title><meta name="robots" content="noindex"><link rel="canonical" href="${esc(to)}"><meta http-equiv="refresh" content="0; url=${esc(to)}"></head><body><p>Praxikit has moved to <a href="${esc(to)}">${esc(to)}</a>.</p></body></html>\n`;
-};
 const pages = []; // every public page, for the sitemap
-const write = (rel, text) => { const p = join(OUT, rel); mkdirSync(dirname(p), { recursive: true }); if (rel.endsWith(".html")) pages.push(rel); writeFileSync(p, MIRROR && rel.endsWith(".html") ? stub(rel) : text); };
+const write = (rel, text) => { const p = join(OUT, rel); mkdirSync(dirname(p), { recursive: true }); if (rel.endsWith(".html")) pages.push(rel); writeFileSync(p, text); };
 
 const kits = loadKits();
 const listings = loadListings();
@@ -878,7 +866,6 @@ write("kits/index.html", kitsPage(items, null));
 for (const g of GROUPS) write(`kits/${g.id}/index.html`, kitsPage(items, g));
 write("updates/index.html", updatesPage(kits));
 write("picks/index.html", picksPage(picks));
-write("recommended/index.html", movedPage());
 write("submit/index.html", submitPage());
 write("policy/index.html", policyPage());
 write("privacy/index.html", privacyPage());
@@ -896,12 +883,11 @@ write("versions.json", JSON.stringify(Object.fromEntries(kits.map((k) => [k.name
 write("boot.js", THEME_BOOT);
 write("site.js", SITE_JS);
 // the frame the app puts its own pages in, so a signed-in page has the same header and footer as the rest of the site
-if (!MIRROR) write("app-shell.html", page({ title: "@@TITLE@@", depth: 0, abs: true, body: "<!--@@BODY@@-->", head: "<!--@@HEAD@@-->", description: "Praxikit account" }));
-if (!MIRROR && SITE_OK) {
-  const skip = new Set(["404.html", "app-shell.html", "recommended/index.html", "search/index.html"]);
+write("app-shell.html", page({ title: "@@TITLE@@", depth: 0, abs: true, body: "<!--@@BODY@@-->", head: "<!--@@HEAD@@-->", description: "Praxikit account" }));
+{
+  const skip = new Set(["404.html", "app-shell.html", "search/index.html"]);
   const urls = pages.filter((p) => !skip.has(p)).map((p) => HOME_URL + p.replace(/index\.html$/, "")).sort();
   write("sitemap.xml", ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">', ...urls.map((u) => `<url><loc>${esc(u)}</loc></url>`), "</urlset>", ""].join("\n"));
   write("robots.txt", ["User-agent: *", "Allow: /", "Disallow: /admin", "Disallow: /auth/", "Disallow: /api/", "Disallow: /collection", "Disallow: /account/", "Disallow: /profile", "Disallow: /settings", "Disallow: /app-shell.html", `Sitemap: ${HOME_URL}sitemap.xml`, ""].join("\n"));
 }
-write(".nojekyll", "");
 console.log(`built ${kits.length} kit(s), ${listings.length} listing(s) (${picks.length} picks) -> ${OUT}`);

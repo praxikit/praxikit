@@ -86,7 +86,7 @@ ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${error ? `<p class="note">${es
 <form method="post" action="/submit">
 <label for="url">Repository link</label><input id="url" name="url" type="url" required maxlength="200" placeholder="https://github.com/owner/repo" value="${esc(values.url ?? "")}">
 <label for="why">Note <span class="hint">(optional, up to 200 characters; shown if you are recommending someone else's kit)</span></label><textarea id="why" name="why" maxlength="200">${esc(values.why ?? "")}</textarea>
-<p><button type="submit">Submit for review</button> <a class="btn ghost" href="/mine">My submissions</a></p>
+<p><button type="submit">Submit for review</button> <a class="btn ghost" href="/profile">My profile</a></p>
 </form>
 <p class="muted">If you are the repository's owner (or a public member of its organisation), it is listed as a community kit by its author. Otherwise it is a recommendation. GitHub decides which, not the form.</p>`);
 }

@@ -5,8 +5,8 @@
 name = "praxikit-admin"
 main = "src/index.mjs"
 compatibility_date = "2026-11-01"
-# The old workers.dev address keeps answering, but sign-in only works on the main address. Switch this off once praxikit.com is verified.
-workers_dev = true
+# Only praxikit.com answers; the long workers.dev address is switched off.
+workers_dev = false
 
 # The main address and its www form (www is redirected to the main one by the Worker). Deploying attaches these and creates the DNS records.
 routes = [
@@ -14,12 +14,12 @@ routes = [
   { pattern = "www.praxikit.com", custom_domain = true },
 ]
 
-# The website: built into ../site/dist-app before every deploy and served as static files; the Worker answers the account and admin pages.
+# The website: built into ../site/dist before every deploy and served as static files; the Worker answers the account and admin pages.
 [build]
-command = "node ../site/build.mjs --config ../site/config.worker.json --out ../site/dist-app"
+command = "node ../site/build.mjs"
 
 [assets]
-directory = "../site/dist-app"
+directory = "../site/dist"
 binding = "ASSETS"
 run_worker_first = true
 not_found_handling = "404-page"

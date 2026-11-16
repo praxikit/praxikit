@@ -156,3 +156,9 @@
 - New pages: `/profile`, `/settings` (data download, sign-out, account deletion). The privacy text lives on the site only. `/mine` redirects to `/profile`; `www` redirects to the main address.
 - Pages mirror: with the repository variable `MIRROR_TO` set, github.io pages redirect to the new address; `versions.json` and the feed stay real. Sitemap and robots.txt are generated from the site address.
 - Go-live steps: `docs/go-live.md`. Not done by me: buying/attaching the domain (done by the owner), OAuth callback change, deploy.
+
+## 2026-11-16 — Fixes after first deploy, and the old address dropped
+- Bug: app pages (`/profile`, `/admin`) kept the old strict policy, which blocked the header script, so the header showed "Sign in" after signing in. The app now allows its own scripts and `/api/me` calls; a test covers every app page.
+- Bug: a maintainer who used the header's Sign in was a member, with no way to reach the admin. The "No access" page and Settings now offer **Sign in with organisation access**.
+- Dropped for good (owner's decision): the GitHub Pages site and the `MIRROR_TO` redirect, the `workers.dev` address, `/recommended/`, `/mine`, `/assets/admin.css`, the app's own privacy page, the `.nojekyll` file, the second site config. One config: `site/config.json`.
+- New: `deploy` workflow (replaces `pages.yml`), needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets. Keel 0.6.2 prints the update link on `praxikit.com`.

@@ -178,12 +178,12 @@ issuesMode = "fail";
 issuesMode = "ok";
 
 // ---- headers and page hygiene on every response
-for (const path of ["/admin", "/auth/login", "/healthz", "/nope", "/assets/admin.css"]) {
+for (const path of ["/admin", "/auth/login", "/healthz", "/nope", "/assets/app.css"]) {
   const r = await call(path);
   const h = r.headers;
   must(/default-src 'none'/.test(h.get("Content-Security-Policy") ?? "") && /frame-ancestors 'none'/.test(h.get("Content-Security-Policy")) && h.get("X-Content-Type-Options") === "nosniff" && h.get("Referrer-Policy") === "same-origin" && /max-age/.test(h.get("Strict-Transport-Security") ?? ""), `security headers on ${path}`);
 }
-must((await call("/admin")).headers.get("Cache-Control") === "no-store" && /public/.test((await call("/assets/admin.css")).headers.get("Cache-Control")), "pages are never cached, the stylesheet may be");
+must((await call("/admin")).headers.get("Cache-Control") === "no-store" && /public/.test((await call("/assets/app.css")).headers.get("Cache-Control")), "pages are never cached, the stylesheet may be");
 must((await call("/nope")).status === 404 && (await call("/", { method: "GET" })).headers.get("Location") === "/admin", "unknown paths are 404 and the root goes to /admin");
 for (const t of everything) must(!/<script|\son\w+=/i.test(t.replace(/&lt;[^&]*&gt;/g, "")), "no scripts or inline event handlers in any page");
 

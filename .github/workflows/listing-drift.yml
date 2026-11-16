@@ -38,5 +38,5 @@ jobs:
           git commit -m "listings: update changed-since-review statuses"
           git pull --rebase origin main
           git push origin HEAD:main
-          gh workflow run pages.yml --ref main
+          gh workflow run deploy.yml --ref main
           echo "Statuses updated. The site is redeploying." >> "$GITHUB_STEP_SUMMARY"

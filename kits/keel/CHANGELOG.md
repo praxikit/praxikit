@@ -1,5 +1,8 @@
 # Changelog — keel
 
+## 0.6.2 — 2026-11-16
+- Changed: the update link `/keel:status` prints now points at `praxikit.com`, the catalogue's own address (it was on a GitHub address that no longer answers). Update to get a link that works.
+
 ## 0.6.1 — 2026-11-15
 - Changed: the update link `/keel:status` prints now points at the catalog's Updates page (`/updates/?kit=keel&v=<version>`), which has its own address since the catalog was split into pages. Links printed by 0.6.0 still work; they are redirected.
 

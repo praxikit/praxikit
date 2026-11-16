@@ -1,0 +1,10 @@
+{
+  "keel": {
+    "version": "0.6.1",
+    "kind": "plugin"
+  },
+  "pitch-panel": {
+    "version": "0.2.1",
+    "kind": "skill"
+  }
+}

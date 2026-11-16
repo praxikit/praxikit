@@ -37,7 +37,7 @@ const must = (cond, msg) => { if (!cond) failures.push(msg); };
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
-must(htmlFiles.length === 23, `expected home, 404, kits, 4 type pages, updates, picks, old recommended redirect, submit, policy, 2 collections, 4 kit pages, tags index, 1 tag page, search, privacy, app frame = 23 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 22, `expected home, 404, kits, 4 type pages, updates, picks, submit, policy, 2 collections, 4 kit pages, tags index, 1 tag page, search, privacy, app frame = 22 html files, got ${htmlFiles.length}`);
 for (const f of htmlFiles) {
   const h = readFileSync(f, "utf8");
   // drop only our own inline scripts (marked data-site); any other <script> is a failure
@@ -58,9 +58,8 @@ const mcpPage = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
 must(mcpPage.includes("My pick") && mcpPage.includes("How I use it:") && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("o/rec") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
 must(idx.includes("Changed since review") && idx.includes('href="https://github.com/o/rec/compare/' + SHA + '...HEAD"'), "a listing whose repository moved on says so and links to the comparison");
 must(skillsPage.includes("Repository not reachable") && !skillsPage.includes("Changed since review"), "an unreachable listing says so, and a 'same' or unknown status adds nothing");
-const picksHtml = readFileSync(join(out, "picks/index.html"), "utf8"), movedHtml = readFileSync(join(out, "recommended/index.html"), "utf8");
+const picksHtml = readFileSync(join(out, "picks/index.html"), "utf8");
 must(picksHtml.includes("o/rec") && !picksHtml.includes("o/comm") && picksHtml.includes("My pick") && picksHtml.includes("How I use it:"), "the Picks page shows picks only, with the owner's note");
-must(movedHtml.includes('http-equiv="refresh" content="0; url=../picks/"') && movedHtml.includes('href="../picks/"') && !movedHtml.includes("o/rec"), "the old Recommended address redirects to Picks");
 must(!idx.includes(">Recommended<") && idx.includes(">Picks<") && idx.includes("My picks"), "the word Recommended is gone from the navigation and the home page");
 must(!/href="https:\/\/github\.com[^"]*"(?![^>]*rel=)/.test(idx), "external GitHub link without rel");
 must(existsSync(join(out, "k/evil/index.html")) && existsSync(join(out, "c/planning/index.html")) && existsSync(join(out, "c/design-and-3d/index.html")), "kit or collection pages missing");
@@ -89,7 +88,7 @@ const plug = readFileSync(join(out, "kits/plugins/index.html"), "utf8"), skl = r
 must(plug.includes('href="../../k/a/"') && !plug.includes('href="../../k/evil/"'), "plugins page lists plugin kits only");
 must(skl.includes('href="../../k/evil/"') && !skl.includes('href="../../k/a/"'), "skills page lists skill kits only");
 must(mcp.includes("No templates, adapters, agents or hooks yet") && mcp.includes("../../submit/"), "an empty type page says so and points to submit");
-for (const f of [kitsAll, plug, mcp, upd, sub, picksHtml, movedHtml]) must(!/href="\//.test(f), "absolute href on a route page");
+for (const f of [kitsAll, plug, mcp, upd, sub, picksHtml]) must(!/href="\//.test(f), "absolute href on a route page");
 const kp = readFileSync(join(out, "k/evil/index.html"), "utf8");
 must(kp.includes('role="tablist"') && kp.includes('role="tabpanel"'), "install tabs missing on a kit with installBy");
 must(kp.includes("What you'll see") && kp.includes("What it does on your machine"), "preview or access sections missing");

@@ -17,7 +17,7 @@ const read = (f) => { try { return readFileSync(join(project, "docs", "plan", f)
 const pluginRootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
 let installed = "";
 try { installed = JSON.parse(readFileSync(join(pluginRootDir, ".claude-plugin", "plugin.json"), "utf8")).version ?? ""; } catch { /* no manifest */ }
-const updateLine = /^\d+\.\d+\.\d+$/.test(installed) ? `Keel v${installed}. Check for updates: https://praxikit.github.io/praxikit/updates/?kit=keel&v=${installed}#updates` : "";
+const updateLine = /^\d+\.\d+\.\d+$/.test(installed) ? `Keel v${installed}. Check for updates: https://praxikit.com/updates/?kit=keel&v=${installed}#updates` : "";
 
 const phasesMd = read("03-phases.md");
 if (!phasesMd) { console.log(["No docs/plan/03-phases.md here. Run /keel:plan to start a plan.", updateLine].filter(Boolean).join("\n\n")); process.exit(0); }

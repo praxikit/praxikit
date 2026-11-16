@@ -3,7 +3,7 @@
   "kind": "plugin",
   "collections": ["Planning", "Build and delegate", "Quality and security"],
   "tags": ["planning", "critique", "model-routing", "sub-agents", "phases"],
-  "version": "0.6.1",
+  "version": "0.6.2",
   "promise": "Plan with a critique gate, build in phases that prove themselves, give each task to the cheapest capable model, see what it cost.",
   "install": [
     "/plugin marketplace add praxikit/praxikit",
@@ -40,7 +40,7 @@
     {
       "title": "/keel:status",
       "note": "Illustrative output for a project in Phase 1.",
-      "body": "Phases\n  [x] Phase 0 — MVP\n  [>] Phase 1 — Core\n  [ ] Phase 2 — Polish\n\nNow: Phase 1 — Core\n  Goal: ship the core\n  Checks to pass:\n   - `npm test` → green\n   - login works\n\nLast progress entry\n  2026-11-14 — Phase 0 passed\n\nCost this session: ≈$0.42 (1.2M in, 9.1k out), an estimate from list prices.\n\nKeel v0.6.1. Check for updates: https://praxikit.github.io/praxikit/updates/?kit=keel&v=0.6.1#updates"
+      "body": "Phases\n  [x] Phase 0 — MVP\n  [>] Phase 1 — Core\n  [ ] Phase 2 — Polish\n\nNow: Phase 1 — Core\n  Goal: ship the core\n  Checks to pass:\n   - `npm test` → green\n   - login works\n\nLast progress entry\n  2026-11-14 — Phase 0 passed\n\nCost this session: ≈$0.42 (1.2M in, 9.1k out), an estimate from list prices.\n\nKeel v0.6.2. Check for updates: https://praxikit.com/updates/?kit=keel&v=0.6.2#updates"
     },
     {
       "title": "A nudge when nothing was checked",

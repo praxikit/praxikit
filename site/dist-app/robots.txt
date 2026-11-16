@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /auth/
+Disallow: /api/
+Disallow: /collection
+Disallow: /account/
+Disallow: /profile
+Disallow: /settings
+Disallow: /app-shell.html
+Sitemap: https://praxikit.com/sitemap.xml

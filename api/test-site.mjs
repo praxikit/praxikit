@@ -17,7 +17,7 @@ const must = (c, m) => { if (!c) failures.push(m); };
 
 // ---- build the real site the way the Worker does
 const out = mkdtempSync(join(tmpdir(), "praxikit-app-site-"));
-execFileSync("node", [join(here, "..", "site", "build.mjs"), "--config", join(here, "..", "site", "config.worker.json"), "--out", out], { stdio: "pipe" });
+execFileSync("node", [join(here, "..", "site", "build.mjs"), "--out", out], { stdio: "pipe" });
 const TYPES = { html: "text/html; charset=utf-8", css: "text/css", js: "text/javascript", json: "application/json", xml: "application/xml", txt: "text/plain", svg: "image/svg+xml" };
 const ASSETS = {
   async fetch(req) {
@@ -89,24 +89,27 @@ html = await r.text();
 must(r.status === 200 && html.includes("Catalogue admin") && html.includes("Manage live listings"), "a maintainer sees the admin page");
 must((await call("/api/me", { cookies: admin })).status === 200 && (await (await call("/api/me", { cookies: admin })).json()).role === "admin" && (await (await call("/api/me", { cookies: carol })).json()).role === "user" && (await call("/api/me")).status === 401, "the header learns the role from /api/me; signed out it gets 401");
 must((await call("/settings", { cookies: carol })).status === 200 && (await (await call("/settings")).text()).includes("Sign in"), "settings needs a sign-in");
-r = await call("/mine?ok=1", { cookies: carol });
-must(r.status === 302 && r.headers.get("Location") === "/profile?ok=1", "the old /mine address goes to the profile");
+for (const gone of ["/mine", "/recommended/", "/assets/admin.css"]) must((await call(gone, { cookies: carol })).status === 404, `${gone} is gone: the old paths are not kept`);
+must(!existsSync(join(out, "recommended")) && !existsSync(join(out, ".nojekyll")), "the site has no redirect page for the old Recommended address");
 r = await call("/auth/logout", { method: "POST", cookies: carol, origin: "https://praxikit.com" });
 must(r.status === 302 && r.headers.get("Location") === "/", "signing out returns to the home page");
+
+// ---- regression: the header's script must be allowed to run on the app's own pages too (it was blocked, so the header kept showing "Sign in")
+for (const [p, ck] of [["/profile", carol], ["/settings", carol], ["/collection", carol], ["/admin", admin], ["/admin", {}]]) {
+  const x = await call(p, { cookies: ck });
+  const policy = x.headers.get("Content-Security-Policy") ?? "";
+  must(policy.includes("script-src 'self'") && policy.includes("connect-src 'self'") && !policy.includes("unsafe-inline"), `${p} lets the site script and its /api/me call run, and nothing inline: ${policy}`);
+  const body = await x.text();
+  must(body.includes('src="/site.js?v=') && body.includes('data-app="https://praxikit.com"'), `${p} loads the site script and knows the app address`);
+}
+must((await (await call("/admin", { cookies: carol })).text()).includes('href="/auth/login">Sign in with organisation access'), "a member who is a maintainer gets a button to sign in with organisation access");
+must((await (await call("/settings", { cookies: carol })).text()).includes("Maintainer access") && !(await (await call("/settings", { cookies: admin })).text()).includes("Maintainer access"), "settings offers maintainer sign-in to members only");
 
 // ---- the site script's account code only acts where the app lives, and builds with text nodes
 const js = readFileSync(join(out, "site.js"), "utf8");
 must(js.includes('data-app') && js.includes("location.origin === appOrigin") && js.includes("textContent") && !js.includes("innerHTML") && !js.includes("document.write") && !js.includes("eval("), "the account code compares origins and never uses innerHTML or eval");
 must(js.includes('"/admin"') && js.includes("nav.insertBefore(a, nav.firstChild)") && js.includes('me.role === "admin"'), "the Admin tab is added first in the nav, only for the admin role");
 
-// ---- the mirror for the old address: pages redirect, versions and the feed stay real
-const mirror = mkdtempSync(join(tmpdir(), "praxikit-mirror-"));
-execFileSync("node", [join(here, "..", "site", "build.mjs"), "--config", join(here, "..", "site", "config.worker.json"), "--out", mirror, "--mirror", "https://praxikit.com"], { stdio: "pipe" });
-const stub = readFileSync(join(mirror, "k", "keel", "index.html"), "utf8");
-must(stub.includes('http-equiv="refresh"') && stub.includes("https://praxikit.com/k/keel/") && stub.includes('rel="canonical"') && !stub.includes("<header"), "a mirrored page redirects to the same page on the new address");
-must(readFileSync(join(mirror, "versions.json"), "utf8").includes("keel") && readFileSync(join(mirror, "feed.xml"), "utf8").includes("<feed") && !existsSync(join(mirror, "app-shell.html")), "versions.json and the feed stay real; the app frame is not published");
-must(readFileSync(join(mirror, "404.html"), "utf8").includes("https://praxikit.com/"), "unknown old addresses land on the new home page");
-
-rmSync(out, { recursive: true, force: true }); rmSync(mirror, { recursive: true, force: true });
+rmSync(out, { recursive: true, force: true });
 if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }
-console.log("ok: the site and the app share one address: static pages with strict headers, app pages in the site's frame, www redirects, an admin tab driven by /api/me, and a redirecting mirror for the old address");
+console.log("ok: the site and the app share one address: static pages with strict headers, app pages in the site's frame, www redirects, an admin tab driven by /api/me");

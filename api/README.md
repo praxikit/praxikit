@@ -27,7 +27,7 @@ You need: owner access to the `praxikit` org, and a free Cloudflare account. Nob
    npx wrangler login
    npx wrangler deploy
    ```
-   The first deploy asks you to choose a `workers.dev` name. Note the address it prints, like `https://praxikit-admin.YOURNAME.workers.dev`.
+   The app is served at `https://praxikit.com` (see `docs/go-live.md`).
 3. **Create a GitHub OAuth App owned by the org** (Org settings, Developer settings, OAuth Apps, New OAuth App):
    - Application name: `Praxikit admin`
    - Homepage URL: the address from step 2
@@ -90,7 +90,7 @@ Checks: `node --no-warnings api/test-submit.mjs` runs the submit flow against a 
 
 ## Phase 3: approve, reject and publish from the app
 
-Open a submission on `/admin`: confirm the name, the type and the card text, then **Approve and publish**, or **Reject** with a reason the submitter sees on `/mine`. A maintainer's own submission at `/submit` is published directly (it is held for review if its type is unknown, a quick check failed, or the sign-in is older than 30 minutes).
+Open a submission on `/admin`: confirm the name, the type and the card text, then **Approve and publish**, or **Reject** with a reason the submitter sees on `/profile`. A maintainer's own submission at `/submit` is published directly (it is held for review if its type is unknown, a quick check failed, or the sign-in is older than 30 minutes).
 
 **The app never edits the catalogue.** Approving asks GitHub to start the `approve-submission` workflow, which scans the repository again (read-only), validates the entry, and commits it. A failed scan stops it; "list anyway" does not exist on this path (it stays a manual action in the *Add listing* workflow). The app then follows that run and shows Publishing, Listed or Blocked (with a link to the run and a Try again button).
 

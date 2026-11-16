@@ -61,5 +61,5 @@ jobs:
           git commit -m "listings: edit an entry (edit-listing workflow)"
           git pull --rebase origin main
           git push origin HEAD:main
-          gh workflow run pages.yml --ref main
+          gh workflow run deploy.yml --ref main
           echo "Edited. The site is redeploying." >> "$GITHUB_STEP_SUMMARY"

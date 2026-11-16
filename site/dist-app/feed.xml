@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+<id>tag:praxikit.github.io,2026:releases</id>
+<title>Praxikit releases</title>
+<subtitle>New versions of Praxikit kits, from their changelogs.</subtitle>
+<updated>2026-11-15T00:00:00Z</updated>
+<link rel="self" href="https://praxikit.com/feed.xml"/>
+<link rel="alternate" href="https://praxikit.com/"/>
+<entry>
+<id>tag:praxikit.github.io,2026-11-15:keel-0.6.1</id>
+<title>keel 0.6.1</title>
+<updated>2026-11-15T00:00:00Z</updated>
+<link rel="alternate" href="https://praxikit.com/k/keel/"/>
+<summary type="text">Changed: the update link /keel:status prints now points at the catalog&#39;s Updates page (/updates/?kit=keel&amp;v=&lt;version&gt;), which has its own address since the catalog was split into pages. Links printed by 0.6.0 still work; they are redirected.</summary>
+</entry>
+<entry>
+<id>tag:praxikit.github.io,2026-11-15:keel-0.6.0</id>
+<title>keel 0.6.0</title>
+<updated>2026-11-15T00:00:00Z</updated>
+<link rel="alternate" href="https://praxikit.com/k/keel/"/>
+<summary type="text">New: /keel:status ends with the installed version and a link that fills in the catalog&#39;s &quot;Am I up to date?&quot; form for it (https://praxikit.github.io/praxikit/?kit=keel&amp;v=&lt;version&gt;#updates). A web page cannot read your installed plugins, so the plugin hands the page your version instead.</summary>
+</entry>
+<entry>
+<id>tag:praxikit.github.io,2026-11-15:keel-0.5.1</id>
+<title>keel 0.5.1</title>
+<updated>2026-11-15T00:00:00Z</updated>
+<link rel="alternate" href="https://praxikit.com/k/keel/"/>
+<summary type="text">Changed: the manifest now carries examples of what you will see, what the kit reads, writes and sends, and install steps for Cursor and Codex, so the catalog page can show them. No change to how the plugin behaves.
+New: a test checks that Keel&#39;s scripts contain no network or child-process code, because the catalog page says they make no network calls.</summary>
+</entry>
+<entry>
+<id>tag:praxikit.github.io,2026-11-15:keel-0.5.0</id>
+<title>keel 0.5.0</title>
+<updated>2026-11-15T00:00:00Z</updated>
+<link rel="alternate" href="https://praxikit.com/k/keel/"/>
+<summary type="text">New: budget guard. Set budget.prompt and/or budget.session (estimated USD) in .keel/config.json; when a cap is passed the cost footer ends with OVER prompt cap $X. Warns only, never stops work. No cap by default.
+New: cost per phase. /keel:verify runs scripts/phase-cost.mjs when a phase passes and records its estimated cost in 05-progress.md, using a ledger in .keel/ledger.json (difference between marks, all sessions and sub-agents). The first mark covers all recorded history and says so.</summary>
+</entry>
+<entry>
+<id>tag:praxikit.github.io,2026-11-15:keel-0.4.0</id>
+<title>keel 0.4.0</title>
+<updated>2026-11-15T00:00:00Z</updated>
+<link rel="alternate" href="https://praxikit.com/k/keel/"/>
+<summary type="text">New: /keel:status. One screen with the phases and where you are, the current phase&#39;s goal and checks, open decisions, the last progress entry and the session cost. Read-only.
+New: done-check. When a prompt changed files (other than docs) and no check-like command ran afterwards, a Stop hook prints one line saying so. A heuristic, never blocks. Turn off with defaults.doneCheck: false.</summary>
+</entry>
+<entry>
+<id>tag:praxikit.github.io,2026-11-15:keel-0.3.1</id>
+<title>keel 0.3.1</title>
+<updated>2026-11-15T00:00:00Z</updated>
+<link rel="alternate" href="https://praxikit.com/k/keel/"/>
+<summary type="text">Changed: a fixed reply layout. The result first, then ### For you (bold action, exact command, → expect:, (blocks the next step)), then ### Task list. Task order and wording stay stable across replies and finished tasks stay on the list until the request is done. A plain question still gets a plain answer.
+Changed: task marks default to ASCII [x] [&gt;] [ ], because the emoji marks drew as empty boxes in some terminal fonts. Set defaults.marks to &quot;emoji&quot; in .keel/config.json to get ✅ 🔄 ⬜.
+Changed: the cost footer is one short line (Keel · ≈$0.03 this prompt (sonnet 5.5) · session ≈$0.25 · 95.8k in, 1.5k out · est.) so it no longer wraps.</summary>
+</entry>
+<entry>
+<id>tag:praxikit.github.io,2026-11-15:keel-0.3.0</id>
+<title>keel 0.3.0</title>
+<updated>2026-11-15T00:00:00Z</updated>
+<link rel="alternate" href="https://praxikit.com/k/keel/"/>
+<summary type="text">New: a standing response format, injected once per session. Replies end with **For you** (numbered, detailed steps for what only the user can do) and **Task list** (✅ done, 🔄 in progress, ⬜ next) when there is something to show. Left out when empty.
+New: a one-line token and cost footer after every prompt (Stop hook): tokens in/cached/out, cost per model, session total, labelled as an estimate. Includes sub-agent usage. /keel:cost prints the full per-model table.
+New: prices.json (list prices with source and date, including Haiku 5.5&#39;s tier above 100k prompt tokens). Models with no price show tokens only. Override with prices in .keel/config.json.
+New: /keel:settings and .keel/config.json: switch the sections and footer on or off, choose which models tasks may be distributed among, and which model each tier uses. /keel:delegate honours it.
+Changed: the per-project tier override moved from .keel/tiers.json to tiers in .keel/config.json.</summary>
+</entry>
+<entry>
+<id>tag:praxikit.github.io,2026-11-15:pitch-panel-0.2.1</id>
+<title>pitch-panel 0.2.1</title>
+<updated>2026-11-15T00:00:00Z</updated>
+<link rel="alternate" href="https://praxikit.com/k/pitch-panel/"/>
+<summary type="text">Fix: the score total was &quot;out of 30&quot; but only five seats score (the devil&#39;s advocate does not), so it could never reach 30. It is now out of 25, and the example uses 17/25.
+Fix: the rule for &quot;Go&quot; counted six voting seats. The devil&#39;s advocate does not vote, so Go now needs at least four of the five voting seats to say Back it, no stop signal, and a cheap hedge for the devil&#39;s advocate&#39;s scenario. Found by running the skill on a real idea.</summary>
+</entry>
+<entry>
+<id>tag:praxikit.github.io,2026-11-15:pitch-panel-0.2.0</id>
+<title>pitch-panel 0.2.0</title>
+<updated>2026-11-15T00:00:00Z</updated>
+<link rel="alternate" href="https://praxikit.com/k/pitch-panel/"/>
+<summary type="text">Changed: six seats instead of five. CTO (technology), CMO (market and growth, including competition), COO (operations, regulation, disintermediation), PM (product and validated demand), CFO (financials and business model) and a devil&#39;s advocate for catastrophic risk. The devil&#39;s advocate speaks last, reads the other five, and must name the one scenario none of them raised, with its trigger, warning sign and cheapest hedge.
+New: every number is tagged [you], [source: page] or [assumption]; a 1 to 5 score per seat; an assumption ledger; what all six assumed without saying; kill triggers alongside the single test; a coverage check that reports any topic nobody owned.
+New: market size must be built bottom-up, never as a share of a huge market.
+Changed: one pass is the default. Deep mode (parallel sub-agents) is used only when asked or when the stakes are high, and the skill says it costs many times more tokens.</summary>
+</entry>
+<entry>
+<id>tag:praxikit.github.io,2026-11-15:pitch-panel-0.1.0</id>
+<title>pitch-panel 0.1.0</title>
+<updated>2026-11-15T00:00:00Z</updated>
+<link rel="alternate" href="https://praxikit.com/k/pitch-panel/"/>
+<summary type="text">First release: /pitch-panel:grill. Five seats (customer, money, build, reach, operations) argue against an idea, each with a vote, one objection, what would change their mind, a question and a number. Then a cross-examination, a verdict (Go, Go if, Stop), three conditions and one cheap real-world test with its pass bar stated in advance.</summary>
+</entry>
+<entry>
+<id>tag:praxikit.github.io,2026-11-14:keel-0.2.0</id>
+<title>keel 0.2.0</title>
+<updated>2026-11-14T00:00:00Z</updated>
+<link rel="alternate" href="https://praxikit.com/k/keel/"/>
+<summary type="text">New: drift hook. After an Edit or Write, warns once per session when the file is outside the current (🟨) phase&#39;s Files list in docs/plan/03-phases.md. Never blocks.
+New: /keel:security. Wires gitleaks, Semgrep and dependency audit into CI (templates/ci/security.yml), fills the entry-point table from code, ticks the pre-launch checklist only with evidence, writes the OWASP review and a pentest recommendation.
+New: tiers.json is the single place for model tiers; CI checks the agents match it. A project can override with .keel/tiers.json, and /keel:delegate passes the model explicitly.</summary>
+</entry>
+<entry>
+<id>tag:praxikit.github.io,2026-11-14:keel-0.1.1</id>
+<title>keel 0.1.1</title>
+<updated>2026-11-14T00:00:00Z</updated>
+<link rel="alternate" href="https://praxikit.com/k/keel/"/>
+<summary type="text">Fix: skills read the method and templates from outside the installed plugin folder, so they would have failed after install. method/ and templates/ now ship inside the plugin.
+Moved into the praxikit monorepo (kits/keel/).</summary>
+</entry>
+<entry>
+<id>tag:praxikit.github.io,2026-11-07:keel-0.1.0</id>
+<title>keel 0.1.0</title>
+<updated>2026-11-07T00:00:00Z</updated>
+<link rel="alternate" href="https://praxikit.com/k/keel/"/>
+<summary type="text">First release: five skills (plan, critique, delegate, verify, replan), four agents, the model-required hook, Cursor and Codex adapters.</summary>
+</entry>
+</feed>

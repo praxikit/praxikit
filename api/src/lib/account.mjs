@@ -21,7 +21,7 @@ export const cleanLabel = (text) => String(text ?? "").normalize("NFKC").replace
 
 /** The kits and listings that exist right now, from the site's own index: Map(item -> { title, desc, kind }). Throws if it cannot be read. */
 export async function fetchCatalogue(env) {
-  const base = String(env.SITE_URL || "https://praxikit.github.io/praxikit/").replace(/\/*$/, "/");
+  const base = String(env.SITE_URL || "https://praxikit.com/").replace(/\/*$/, "/");
   let r;
   try { r = await fetch(`${base}search-index.json`, { headers: { "User-Agent": "praxikit-admin" } }); } catch { throw new Error("catalogue unreachable"); }
   if (!r.ok) throw new Error("catalogue unreadable");
@@ -35,8 +35,8 @@ export async function fetchCatalogue(env) {
 }
 
 const KIND = { kit: "Built by Praxikit", pick: "My pick", listed: "Listed" };
-const hrefFor = (env, item) => (item.startsWith("https://") ? item : `${String(env.SITE_URL || "https://praxikit.github.io/praxikit/").replace(/\/*$/, "/")}${item}`);
-const siteHome = (env) => String(env.SITE_URL || "https://praxikit.github.io/praxikit/");
+const hrefFor = (env, item) => (item.startsWith("https://") ? item : `${String(env.SITE_URL || "https://praxikit.com/").replace(/\/*$/, "/")}${item}`);
+const siteHome = (env) => String(env.SITE_URL || "https://praxikit.com/");
 
 export const FLASH_ACCOUNT = {
   saved: "Saved to your collection.",
@@ -98,6 +98,9 @@ ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
 <h2>Your data</h2>
 <p>Download everything the app holds about you: your account record, your collection and your submissions.</p>
 <p><a class="btn ghost" href="/account/export">Download my data</a> <a href="/privacy/">What we keep and why</a></p>
+${session.role === "admin" ? "" : `<h2>Maintainer access</h2>
+<p>Maintainers sign in with organisation access, so GitHub can confirm they belong to the praxikit organisation. That asks for more permission than a normal sign-in, so only do it if you are a maintainer.</p>
+<p><a class="btn ghost" href="/auth/login">Sign in with organisation access</a></p>`}
 <h2>Session</h2>
 <form method="post" action="/auth/logout"><button class="ghost" type="submit">Sign out on this device</button></form>
 <form method="post" action="/account/delete" class="danger-zone"><h2>Delete my account</h2>
