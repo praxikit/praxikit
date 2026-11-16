@@ -108,6 +108,15 @@ must(conf.includes("keel") && conf.includes('action="/collection/save"') && conf
   must(tamper.status === 400, "a callback without a matching state is still refused");
 }
 
+// ---- the hint cookie that spares signed-out visitors any account request
+{
+  const si = await signIn("u-carol", "");
+  const hint = si.cb.headers.getSetCookie().find((c) => c.startsWith("praxikit-in="));
+  must(hint && hint.startsWith("praxikit-in=1") && hint.includes("Secure") && !hint.includes("HttpOnly") && /Max-Age=\d+/.test(hint) && !hint.includes("carol"), "signing in leaves a plain hint the page can read, with no identity in it");
+  const out = await note(await call("/auth/logout", { method: "POST", cookies: si.session, origin: OK }));
+  must(out.headers.getSetCookie().some((c) => c.startsWith("praxikit-in=;") && c.includes("Max-Age=0")), "signing out clears the hint");
+}
+
 // ---- saving
 let r = await save(carol.session, "k/keel/", "Planning");
 must(r.status === 303 && loc(r).endsWith("m=saved") && rows("SELECT * FROM collection WHERE user_id = 3").length === 1, `a kit is saved: ${loc(r)}`);

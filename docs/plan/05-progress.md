@@ -176,3 +176,7 @@
 - Submit page as a panel with numbered step cards; FAQ with open/closed markers; releases as a card list; long-text pages with a comfortable measure; tables scroll sideways on small screens.
 - New About page, a generated 1200x630 share image (og.png), structured data (site and organisation on the home page, software on kit pages, with "<" escaped), canonical addresses on kit pages, theme-colour meta.
 - New `site/a11y.test.mjs` (in CI): text contrast at least 4.5:1 for 30 pairs in both themes; every page has one h1, landmarks, a skip link and named controls.
+
+## 2026-11-16 — Lighthouse fixes and clean-up
+- Lighthouse on the live home page (phone): performance 99, accessibility 100, best practices 93, SEO 100. Fixed: signed-out visitors no longer make account requests (a plain hint cookie says whether to ask), the site script is deferred, and Cloudflare cookie-less Web Analytics is allowed by the policy and disclosed on the privacy page.
+- Removed the old issue-form submission flow: the submission-check and listing-review workflows, the suggest and recommend issue forms, the admin queue from issues, and the site fallback links. Report-a-listing stays.

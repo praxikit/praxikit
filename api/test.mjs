@@ -123,8 +123,6 @@ must(me.status === 200 && (await me.json()).role === "admin", "/api/me reports t
 const adminPageRes = await note(await call("/admin", { cookies: asSession(owner.session) }));
 const adminHtml = await adminPageRes.text();
 must(adminPageRes.status === 200 && adminHtml.includes("an owner of praxikit"), "the owner sees the admin page");
-must(adminHtml.includes("#7") && adminHtml.includes("https://github.com/praxikit/praxikit/issues/7") && adminHtml.includes("checks-flagged") && !adminHtml.includes("#8"), "the queue lists open submissions, links to the issue, and leaves out pull requests");
-must(!adminHtml.includes("<img src=x") && adminHtml.includes("&lt;img src=x onerror=alert(1)&gt;"), "an issue title with markup is escaped");
 must((await (await call("/api/me", { cookies: asSession(owner.session) })).json()).id === 111, "/api/me gives the header what it needs (login, id, role) and nothing more");
 must((await call("/auth/logout", { cookies: asSession(owner.session) })).status !== 302, "signing out is not a link: a GET does not do it");
 
@@ -176,14 +174,8 @@ must((await call("/api/me")).status === 401, "/api/me without a session is 401")
   must((await call("/auth/logout", { method: "POST", cookies: asSession(owner.session), origin: "https://evil.example", extra: { "Sec-Fetch-Site": "same-origin" } })).status === 403, "a different Origin is refused even if Sec-Fetch-Site claims same-origin");
 }
 
-// ---- GitHub being down must not break sign-in pages
-issuesMode = "fail";
-{
-  const r = await call("/admin", { cookies: asSession(owner.session) });
-  const t = await r.text();
-  must(r.status === 200 && t.includes("could not be loaded"), "if the queue cannot load, the page still works and says so");
-}
-issuesMode = "ok";
+// ---- the admin page shows only what the app itself holds
+must(!adminHtml.includes("old issue forms") && !adminHtml.includes("/issues/"), "the admin page no longer reads the old issue forms");
 
 // ---- headers and page hygiene on every response
 for (const path of ["/admin", "/auth/login", "/healthz", "/nope", "/assets/app.css"]) {

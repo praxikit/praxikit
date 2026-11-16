@@ -59,6 +59,11 @@ export function parseCookies(header) {
 }
 
 /** Cookies are always HttpOnly, Secure and SameSite=Lax unless a caller says otherwise. */
+/** A plain hint the page can read ("this browser has a session"). It carries no identity and grants nothing; the server still checks the real session. */
+export function hintCookie(on, maxAge) {
+  return ["praxikit-in=" + (on ? "1" : ""), "Path=/", "Secure", "SameSite=Lax", "Max-Age=" + (on ? maxAge : 0)].join("; ");
+}
+
 export function cookie(name, value, { maxAge, path = "/", sameSite = "Lax" } = {}) {
   return [`${name}=${value}`, `Path=${path}`, "HttpOnly", "Secure", `SameSite=${sameSite}`, ...(maxAge === undefined ? [] : [`Max-Age=${maxAge}`])].join("; ");
 }

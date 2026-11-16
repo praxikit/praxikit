@@ -41,7 +41,7 @@ must(htmlFiles.length === 23, `expected home, 404, kits, 4 type pages, updates, 
 for (const f of htmlFiles) {
   const h = readFileSync(f, "utf8");
   // drop only our own inline scripts (marked data-site); any other <script> is a failure
-  const stripped = h.replace(/<script src="[^"]*" data-site><\/script>/g, "").replace(/<script type="application\/ld\+json">[^<]*<\/script>/g, "");
+  const stripped = h.replace(/<script src="[^"]*"(?: defer)? data-site><\/script>/g, "").replace(/<script type="application\/ld\+json">[^<]*<\/script>/g, "");
   must(!/<script/i.test(stripped), `unexpected <script> in ${f}`);
   must(!/<img src=x/.test(h), `raw <img> payload in ${f}`);
   const noValues = stripped.replace(/="[^"]*"/g, '=""'); // attribute values are inert text; look at attribute names only
@@ -72,7 +72,7 @@ must(idx.includes('rel="alternate" type="application/atom+xml"'), "feed link mis
 const upd = readFileSync(join(out, "updates/index.html"), "utf8");
 must(upd.includes("data-ck-paste") && upd.includes("claude plugin list") && /data-checker="[^"]*1\.2\.3/.test(upd), "paste-to-detect checker missing from the Updates page");
 const sub = readFileSync(join(out, "submit/index.html"), "utf8");
-must(sub.includes("template=suggest-kit.yml") && sub.includes("template=recommend.yml"), "submit page should open the issue forms");
+must(!sub.includes("template=suggest-kit.yml") && !sub.includes("template=recommend.yml"), "submitting is the form on the site; the old issue forms are gone");
 // routes: the home page shows a few kits and links on to pages instead of holding everything
 must(idx.includes('href="kits/"') && idx.includes('href="kits/plugins/"') && idx.includes('href="kits/skills/"') && idx.includes('href="kits/mcp/"') && idx.includes('href="kits/other/"'), "home must link to the kits page and each type page");
 must(idx.includes('href="updates/"') && idx.includes('href="picks/"') && idx.includes('href="submit/"') && idx.includes("<body data-home data-root=\"./\" data-app=\"\">"), "home must link to updates, picks and submit");

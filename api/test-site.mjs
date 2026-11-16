@@ -54,8 +54,10 @@ let r = await call("/");
 let html = await r.text();
 must(r.status === 200 && html.includes("<title>") && html.includes('data-app="https://praxikit.com"') && html.includes('id="acct"'), "the home page is the built site, with the account slot");
 const csp = r.headers.get("Content-Security-Policy") ?? "";
+must(csp.includes("script-src 'self' https://static.cloudflareinsights.com;") && csp.includes("connect-src 'self' https://cloudflareinsights.com;") && !csp.includes("*"), `the policy allows Cloudflare's cookie-less analytics and no other outside host: ${csp}`);
 must(csp.includes("script-src 'self'") && csp.includes("frame-ancestors 'none'") && !csp.includes("unsafe-inline") && !csp.includes("unsafe-eval") && r.headers.get("X-Content-Type-Options") === "nosniff" && (r.headers.get("Strict-Transport-Security") ?? "").includes("max-age"), `static pages carry strict headers: ${csp}`);
 must(!/<script(?![^>]*(?:\ssrc=|ld\+json))[^>]*>/i.test(html), "no inline script is left on any page");
+must(html.includes('defer data-site>'), "the site script is deferred so it never blocks the first paint");
 for (const p of ["/kits/", "/k/keel/", "/tags/", "/search/", "/submit/", "/privacy/", "/policy/", "/updates/", "/picks/"]) {
   const x = await call(p);
   must(x.status === 200 && (await x.text()).includes("<header"), `${p} is the site's page`);
@@ -114,6 +116,7 @@ must(js.includes('"/collection/toggle"') && js.includes('"aria-pressed"') && js.
 const home = await (await call("/kits/")).text();
 must(home.includes('class="save-btn"') && home.includes('data-save="k/keel/"') && home.includes('aria-label="Save keel to your collection"') && home.includes('id="menu-toggle"') && home.includes('aria-controls="site-nav"'), "cards carry a labelled bookmark button and the page has the menu button");
 must(js.includes('link("/collection", "My collection")') && js.includes('nav.insertBefore(mine,'), "signed-in people get a My collection tab in the navigation");
+must(js.includes('document.cookie.indexOf("praxikit-in=1") > -1') && js.includes('document.cookie = "praxikit-in=; Max-Age=0'), "visitors without the hint make no account requests, and a stale hint is cleared");
 must(js.includes('"/admin"') && js.includes("nav.insertBefore(a, nav.firstChild)") && js.includes('me.role === "admin"'), "the Admin tab is added first in the nav, only for the admin role");
 
 rmSync(out, { recursive: true, force: true });

@@ -13,8 +13,8 @@
  *                                                  raises GitHub's rate limit (strongly advised once people submit)
  *   DB                                             the D1 binding (see schema.sql); without it submissions are closed
  */
-import { signToken, verifyToken, randomToken, safeEqual, parseCookies, cookie } from "./lib/crypto.mjs";
-import { authorizeUrl, exchangeCode, getUser, decideRole, decideRoleByLogin, listPending } from "./lib/github.mjs";
+import { signToken, verifyToken, randomToken, safeEqual, parseCookies, cookie, hintCookie } from "./lib/crypto.mjs";
+import { authorizeUrl, exchangeCode, getUser, decideRole, decideRoleByLogin } from "./lib/github.mjs";
 import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, fetchListings, precheck, UserError } from "./lib/repo.mjs";
 import { storeFor } from "./lib/store.mjs";
 import { parseTags } from "./lib/tags.mjs";
@@ -46,7 +46,7 @@ const KINDS = ["plugin", "skill", "mcp", "template", "adapter", "agent", "hook"]
 
 // Headers for the static site pages (the app's own pages use HEADERS below). Scripts and styles only from this address.
 const SITE_HEADERS = {
-  "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: https://avatars.githubusercontent.com; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+  "Content-Security-Policy": "default-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' data: https://avatars.githubusercontent.com; connect-src 'self' https://cloudflareinsights.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
@@ -75,7 +75,7 @@ async function serveSite(request, env) {
 }
 
 const HEADERS = {
-  "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: https://avatars.githubusercontent.com; connect-src 'self'; form-action 'self' https://github.com; base-uri 'none'; frame-ancestors 'none'",
+  "Content-Security-Policy": "default-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; img-src 'self' data: https://avatars.githubusercontent.com; connect-src 'self' https://cloudflareinsights.com; form-action 'self' https://github.com; base-uri 'none'; frame-ancestors 'none'",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "same-origin", // "no-referrer" makes browsers send "Origin: null" on same-origin form posts
   "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
@@ -307,7 +307,7 @@ async function accountRoutes(request, env, url, path, method) {
     let f; try { f = await request.formData(); } catch { return back("/collection", "bad"); }
     if (String(f.get("confirm") ?? "").trim().toLowerCase() !== g.s.sub.toLowerCase()) return back("/settings", "confirm");
     await g.store.deleteAccount(g.s.id);
-    return send(messagePage("Account deleted", "Your collection, your waiting submissions and your account record are gone. Decided submissions stay in the catalogue's history without your name. You are signed out.", false), { cookies: [cookie(SESSION_COOKIE, "", { maxAge: 0 })] });
+    return send(messagePage("Account deleted", "Your collection, your waiting submissions and your account record are gone. Decided submissions stay in the catalogue's history without your name. You are signed out.", false), { cookies: [cookie(SESSION_COOKIE, "", { maxAge: 0 }), hintCookie(false)] });
   }
   return send(messagePage("Not found", "There is no such page.", false), { status: 404 });
 }
@@ -424,12 +424,12 @@ async function route(request, env) {
     const store0 = storeFor(env);
     if (store0) { try { await store0.touchUser(user.id, user.login, new Date().toISOString()); } catch { /* the account record is a convenience; signing in still works */ } }
     const where = mode === "user" ? (savedItem ? `/collection/save?item=${encodeURIComponent(savedItem)}` : carried ? `/submit?url=${encodeURIComponent(carried)}` : (back0 || "/profile")) : (back0 || "/admin");
-    return send("", { status: 302, location: where, cookies: [clearState, cookie(NEXT_COOKIE, "", { maxAge: 0 }), cookie(SAVE_COOKIE, "", { maxAge: 0 }), cookie(RETURN_COOKIE, "", { maxAge: 0 }), cookie(SESSION_COOKIE, session, { maxAge: SESSION_SECONDS })] });
+    return send("", { status: 302, location: where, cookies: [clearState, cookie(NEXT_COOKIE, "", { maxAge: 0 }), cookie(SAVE_COOKIE, "", { maxAge: 0 }), cookie(RETURN_COOKIE, "", { maxAge: 0 }), cookie(SESSION_COOKIE, session, { maxAge: SESSION_SECONDS }), hintCookie(true, SESSION_SECONDS)] });
   }
 
   if (path === "/auth/logout" && method === "POST") {
     if (!sameOrigin(request, env)) return send(messagePage("Refused", "That request did not come from this site."), { status: 403 });
-    return send("", { status: 302, location: "/", cookies: [cookie(SESSION_COOKIE, "", { maxAge: 0 })] });
+    return send("", { status: 302, location: "/", cookies: [cookie(SESSION_COOKIE, "", { maxAge: 0 }), hintCookie(false)] });
   }
 
   if (path === "/api/me" && method === "GET") {
@@ -459,14 +459,13 @@ async function route(request, env) {
     const s = await sessionOf(request, env);
     if (!s) return send(signInPage("", { return: hereOf(request) }));
     if (s.role !== "admin") return send(messagePage("No access", `You are signed in as @${s.sub}, but only owners of ${env.ORG} and members of ${env.ORG}/${env.TEAM} can maintain the catalogue. If you are one of them, sign in again with organisation access. Ask an owner to add you to the team, then sign in again.`, false, { href: "/auth/login", text: "Sign in with organisation access" }), { status: 403 });
-    let queue = [], queueError = "", subs = null;
-    try { queue = await listPending(env); } catch { queueError = "The waiting list could not be loaded from GitHub just now. Reload in a minute."; }
+    let queueError = "", subs = null;
     const store = storeFor(env);
     let recent = [];
     if (store) {
       try { await syncPublishing(env, store, listed(env)); await syncScans(env, store); subs = await store.pending(); recent = await store.recent(); } catch { queueError = queueError || "The submissions database could not be read just now."; }
     }
-    return send(adminPage({ session: s, env, queue, queueError, subs, recent, flash: flashOf(url) }));
+    return send(adminPage({ session: s, env, queueError, subs, recent, flash: flashOf(url) }));
   }
 
   if (path === "/admin/listings" && method === "GET") {

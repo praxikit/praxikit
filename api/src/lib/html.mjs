@@ -157,9 +157,8 @@ export function minePage({ session, rows, flash }) {
   return page("My submissions — Praxikit", `${nav(session)}<h1>My submissions</h1>${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${body}<p><a class="btn" href="/submit">Submit another</a></p>`);
 }
 
-export function adminPage({ session, env, queue, queueError, subs, recent, flash }) {
+export function adminPage({ session, env, queueError, subs, recent, flash }) {
   const via = session.via === "owner" ? `an owner of ${esc(env.ORG)}` : `a member of ${esc(env.ORG)}/${esc(env.TEAM)}`;
-  const issueRows = queue.map((q) => `<tr><td><a href="${esc(REPO_LINK(env.REPO, `/issues/${q.number}`))}" rel="noopener noreferrer">#${q.number}</a></td><td>${esc(q.title)}</td><td>${esc(q.by)}</td><td>${esc(q.label)}</td><td>${esc(q.checks || "waiting")}</td><td>${esc(q.created)}</td></tr>`).join("");
   const subRows = (subs ?? []).map((s) => `<tr><td><a href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a><br><span class="muted">${esc(s.owner)}</span></td><td>${esc(s.kind_guess || "?")}</td><td>${esc(s.source)}</td><td>${esc(s.license || "none")}</td><td>${status(s.precheck_status)}</td><td>${esc(s.scan_state === "done" ? (s.scan_label === "no-flags-found" ? "nothing found" : s.scan_label === "checks-flagged" ? "read the report" : s.scan_label) : s.scan_state === "running" ? "running" : s.scan_state === "failed" ? "did not finish" : "not run")}</td><td>${esc(s.submitted_by)}</td><td>${esc(String(s.created_at).slice(0, 10))}</td></tr>`).join("");
   const recentRows = (recent ?? []).map((s) => `<tr><td><a href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a></td><td>${esc(s.status)}</td><td>${esc(s.status === "approved" ? (PUBLISH[s.publish_state] ?? s.publish_state) : s.status === "rejected" ? s.decision_note : "")}</td><td>${esc(s.decided_by)}</td><td>${esc(String(s.decided_at).slice(0, 10))}</td></tr>`).join("");
   return page("Admin — Praxikit", `${nav(session)}
@@ -169,8 +168,8 @@ export function adminPage({ session, env, queue, queueError, subs, recent, flash
 ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
 ${subs ? `<h2>New submissions (${subs.length})</h2>${subRows ? `<table><thead><tr><th>Repository</th><th>Type</th><th>As</th><th>Licence</th><th>Quick check</th><th>Full checks</th><th>By</th><th>Opened</th></tr></thead><tbody>${subRows}</tbody></table><p class="muted">Open one to approve or reject it.</p>` : '<p class="muted">Nothing is waiting.</p>'}` : ""}
 ${recentRows ? `<h2>Recently decided</h2><table><thead><tr><th>Repository</th><th>Decision</th><th>Result</th><th>By</th><th>Date</th></tr></thead><tbody>${recentRows}</tbody></table>` : ""}
-<h2>Waiting for review${subs ? " (old issue forms)" : ""}</h2>
-${queueError ? `<p class="note">${esc(queueError)}</p>` : issueRows ? `<table><thead><tr><th>Issue</th><th>Title</th><th>By</th><th>Kind</th><th>Checks</th><th>Opened</th></tr></thead><tbody>${issueRows}</tbody></table>` : '<p class="muted">Nothing is waiting.</p>'}
+
+${subs ? "" : `<p class="note">${esc(queueError || "The submissions database is not connected, so there is nothing to review here.")}</p>`}
 <h2>Shortcuts</h2>
 <ul class="links">
 <li><a href="/submit">Open the submit form</a> (as a maintainer, what you submit is published directly after the scan)</li>

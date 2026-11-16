@@ -90,17 +90,3 @@ export async function decideRoleByLogin(env, login) {
   } catch { return null; }
 }
 
-/** Open submissions and recommendations from the existing issue forms (read only, phase 1). */
-export async function listPending(env) {
-  const repo = env.REPO;
-  const out = [];
-  for (const label of ["submission", "recommendation"]) {
-    const r = await fetch(`${API}/repos/${repo}/issues?state=open&labels=${label}&per_page=30`, { headers: headers(env.GITHUB_TOKEN) });
-    if (!r.ok) throw new Error("could not read issues");
-    for (const i of await r.json()) {
-      if (i.pull_request || !Number.isInteger(i.number)) continue;
-      out.push({ number: i.number, title: String(i.title ?? "").slice(0, 120), by: String(i.user?.login ?? "").slice(0, 39), label, created: String(i.created_at ?? "").slice(0, 10), checks: (i.labels ?? []).map((l) => l?.name).find((n) => ["no-flags-found", "checks-flagged", "checks-failed", "needs-manual-review"].includes(n)) ?? "" });
-    }
-  }
-  return out.sort((a, b) => b.number - a.number);
-}

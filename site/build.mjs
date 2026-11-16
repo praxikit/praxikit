@@ -357,9 +357,10 @@ const SITE_JS = `
   function link(href, text) { var a = el("a", "", text); a.href = href; return a; }
   var signin = slot ? slot.querySelector("a.signin") : null;
   if (signin && location.pathname.indexOf("/auth") !== 0) signin.href = signin.getAttribute("href") + "&return=" + encodeURIComponent(location.pathname + location.search);
-  if (slot && appOrigin && location.origin === appOrigin) {
+  var hinted = document.cookie.indexOf("praxikit-in=1") > -1;
+  if (slot && appOrigin && location.origin === appOrigin && hinted) {
     fetch("/api/me", { credentials: "same-origin", headers: { Accept: "application/json" } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (me) {
-      if (!me || typeof me.login !== "string") return;
+      if (!me || typeof me.login !== "string") { document.cookie = "praxikit-in=; Max-Age=0; Path=/; Secure; SameSite=Lax"; return; }
       var nav = document.querySelector("header nav"), admin = me.role === "admin";
       if (admin && nav) { var a = link("/admin", "Admin"); a.className = "admin-tab"; if (location.pathname.indexOf("/admin") === 0) a.setAttribute("aria-current", "page"); nav.insertBefore(a, nav.firstChild); }
       if (nav) { var mine = link("/collection", "My collection"); if (location.pathname.indexOf("/collection") === 0) mine.setAttribute("aria-current", "page"); nav.insertBefore(mine, nav.querySelector('a[href^="https://github.com"]')); }
@@ -544,7 +545,7 @@ ${head}
 ${body}
 </main>
 <footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>A catalogue of kits for AI coding agents.<br>Free, open source, MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}about/">About</a><a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a></div></div></footer>
-<script src="${up}site.js?v=${hashStr(SITE_JS)}" data-site></script>
+<script src="${up}site.js?v=${hashStr(SITE_JS)}" defer data-site></script>
 </body>
 </html>
 `;
@@ -757,10 +758,8 @@ function submitPage() {
 <label for="repo">Repository link</label>
 <div class="row"><input id="repo" name="url" type="url" required maxlength="200" inputmode="url" autocapitalize="off" placeholder="https://github.com/owner/repo" autocomplete="off"><button class="btn" type="submit">Continue with GitHub</button></div>
 <p class="muted">You will sign in with GitHub (only your username is read) and confirm on the next screen. Your link is passed along so you do not paste it twice.</p>
-</form>
-<p class="muted">Prefer GitHub issues, or the app is down? <a href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Open an issue instead</a>.</p>`
-    : `<div class="submit"><div id="submit"><h2>You built one</h2><p>Describe it, link the repository and say what it reads, writes and sends.</p><p><a class="btn" href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Open the submission form</a></p></div>
-<div id="recommend"><h2>You found someone else's</h2><p>Suggest a kit made by someone else, and say why. It is listed after the checks and a read-through. It becomes one of the owner's picks only if the owner uses it.</p><p><a class="btn ghost" href="${esc(ISSUE("recommend.yml"))}" rel="noopener noreferrer">Open the suggestion form</a></p></div></div>`;
+</form>`
+    : `<p class="note">Submissions are not open yet.</p>`;
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Submit</p><h1>Submit a kit</h1>
 <p class="lead">Free. Paste the link to a public GitHub repository, yours or someone else's. We read its name, owner, licence and README from GitHub, so you do not need to describe it.</p>
 ${form}
@@ -862,7 +861,7 @@ function privacyPage() {
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Privacy</p><h1>Privacy</h1>
 <p class="lead">You do not need an account to read anything here. An account is only for submitting a kit or keeping a private collection, and it works through GitHub.</p>
 <h2 class="sub">This website</h2>
-<p>It is a static site on GitHub Pages. It sets no cookies, runs no analytics and loads nothing from other sites. GitHub, which hosts it, keeps its own server logs.</p>
+<p>Reading the site sets no cookies and shows no ads. Cloudflare, which serves it, counts page views with its privacy-first Web Analytics: no cookies, no fingerprinting and no personal profile, only totals such as which pages are read and from which country. Cloudflare keeps its own server logs. If you sign in, the next section applies.</p>
 <h2 class="sub">If you sign in</h2>
 <p>Signing in happens in a separate app. It asks GitHub for your username only (the <code>read:user</code> permission), does not keep your GitHub access token, and stores your username, your numeric GitHub id, the dates you signed in, your saved kits and group names, and your submissions. It uses one sign-in cookie that lasts a few hours. Nothing is sold or shared, and no page shows your collection to anyone else.</p>
 <p>You can download your data and delete your account at any time from <em>My collection</em>. Deleting removes your collection, waiting submissions and account record; decided submissions stay in the catalogue's history without your name. Nothing in the app shows your collection to anyone else. Maintainers see your submissions and your username next to them. The person who runs the app can technically read the database, because that is how a database works; they do not look through collections.</p>
