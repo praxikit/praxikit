@@ -137,3 +137,8 @@
 - **Submit**: the site's Submit page is a form that hands the link to the app; the app prefills it and carries it through sign-in. A muted GitHub-issue fallback stays.
 - **Scanner**: the "disable the sandbox" phrase now counts only in files that instruct an agent, so a README documenting a flag is no longer flagged.
 - Needs the owner: migrations `0004` (if not yet) and `0005`, then `npx wrangler deploy`. Approving from the app fails between the push and the redeploy.
+
+## 2026-11-16 — Manage live listings in the app
+- Owner decisions: collections start private; the app stays on Cloudflare D1 (no Supabase: a second database and auth system for no gain at this size); Google sign-in later only if people ask. Order: listing management, then accounts and privacy (note, delete-my-account, rate limits, users table), then My collection.
+- Built: `/admin/listings` with edit and remove, new `edit-listing` workflow and `editListing()` in `scripts/listings.mjs`, tests (`api/test-listings.mjs`, added to CI).
+- No migration. Redeploy the app (`npx wrangler deploy`) after pulling.

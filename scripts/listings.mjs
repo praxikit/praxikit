@@ -109,6 +109,26 @@ export function computeDrift(list, previous, run) {
   return out;
 }
 
+/**
+ * Changes the wording of one listing: name, card text, tags and the owner's note. A non-empty note makes it a pick,
+ * an empty one makes it an ordinary listing. What was reviewed (url, commit, checks, source, author) never changes here;
+ * to change that, run the checks again. Returns { list, before, after }; throws if the repository is not listed or the result is invalid.
+ */
+export function editListing(list, url, patch) {
+  const at = list.findIndex((x) => sameRepo(x.url, url));
+  if (at < 0) throw new Error("that repository is not listed");
+  const before = list[at];
+  const after = { ...before };
+  const name = clean(patch.name, 80), why = clean(patch.why, 400), note = clean(patch.note, 200), tags = parseTags(patch.tags);
+  if (name) after.name = name;
+  if (why) after.why = why;
+  delete after.tags; if (tags.length) after.tags = tags;
+  delete after.pick; delete after.note; if (note) { after.pick = true; after.note = note; }
+  const problems = validateListing(after);
+  if (problems.length) throw new Error("the edited entry is not valid: " + problems.join("; "));
+  return { list: list.map((x, i) => (i === at ? after : x)), before, after };
+}
+
 export const REASONS = ["malicious", "secret", "licence", "misleading", "unmaintained", "owner-request", "other"];
 
 /** Removes the entry for a repository. Returns { list, removed } where removed is null if it was not listed. */
@@ -183,6 +203,17 @@ function main() {
     return;
   }
 
+  if (cmd === "edit") {
+    const url = arg("--url"), listFile = arg("--file");
+    if (!url || !listFile) { console.error("edit needs --url and --file"); process.exit(2); }
+    const list = existsSync(listFile) ? JSON.parse(readFileSync(listFile, "utf8")) : [];
+    let result;
+    try { result = editListing(list, url, { name: arg("--name"), why: arg("--why"), tags: arg("--tags"), note: arg("--note") }); } catch (e) { console.error(e.message); process.exit(4); }
+    writeFileSync(listFile, JSON.stringify(result.list, null, 2) + "\n");
+    console.log("edited: " + result.after.url);
+    return;
+  }
+
   if (cmd === "remove") {
     const url = arg("--url"), reason = arg("--reason"), note = arg("--note") ?? "", listFile = arg("--file"), logFile = arg("--log");
     if (!url || !listFile || !logFile || !REASONS.includes(reason)) { console.error(`remove needs --url, --file, --log and --reason (${REASONS.join(", ")})`); process.exit(2); }
@@ -196,7 +227,7 @@ function main() {
     return;
   }
 
-  console.error("usage: listings.mjs scan|publish|remove ...");
+  console.error("usage: listings.mjs scan|publish|edit|remove ...");
   process.exit(2);
 }
 

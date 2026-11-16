@@ -21,6 +21,7 @@ label{display:block;font-weight:600;margin:1rem 0 .3rem}input[type=text],input[t
 textarea{min-height:5rem;resize:vertical}select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}button[disabled]{opacity:.5;cursor:not-allowed}label.check{font-weight:400;display:flex;gap:8px;align-items:center}.hint{font-weight:400;color:var(--muted);font-size:.88rem}
 blockquote{margin:.5rem 0;padding:.4rem 1rem;border-left:3px solid var(--line);color:var(--muted)}
 dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:6px 18px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}
+.listing{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:10px 14px;margin:10px 0}.listing summary{cursor:pointer}.listing .danger{margin-top:18px;padding-top:6px;border-top:1px dashed var(--line)}
 `;
 
 // the stylesheet is cached for an hour, so its address changes whenever its content does
@@ -66,6 +67,31 @@ ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${error ? `<p class="note">${es
 <p class="muted">If you are the repository's owner (or a public member of its organisation), it is listed as a community kit by its author. Otherwise it is a recommendation. GitHub decides which, not the form.</p>`);
 }
 
+const REMOVE_OPTIONS = [["malicious", "Malicious"], ["secret", "Exposed secret"], ["licence", "Licence problem"], ["misleading", "Misleading"], ["unmaintained", "Unmaintained"], ["owner-request", "Owner asked"], ["other", "Other"]];
+
+/** The live listings, each with an edit form and a remove form. Everything shown is escaped. */
+export function listingsPage({ session, listings, error, flash, canPublish }) {
+  const item = (l) => `<details class="listing"><summary><strong>${esc(l.name)}</strong> <span class="muted">${esc(l.kind)} · ${l.pick ? "my pick" : esc(l.source)} · ${esc(l.checks)}</span></summary>
+<p class="muted"><a href="${esc(l.url)}" rel="noopener noreferrer">${esc(l.url)}</a> · reviewed at <code>${esc(l.commit.slice(0, 7))}</code>. What was reviewed does not change here; to change that, run the checks again from a new submission.</p>
+<form method="post" action="/admin/listings/edit"><input type="hidden" name="url" value="${esc(l.url)}">
+<label>Name <input type="text" name="name" maxlength="80" required value="${esc(l.name)}"></label>
+<label>Card text <textarea name="why" maxlength="400" required>${esc(l.why)}</textarea></label>
+<label>Tags <span class="hint">(comma-separated, up to 12)</span> <input type="text" name="tags" maxlength="400" value="${esc(l.tags.join(", "))}"></label>
+<label>How I use it <span class="hint">(a note makes it one of my picks; empty means it is just listed)</span> <input type="text" name="note" maxlength="200" value="${esc(l.note)}"></label>
+<p><button type="submit"${canPublish ? "" : " disabled"}>Save changes</button></p></form>
+<form method="post" action="/admin/listings/remove" class="danger"><input type="hidden" name="url" value="${esc(l.url)}">
+<label>Remove for <select name="reason">${REMOVE_OPTIONS.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}</select></label>
+<label>Public note <span class="hint">(optional, shown in the removal log)</span> <input type="text" name="note" maxlength="160"></label>
+<label class="check"><input type="checkbox" name="confirm" value="yes"> Yes, remove it and log it publicly</label>
+<p><button type="submit" class="ghost"${canPublish ? "" : " disabled"}>Remove listing</button></p></form></details>`;
+  return page("Listings — Praxikit", `${nav(session)}
+<h1>Live listings</h1>
+<p class="muted"><a href="/admin">Back to the admin</a>. These are the kits on the public site now. Edits and removals run as jobs on GitHub, are recorded in the repository's history, and need a sign-in from the last 30 minutes.</p>
+${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${error ? `<p class="note">${esc(error)}</p>` : ""}
+${canPublish ? "" : '<p class="note">Publishing is not connected, so changes are switched off.</p>'}
+${listings.length ? listings.map(item).join("") : error ? "" : '<p class="muted">Nothing is listed yet.</p>'}`);
+}
+
 const KIND_OPTIONS = [["plugin", "Plugin"], ["skill", "Skill"], ["mcp", "MCP config"], ["template", "Template"], ["adapter", "Adapter"], ["agent", "Agent"], ["hook", "Hook"]];
 /** Fixed messages only: a query string picks one by key and is never echoed. */
 export const FLASH = {
@@ -84,6 +110,13 @@ export const FLASH = {
   scanstarted: "The full checks have started on GitHub. Reload in a minute or two.",
   scanfail: "GitHub would not start the check job. Try again.",
   reopened: "Back in review. Run the full checks and read them before approving.",
+  edited: "Saved. The edit is being applied and the site redeploys; this page shows the change in a minute or two.",
+  removed: "Removal started. It is logged publicly in docs/removals.md and the site redeploys; this page updates in a minute or two.",
+  badedit: "Check the fields: a name up to 80 characters, card text up to 400, and a note of up to 200 characters if it is a pick.",
+  badremove: "Pick a reason from the list, tick the confirmation, and keep the note under 160 characters.",
+  gone: "That repository is not in the live listings (it may have just been removed).",
+  unread: "The live listings could not be read from GitHub just now. Nothing was changed.",
+  joberr: "GitHub would not start the job. Nothing was changed; try again.",
   held: "Saved for review. It could not be published directly (no recognisable type, a failed quick check, or your sign-in is older than 30 minutes); open it to decide.",
 };
 const PUBLISH = {
@@ -106,6 +139,7 @@ export function adminPage({ session, env, queue, queueError, subs, recent, flash
   const recentRows = (recent ?? []).map((s) => `<tr><td><a href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a></td><td>${esc(s.status)}</td><td>${esc(s.status === "approved" ? (PUBLISH[s.publish_state] ?? s.publish_state) : s.status === "rejected" ? s.decision_note : "")}</td><td>${esc(s.decided_by)}</td><td>${esc(String(s.decided_at).slice(0, 10))}</td></tr>`).join("");
   return page("Admin — Praxikit", `${nav(session)}
 <h1>Catalogue admin</h1>
+<p><a class="btn ghost" href="/admin/listings">Manage live listings</a></p>
 <p class="muted">You can maintain the catalogue because you are ${via}.</p>
 ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
 ${subs ? `<h2>New submissions (${subs.length})</h2>${subRows ? `<table><thead><tr><th>Repository</th><th>Type</th><th>As</th><th>Licence</th><th>Quick check</th><th>Full checks</th><th>By</th><th>Opened</th></tr></thead><tbody>${subRows}</tbody></table><p class="muted">Open one to approve or reject it.</p>` : '<p class="muted">Nothing is waiting.</p>'}` : ""}

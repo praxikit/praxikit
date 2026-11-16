@@ -117,6 +117,17 @@ export async function alreadyListed(env, key) {
   } catch { return false; }
 }
 
+/** The listings that are live right now, cut down to the fields the management page shows. Throws UserError if they cannot be read. */
+export async function fetchListings(env) {
+  let r;
+  try { r = await fetch(`${API}/repos/${env.REPO}/contents/site/listings.json`, { headers: headers(env.GITHUB_TOKEN, { Accept: "application/vnd.github.raw+json" }) }); } catch { throw new UserError("GitHub could not be reached just now. Try again in a minute."); }
+  if (!r.ok) throw new UserError("The listings could not be read from GitHub just now. Try again in a minute.");
+  let list; try { list = JSON.parse(await r.text()); } catch { throw new UserError("The listings file could not be read."); }
+  if (!Array.isArray(list)) throw new UserError("The listings file could not be read.");
+  const s = (v, n) => String(v ?? "").slice(0, n);
+  return list.map((l) => ({ url: s(l?.url, 200), name: s(l?.name, 80), why: s(l?.why, 400), kind: s(l?.kind, 20), source: s(l?.source, 20), checks: s(l?.checks, 30), pick: !!l?.pick, note: s(l?.note, 200), tags: Array.isArray(l?.tags) ? l.tags.slice(0, 12).map((t) => s(t, 24)) : [], commit: s(l?.commit, 40) })).filter((l) => parseRepo(l.url)?.url === l.url);
+}
+
 /** The cheap checks that can run in the app. The full read-only scan runs when a maintainer approves. */
 export function precheck(info) {
   const checks = [];

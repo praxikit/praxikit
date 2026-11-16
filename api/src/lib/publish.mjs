@@ -29,6 +29,17 @@ export async function dispatchApprove(env, s) {
   if (r.status !== 204) throw new UserError(r.status === 401 || r.status === 403 || r.status === 404 ? "GitHub refused to start the publish job. The app's token may be missing, expired or lacking the Actions permission." : "GitHub could not start the publish job.");
 }
 
+async function dispatchWorkflow(env, file, inputs) {
+  if (!publishingConfigured(env)) throw new UserError("Publishing is not connected yet: the app has no token to start the job.");
+  let r;
+  try { r = await fetch(`${API}/repos/${env.REPO}/actions/workflows/${file}/dispatches`, { method: "POST", headers: hdr(env.GITHUB_DISPATCH_TOKEN), body: JSON.stringify({ ref: "main", inputs }) }); } catch { throw new UserError("GitHub could not be reached, so the job did not start."); }
+  if (r.status !== 204) throw new UserError("GitHub refused to start the job. The app's token may be missing, expired or lacking the Actions permission.");
+}
+/** Changes the wording of a live listing (the workflow never touches what was reviewed). */
+export const dispatchEdit = (env, e) => dispatchWorkflow(env, "edit-listing.yml", { url: e.url, name: e.name, why: e.why, tags: e.tags, note: e.note, decided_by: e.by });
+/** Takes a live listing down and records it in the public log. */
+export const dispatchRemove = (env, e) => dispatchWorkflow(env, "remove-listing.yml", { url: e.url, reason: e.reason, note: e.note });
+
 /** Latest approve-submission run per submission number: Map(id -> { status, conclusion, url }). Empty if unreadable. */
 export async function runStates(env) {
   const out = new Map();

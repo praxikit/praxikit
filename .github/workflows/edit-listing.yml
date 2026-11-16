@@ -1,0 +1,65 @@
+name: edit-listing
+# Started by the admin app for a signed-in maintainer. Changes the wording of one existing listing (name, card text, tags, the owner's note).
+# It never changes what was reviewed (the repository, the commit or the checks) and never reads the repository itself.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Repository link of the listing
+        required: true
+        type: string
+      name:
+        description: Name shown on the card
+        required: true
+        type: string
+      why:
+        description: Card text
+        required: true
+        type: string
+      tags:
+        description: Comma-separated tags
+        required: false
+        type: string
+      note:
+        description: How the owner uses it (non-empty makes it a pick)
+        required: false
+        type: string
+      decided_by:
+        description: GitHub login of the maintainer
+        required: false
+        type: string
+permissions: {}
+jobs:
+  edit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: listings
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Edit and redeploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IN_URL: ${{ inputs.url }}
+          IN_NAME: ${{ inputs.name }}
+          IN_WHY: ${{ inputs.why }}
+          IN_TAGS: ${{ inputs.tags }}
+          IN_NOTE: ${{ inputs.note }}
+          IN_BY: ${{ inputs.decided_by }}
+        run: |
+          node scripts/listings.mjs edit --url "$IN_URL" --name "$IN_NAME" --why "$IN_WHY" --tags "$IN_TAGS" --note "$IN_NOTE" --file site/listings.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/listings.json
+          git commit -m "listings: edit an entry (edit-listing workflow)"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh workflow run pages.yml --ref main
+          echo "Edited. The site is redeploying." >> "$GITHUB_STEP_SUMMARY"

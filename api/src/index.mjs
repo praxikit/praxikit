@@ -15,11 +15,11 @@
  */
 import { signToken, verifyToken, randomToken, safeEqual, parseCookies, cookie } from "./lib/crypto.mjs";
 import { authorizeUrl, exchangeCode, getUser, decideRole, listPending } from "./lib/github.mjs";
-import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, precheck, UserError } from "./lib/repo.mjs";
+import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, fetchListings, precheck, UserError } from "./lib/repo.mjs";
 import { storeFor } from "./lib/store.mjs";
 import { parseTags } from "./lib/tags.mjs";
-import { dispatchApprove, dispatchScan, syncPublishing, syncScans, publishingConfigured } from "./lib/publish.mjs";
-import { CSS, signInPage, messagePage, adminPage, submitPage, minePage, detailPage, FLASH } from "./lib/html.mjs";
+import { dispatchApprove, dispatchEdit, dispatchRemove, dispatchScan, syncPublishing, syncScans, publishingConfigured } from "./lib/publish.mjs";
+import { CSS, signInPage, messagePage, listingsPage, adminPage, submitPage, minePage, detailPage, FLASH } from "./lib/html.mjs";
 
 const SESSION_COOKIE = "__Host-praxikit-session";
 const STATE_COOKIE = "__Host-praxikit-state";
@@ -140,6 +140,33 @@ async function submit(request, env, session) {
     return send("", { status: 303, location: "/mine?ok=held" });
   }
   return send("", { status: 303, location: "/mine?ok=1" });
+}
+
+const REMOVE_REASONS = ["malicious", "secret", "licence", "misleading", "unmaintained", "owner-request", "other"];
+
+/** Edit or remove a live listing. The target must be in the live list, so the form cannot name anything else. */
+async function listingRoute(request, env, s, kind) {
+  const stop = gate(request, env, s); if (stop) return stop;
+  const base = "/admin/listings";
+  if (!publishingConfigured(env)) return back(base, "nopublish");
+  let f; try { f = await request.formData(); } catch { return back(base, "bad"); }
+  const url = cleanRepo(f.get("url"));
+  let live; try { live = await fetchListings(env); } catch { return back(base, "unread"); }
+  const target = live.find((l) => l.url === url);
+  if (!url || !target) return back(base, "gone");
+  try {
+    if (kind === "edit") {
+      const name = oneLine(f.get("name"), 100), why = oneLine(f.get("why"), 500), note = oneLine(f.get("note"), 300);
+      const tags = parseTags(oneLine(f.get("tags"), 400)).join(",");
+      if (!name || name.length > 80 || !why || why.length > 400 || note.length > 200) return back(base, "badedit");
+      await dispatchEdit(env, { url, name, why, tags, note, by: s.sub });
+      return back(base, "edited");
+    }
+    const reason = String(f.get("reason") ?? ""), note = oneLine(f.get("note"), 200);
+    if (!REMOVE_REASONS.includes(reason) || note.length > 160 || f.get("confirm") !== "yes") return back(base, "badremove");
+    await dispatchRemove(env, { url, reason, note });
+    return back(base, "removed");
+  } catch { return back(base, "joberr"); }
 }
 
 async function approveRoute(request, env, s, id) {
@@ -289,6 +316,16 @@ async function route(request, env) {
     }
     return send(adminPage({ session: s, env, queue, queueError, subs, recent, flash: flashOf(url) }));
   }
+
+  if (path === "/admin/listings" && method === "GET") {
+    const s = await sessionOf(request, env);
+    if (!s) return send(signInPage());
+    if (s.role !== "admin") return send(messagePage("No access", "Only maintainers can manage listings.", false), { status: 403 });
+    let listings = [], error = "";
+    try { listings = await fetchListings(env); } catch (e) { error = e instanceof UserError ? e.message : "The listings could not be loaded."; }
+    return send(listingsPage({ session: s, listings, error, flash: flashOf(url), canPublish: publishingConfigured(env) }));
+  }
+  if ((path === "/admin/listings/edit" || path === "/admin/listings/remove") && method === "POST") return listingRoute(request, env, await sessionOf(request, env), path.endsWith("edit") ? "edit" : "remove");
 
   const detail = /^\/admin\/submissions\/(\d{1,9})$/.exec(path);
   if (detail && method === "GET") {

@@ -7,7 +7,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseIssue } from "./check-submission.mjs";
-import { entryFromIssue, entryFromDispatch, appendListing, clean, computeDrift } from "./listings.mjs";
+import { entryFromIssue, entryFromDispatch, appendListing, clean, computeDrift, editListing } from "./listings.mjs";
 import { validateListing } from "../site/listings.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -196,6 +196,31 @@ const out = join(tmp, "out");
 const s = spawnSync("node", [join(here, "listings.mjs"), "scan", "--mode", "issue", "--out-dir", out], { encoding: "utf8", env: { ...process.env, ISSUE_BODY: "### Kit name\n\nX\n\n### Repository link\n\nhttps://gitlab.com/a/b\n", ISSUE_AUTHOR: "a", ISSUE_NUMBER: "3" } });
 must(s.status === 0 && readFileSync(join(out, "status.txt"), "utf8").trim() === "blocked" && !existsSync(join(out, "entry.json")), "a non-GitHub link is blocked with no entry");
 must(readFileSync(join(out, "comment.md"), "utf8").includes("Not listed") && readFileSync(join(out, "label.txt"), "utf8").trim() === "needs-manual-review", "the blocked comment and label are written");
+
+// ---- editing a live listing
+{
+  const base = { name: "Kit", url: "https://github.com/o/r", author: "o", why: "Does a thing.", kind: "skill", source: "community", added: "2026-11-15", commit: "a".repeat(40), checks: "no-flags-found", tags: ["old"] };
+  const other = { ...base, url: "https://github.com/o/other", name: "Other" };
+  const r = editListing([base, other], "https://github.com/O/R/", { name: "  New   name ", why: "Better text.", tags: "Planning, model routing", note: "I use it daily" });
+  must(r.after.name === "New name" && r.after.why === "Better text." && JSON.stringify(r.after.tags) === JSON.stringify(["planning", "model-routing"]), "name, text and tags are cleaned and replaced");
+  must(r.after.pick === true && r.after.note === "I use it daily", "a note makes it a pick");
+  must(r.after.commit === base.commit && r.after.checks === base.checks && r.after.source === base.source && r.after.author === base.author && r.after.added === base.added && r.after.url === base.url, "what was reviewed never changes");
+  must(r.list.length === 2 && r.list[1] === other, "other listings are untouched and order is kept");
+  const un = editListing([r.after], base.url, { name: "", why: "", tags: "", note: "" });
+  must(!("pick" in un.after) && !("note" in un.after) && !("tags" in un.after) && un.after.name === "New name", "an empty note un-picks, empty tags clear them, empty name or text keep the old ones");
+  let threw = false; try { editListing([base], "https://github.com/x/y", { name: "a" }); } catch { threw = true; }
+  must(threw, "editing a repository that is not listed is refused");
+  threw = false; try { editListing([base], base.url, { why: "x".repeat(900), note: "n" }); editListing([{ ...base, kind: "bogus" }], base.url, { name: "a" }); } catch { threw = true; }
+  must(threw, "an edit that leaves an invalid entry is refused");
+  // the command-line path writes the file and leaves it valid
+  const f = join(tmp, "edit-list.json");
+  writeFileSync(f, JSON.stringify([base]));
+  const ok = spawnSync("node", [join(here, "listings.mjs"), "edit", "--url", base.url, "--name", "Via CLI", "--why", "CLI text.", "--tags", "a-tag", "--note", "", "--file", f], { encoding: "utf8" });
+  const after = JSON.parse(readFileSync(f, "utf8"));
+  must(ok.status === 0 && after[0].name === "Via CLI" && after[0].tags[0] === "a-tag" && !after[0].pick && validateListing(after[0]).length === 0, "the edit command writes a valid file");
+  const no = spawnSync("node", [join(here, "listings.mjs"), "edit", "--url", "https://github.com/x/y", "--name", "n", "--file", f], { encoding: "utf8" });
+  must(no.status === 4, "the edit command fails for an unlisted repository");
+}
 
 rmSync(tmp, { recursive: true, force: true });
 if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }

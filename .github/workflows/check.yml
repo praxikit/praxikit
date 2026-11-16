@@ -43,6 +43,7 @@ jobs:
           node api/test.mjs
           node --no-warnings api/test-submit.mjs
           node --no-warnings api/test-approve.mjs
+          node --no-warnings api/test-listings.mjs
           node kits/pitch-panel/tests/skill.test.mjs
       - name: actionlint on workflows and the security template (pinned, checksum verified)
         env:

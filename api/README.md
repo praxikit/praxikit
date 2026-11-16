@@ -165,3 +165,7 @@ npx wrangler deploy
 ```
 
 (Run `0004_picks.sql` first if you have not.) Until the redeploy, approving from the app fails: the approve workflow no longer takes an `author` input.
+
+### Managing live listings
+
+`/admin/listings` shows what is live now (read from `site/listings.json` on GitHub) with, for each listing, an edit form (name, card text, tags, the "how I use it" note) and a remove form (a reason from the list, an optional public note, a confirmation tick). Both need a maintainer signed in within the last 30 minutes and a request from the app's own origin. The app does not edit files: it starts the `edit-listing` or `remove-listing` workflow with fixed inputs, which commit the change and redeploy the site. An edit never changes what was reviewed (repository, commit, checks, source); a note makes the listing a pick, an empty note makes it an ordinary listing. Removals go to the public log in `docs/removals.md`. No migration and no new setting are needed; the dispatch token already covers these workflows.
