@@ -12,4 +12,6 @@ One Cloudflare Worker serves the website (static files built from `site/`) and t
 - Worker secrets: `GITHUB_CLIENT_SECRET`, `SESSION_SECRET`, `GITHUB_DISPATCH_TOKEN` (and optionally a read-only `GITHUB_TOKEN`), set with `npx wrangler secret put <name>`.
 
 ## Maintainers
-Signing in with the header button gives a member account. A maintainer then uses **Sign in with organisation access** (on the "No access" page, or in Settings), which asks GitHub to confirm membership of the organisation. After that the **Admin** tab appears first in the navigation.
+The app recognises maintainers by itself. After any normal sign-in it asks GitHub, with a server-side token, whether the person is an owner of the organisation or in the maintainers team; if so the **Admin** tab appears first in the navigation. The token is `GITHUB_ORG_TOKEN`: a fine-grained personal access token whose resource owner is the `praxikit` organisation, with the organisation permission **Members: Read** and nothing else. Set it with `npx wrangler secret put GITHUB_ORG_TOKEN`.
+
+If it is not set (or GitHub cannot answer), the person is a member, never an admin, and a maintainer can use **Sign in with organisation access** (on the "No access" page and in Settings) instead.

@@ -36,6 +36,14 @@ globalThis.fetch = async (input, init = {}) => {
   if (u.pathname === "/user") return USERS[bearer] ? json(USERS[bearer]) : json({}, 401);
   if (u.pathname === "/user/memberships/orgs/praxikit") return MEMBERSHIP[bearer] ? json(MEMBERSHIP[bearer]) : json({}, 404);
   if (u.pathname === "/user/teams") return json(TEAMS[bearer] ?? []);
+  // the server's own lookup (GITHUB_ORG_TOKEN): who is in the org and the team, by login
+  const orgM = /^\/orgs\/praxikit\/memberships\/([^/]+)$/.exec(u.pathname), orgT = /^\/orgs\/praxikit\/teams\/maintainers\/memberships\/([^/]+)$/.exec(u.pathname);
+  if (orgM || orgT) {
+    if (bearer !== "orgtok") return json({ message: "Bad credentials" }, 401);
+    const who = (orgM ?? orgT)[1];
+    if (orgM) return who === "ratul" ? json({ state: "active", role: "admin" }) : who === "teammate" || who === "plain-member" ? json({ state: "active", role: "member" }) : who === "pending-person" ? json({ state: "pending", role: "member" }) : json({}, 404);
+    return who === "teammate" ? json({ state: "active", role: "member" }) : json({}, 404);
+  }
   if (u.pathname === "/repos/praxikit/praxikit/issues") {
     if (issuesMode === "fail") return json({}, 500);
     return u.searchParams.get("labels") === "submission"
@@ -191,6 +199,26 @@ for (const t of everything) must(!/<script|\son\w+=/i.test(t.replace(/&lt;[^&]*&
 const blob = everything.join("\n");
 for (const t of TOKENS) must(!blob.includes(t), `GitHub token ${t} never appears in a response`);
 must(!blob.includes("csecret") && !blob.includes(SECRET), "the client secret and session secret never appear in a response");
+
+// ---- maintainers are recognised without asking anyone for organisation access (server-side lookup)
+{
+  const e2 = { ...env, GITHUB_ORG_TOKEN: "orgtok" };
+  const userSignIn = async (code, e) => {
+    const login = await note(await call("/auth/login?mode=user", { e }));
+    const loc = new URL(login.headers.get("Location"));
+    const cb = await note(await call(`/auth/callback?code=${code}&state=${loc.searchParams.get("state")}`, { e, cookies: { "__Host-praxikit-state": cookieValue(login, "__Host-praxikit-state") } }));
+    const me = await (await call("/api/me", { e, cookies: asSession(cookieValue(cb, "__Host-praxikit-session")) })).json();
+    return { scope: loc.searchParams.get("scope"), me };
+  };
+  const o = await userSignIn("good-owner", e2);
+  must(o.scope === "read:user" && o.me.role === "admin", "an owner who uses the ordinary sign-in is an admin, and GitHub was only asked for read:user");
+  must((await userSignIn("good-team", e2)).me.role === "admin", "a team member who uses the ordinary sign-in is an admin");
+  must((await userSignIn("good-member", e2)).me.role === "user", "an organisation member outside the team stays a member");
+  must((await userSignIn("good-outsider", e2)).me.role === "user", "someone outside the organisation stays a member");
+  must((await userSignIn("good-owner", env)).me.role === "user", "without the server token the ordinary sign-in is a member (organisation sign-in is still available)");
+  must((await userSignIn("good-owner", { ...e2, GITHUB_ORG_TOKEN: "wrong" })).me.role === "user", "if the server's lookup fails, the person is a member, never an admin");
+  must((await userSignIn("good-owner", { ...e2, ORG: "praxikit", TEAM: "other-team" })).me.role === "admin", "an owner needs no team");
+}
 
 if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }
 console.log("ok: admin API signs in with GitHub, admits owners and team members only, signs short sessions, refuses forged or cross-site requests, escapes everything and never exposes a token");

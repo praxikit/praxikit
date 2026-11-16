@@ -14,7 +14,7 @@
  *   DB                                             the D1 binding (see schema.sql); without it submissions are closed
  */
 import { signToken, verifyToken, randomToken, safeEqual, parseCookies, cookie } from "./lib/crypto.mjs";
-import { authorizeUrl, exchangeCode, getUser, decideRole, listPending } from "./lib/github.mjs";
+import { authorizeUrl, exchangeCode, getUser, decideRole, decideRoleByLogin, listPending } from "./lib/github.mjs";
 import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, fetchListings, precheck, UserError } from "./lib/repo.mjs";
 import { storeFor } from "./lib/store.mjs";
 import { parseTags } from "./lib/tags.mjs";
@@ -380,7 +380,7 @@ async function route(request, env) {
     try {
       const token = await exchangeCode(env, code);
       user = await getUser(token);
-      who = mode === "admin" ? await decideRole(token, env) : { role: "user" }; // the token goes no further than this block
+      who = mode === "admin" ? await decideRole(token, env) : (await decideRoleByLogin(env, user.login)) ?? { role: "user" }; // the token goes no further than this block
     } catch {
       return send(signInPage("Sign-in could not be completed. Try again in a moment."), { status: 502, cookies: [clearState] });
     }

@@ -72,6 +72,24 @@ export async function decideRole(token, env) {
   return { role: "user" };
 }
 
+/**
+ * The same question asked from the server's side: is this GitHub login an owner of the org or in its maintainers team?
+ * Uses GITHUB_ORG_TOKEN (a fine-grained token with the organisation permission "Members: read"), so a person never has to
+ * grant organisation access themselves. Returns { role, via } or null if the token is not set or GitHub cannot answer.
+ */
+export async function decideRoleByLogin(env, login) {
+  const tok = env.GITHUB_ORG_TOKEN;
+  if (!tok || String(tok).startsWith("REPLACE") || !/^[A-Za-z0-9-]{1,39}$/.test(String(login))) return null;
+  const get = async (path) => { const r = await fetch(`${API}${path}`, { headers: headers(tok) }); if (r.status === 404) return null; if (!r.ok) throw new Error("org lookup failed"); return r.json(); };
+  try {
+    const m = await get(`/orgs/${encodeURIComponent(env.ORG)}/memberships/${encodeURIComponent(login)}`);
+    if (!m || m.state !== "active") return { role: "user" };
+    if (m.role === "admin") return { role: "admin", via: "owner" };
+    const t = await get(`/orgs/${encodeURIComponent(env.ORG)}/teams/${encodeURIComponent(env.TEAM)}/memberships/${encodeURIComponent(login)}`);
+    return t && t.state === "active" ? { role: "admin", via: "team" } : { role: "user" };
+  } catch { return null; }
+}
+
 /** Open submissions and recommendations from the existing issue forms (read only, phase 1). */
 export async function listPending(env) {
   const repo = env.REPO;

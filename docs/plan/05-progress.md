@@ -162,3 +162,5 @@
 - Bug: a maintainer who used the header's Sign in was a member, with no way to reach the admin. The "No access" page and Settings now offer **Sign in with organisation access**.
 - Dropped for good (owner's decision): the GitHub Pages site and the `MIRROR_TO` redirect, the `workers.dev` address, `/recommended/`, `/mine`, `/assets/admin.css`, the app's own privacy page, the `.nojekyll` file, the second site config. One config: `site/config.json`.
 - New: `deploy` workflow (replaces `pages.yml`), needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets. Keel 0.6.2 prints the update link on `praxikit.com`.
+
+- Maintainers are recognised automatically: the callback checks org ownership and team membership with a server-side `GITHUB_ORG_TOKEN` (Members: read), so no one grants organisation access. Without the token, the "Sign in with organisation access" button still works.
