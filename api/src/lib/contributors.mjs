@@ -58,21 +58,22 @@ const avatar = (id, size = 64) => `https://avatars.githubusercontent.com/u/${Num
 const chips = (c) => badgesFor(c).map((b) => `<li class="badge-chip" title="${esc(b.blurb)}">${esc(b.name)}</li>`).join("");
 const listingLink = (i) => (i.path ? `<a href="/${esc(i.path)}">${esc(i.title)}</a>` : esc(i.title));
 
-const ordinal = (n) => (n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : n + "th");
+const CROWN = '<svg class="crown" viewBox="0 0 48 32" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 10l9 8 11-14 11 14 9-8-3 20H7z"/></svg>';
+const loginLink = (r) => `<a class="login" href="/u/${esc(encodeURIComponent(r.login))}">@${esc(r.login)}</a>`;
 
 export function contributorsPage({ session, rows }) {
-  const top = rows.slice(0, 3), rest = rows.slice(3);
+  const top = rows.slice(0, 3);
   const total = rows.reduce((n, r) => n + r.count, 0);
+  const kits = (n) => (n === 1 ? "kit" : "kits");
   const podium = top.length
-    ? `<ol class="podium">${top.map((r, i) => `<li class="place place-${i + 1}"><span class="medal">${ordinal(r.rank)}</span><img src="${avatar(r.id, 144)}" alt="" width="72" height="72"><a class="login" href="/u/${esc(encodeURIComponent(r.login))}">@${esc(r.login)}</a><span class="big"><strong>${Number(r.count)}</strong> ${r.count === 1 ? "kit" : "kits"} listed</span><ul class="badge-row">${chips(r)}</ul></li>`).join("")}</ol>`
-    : `<div class="empty"><p><strong>Nobody is on the board yet.</strong> Put a kit forward and be the first. <a href="/submit/">Submit a kit</a>.</p></div>`;
-  const list = rest.length
-    ? `<h2>Everyone else</h2><ol class="board" start="4">${rest.map((r) => `<li><span class="rank">${Number(r.rank)}</span><img src="${avatar(r.id)}" alt="" width="40" height="40"><div class="who"><a class="login" href="/u/${esc(encodeURIComponent(r.login))}">@${esc(r.login)}</a><ul class="badge-row">${chips(r)}</ul></div><span class="score"><strong>${Number(r.count)}</strong> ${r.count === 1 ? "kit" : "kits"}</span></li>`).join("")}</ol>`
+    ? `<ol class="podium">${top.map((r, i) => `<li class="place place-${i + 1}">${i === 0 ? CROWN : `<span class="posn">${Number(r.rank)}</span>`}<span class="ring"><img src="${avatar(r.id, 160)}" alt="" width="84" height="84"></span>${loginLink(r)}<span class="pts">${Number(r.count)} ${kits(r.count)}</span></li>`).join("")}</ol>`
     : "";
+  const list = rows.length
+    ? `<ol class="lb-list">${rows.map((r) => `<li><span class="rank">${Number(r.rank)}</span><img src="${avatar(r.id)}" alt="" width="44" height="44"><div class="who">${loginLink(r)}<ul class="badge-row">${chips(r)}</ul></div><span class="score">${Number(r.count)}</span></li>`).join("")}</ol>`
+    : `<div class="empty lb-empty"><p><strong>Nobody is on the board yet.</strong> Put a kit forward and be the first. <a href="/submit/">Submit a kit</a>.</p></div>`;
   return page("Contributors — Praxikit", `${nav(session)}<h1>Contributors</h1>
-<p class="lead">The people who put kits forward. The count is how many of their kits are listed in the catalogue right now, so sending a lot earns nothing and quality is what counts.${rows.length ? ` <strong>${rows.length}</strong> ${rows.length === 1 ? "person" : "people"}, <strong>${total}</strong> ${total === 1 ? "kit" : "kits"}.` : ""}</p>
-${podium}
-${list}
+<p class="lead">The people who put kits forward. The score is how many of their kits are listed in the catalogue right now, so sending a lot earns nothing and quality is what counts.${rows.length ? ` <strong>${rows.length}</strong> ${rows.length === 1 ? "person" : "people"}, <strong>${total}</strong> ${kits(total)}.` : ""}</p>
+<section class="lb" aria-label="Leaderboard"><h2 class="lb-title">Leaderboard</h2>${podium}${list}</section>
 <p class="muted">Want to be here? <a href="/submit/">Submit a kit</a>. Your GitHub username is shown on the kits you put forward; you can hide it any time in <a href="/settings">Settings</a>.</p>`);
 }
 

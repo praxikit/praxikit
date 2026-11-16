@@ -382,6 +382,16 @@ a.icon-act { text-decoration: none; }
 .listing-two .side { order: 0; }
 @media (max-width: 899px) { .listing-two { gap: 20px; } }
 
+/* home: the community strip */
+.home-cols { display: grid; gap: clamp(20px, 4vw, 48px); grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
+.mini-board, .mini-req { list-style: none; padding: 0; margin: 0 0 .8rem; display: grid; gap: 8px; }
+.mini-board li, .mini-req li { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+.mini-board li.muted, .mini-req li.muted { background: transparent; border-style: dashed; }
+.mini-board .rank { width: 1.4rem; text-align: center; font-weight: 800; color: var(--spark); font-variant-numeric: tabular-nums; }
+.mini-board img { border-radius: 50%; border: 1px solid var(--line); flex: none; }
+.mini-board a, .mini-req a { font-weight: 600; text-decoration: none; min-width: 0; overflow-wrap: anywhere; }
+.mini-board .count, .mini-req .count { margin-left: auto; flex: none; font-size: .85rem; color: var(--muted); white-space: nowrap; }
+
 /* community: helped me, notes */
 .stat { margin: 0 0 .7rem; font-size: .85rem; color: var(--muted); }
 .stat[hidden] { display: none; }

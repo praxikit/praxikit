@@ -398,6 +398,27 @@ const SITE_JS = `
       });
     }).catch(function () {});
   }
+  var hb = document.getElementById("home-board"), hr = document.getElementById("home-reqs");
+  if (hb && hr && appOrigin && location.origin === appOrigin) {
+    fetch("/api/community", { headers: { Accept: "application/json" } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      if (!d) { hb.textContent = ""; hr.textContent = ""; hb.appendChild(node("li", "muted", "Open the leaderboard to see who is on it.")); hr.appendChild(node("li", "muted", "Open the requests page to see what is wanted.")); return; }
+      hb.textContent = ""; hr.textContent = "";
+      (d.contributors || []).forEach(function (c, i) {
+        if (typeof c.login !== "string" || !Number.isInteger(c.id)) return;
+        var li = node("li"); li.appendChild(node("span", "rank", String(i + 1)));
+        var img = node("img"); img.src = "https://avatars.githubusercontent.com/u/" + c.id + "?s=72"; img.alt = ""; img.width = 36; img.height = 36; li.appendChild(img);
+        var a = node("a", "", "@" + c.login); a.href = "/u/" + encodeURIComponent(c.login); li.appendChild(a);
+        li.appendChild(node("span", "count", c.count + (c.count === 1 ? " kit" : " kits"))); hb.appendChild(li);
+      });
+      if (!hb.children.length) hb.appendChild(node("li", "muted", "Nobody yet. Be the first: put a kit forward."));
+      (d.requests || []).forEach(function (q) {
+        if (typeof q.title !== "string") return;
+        var li = node("li"); var a = node("a", "", q.title); a.href = "/requests"; li.appendChild(a);
+        li.appendChild(node("span", "count", q.needs + (q.needs === 1 ? " needs this" : " need this"))); hr.appendChild(li);
+      });
+      if (!hr.children.length) hr.appendChild(node("li", "muted", "No requests yet. Ask for the first kit."));
+    }).catch(function () {});
+  }
   var com = document.getElementById("community-body"), comRoot = document.getElementById("community");
   if (com && comRoot && appOrigin && location.origin === appOrigin) {
     var comItem = comRoot.getAttribute("data-item");
@@ -893,6 +914,8 @@ function homePage(kits, picks) {
 </div></section>
 
 ${topTags.length ? `<section class="wrap sec"><h2>Find a kit for…</h2><ul class="pillrow">${topTags.map(([t, l]) => `<li><a class="pill" href="tags/${esc(t)}/">${esc(t)} <span class="count">${l.length}</span></a></li>`).join("")}<li><a class="pill ghost" href="tags/">All tags</a></li></ul></section>` : ""}
+
+${APP ? `<section class="wrap sec" id="home-community"><div class="home-cols"><div><div class="sec-head"><h2>Top contributors</h2><a class="viewall" href="${esc(APP)}/contributors">Leaderboard</a></div><ol class="mini-board" id="home-board"><li class="muted">Loading…</li></ol></div><div><div class="sec-head"><h2>Most wanted</h2><a class="viewall" href="${esc(APP)}/requests">All requests</a></div><ul class="mini-req" id="home-reqs"><li class="muted">Loading…</li></ul><p class="muted">Missing a kit? <a href="${esc(APP)}/requests">Ask for it</a>.</p></div></div></section>` : ""}
 
 <section class="wrap sec"><div class="sec-head"><h2>Featured kits</h2><a class="viewall" href="kits/">View all ${plural(kits.length, "kit")}</a></div>
 ${listHtml(featured, "./")}

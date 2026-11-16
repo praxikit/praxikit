@@ -128,6 +128,12 @@ await post("/requests/need", dave, { id: "1" }); await post("/requests/need", da
 html = await text(await call("/requests"));
 must(html.indexOf("A skill for release notes") < html.indexOf(ASK.title), "the request with three presses is listed above the one with two");
 
+// ---- the home strip shows the most wanted
+{
+  const d = await (await call("/api/community")).json();
+  must(d.requests.length >= 1 && d.requests[0].title.startsWith("A skill for release notes") && d.requests[0].needs === 3 && d.requests.every((r) => typeof r.id === "number"), "the home strip lists the most wanted requests first, with their counts");
+}
+
 // ---- hostile text stays text
 await post("/requests/new", admin, { title: XSS + " skill please", body: XSS });
 html = await text(await call("/requests"));

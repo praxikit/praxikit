@@ -143,6 +143,8 @@ must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('cl
   execFileSync("node", [join(here, "build.mjs"), "--root", root, "--out", out3], { stdio: "pipe" });
   const kitsHtml = readFileSync(join(out3, "kits", "index.html"), "utf8");
   must(kitsHtml.includes('href="https://app.example.dev/collection/save?item=k%2Fa%2F"') && kitsHtml.includes('href="https://app.example.dev/collection/save?item=https%3A%2F%2Fgithub.com%2Fo%2Frec"'), "each card has a Save link to the app, with the item encoded");
+  must(readFileSync(join(out3, "index.html"), "utf8").includes('id="home-board"') && readFileSync(join(out3, "index.html"), "utf8").includes('id="home-reqs"'), "with the app on the site, the home page has the top contributors and most wanted strip");
+  must(!readFileSync(join(out, "index.html"), "utf8").includes('id="home-board"'), "and without the app, no empty strip is shown");
   must(kitsHtml.includes('data-app="https://app.example.dev"') && kitsHtml.includes('id="acct"') && kitsHtml.includes('href="https://app.example.dev/auth/login?mode=user"'), "the header has a sign-in link to the app and the account slot the script fills");
   must(!kitsHtml.split('href="https://app.example.dev').slice(1).some((x) => /^[^"]*[<>' ]/.test(x)), "no app link contains markup");
   put("site/config.json", JSON.stringify({ app: "javascript:alert(1)" }));

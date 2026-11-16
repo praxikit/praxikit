@@ -203,3 +203,6 @@
 - Contributors are public by default (hide in Settings); the board has a podium for the top three and a list below. Updates and Picks pages are gone (old links redirect; picks are a filter on Kits). Navigation: Kits, Contributors, Requests, Submit, GitHub.
 - New: kit requests (`/requests`): ask for a kit, "I need this too", most wanted first, first request reviewed, maintainers mark solved with the listed kit that answers it.
 - Needs the owner: migration 0009 (`gh workflow run migrate.yml -f file=0009_requests.sql`).
+
+## 2026-11-17 — Leaderboard card and the home strip
+- Contributors page is a leaderboard card: podium (2nd, 1st with a crown, 3rd), then everyone in a ranked list with a score box. Home page shows the top three contributors and the three most wanted requests, from a small public endpoint `/api/community` (cached a minute; hidden names excluded).

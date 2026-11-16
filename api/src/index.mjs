@@ -350,6 +350,14 @@ async function communityRoutes(request, env, url, path, method) {
     return jsonRes({ votes, saves }, 200, "public, max-age=60");
   }
 
+  if (path === "/api/community" && method === "GET") {
+    // the home page's strip: the top three contributors and the three most wanted requests (names only for people who have not hidden theirs)
+    let contributors = [];
+    try { contributors = (await boardFor(store, await fetchCatalogue(env))).slice(0, 3).map((r) => ({ login: r.login, id: r.id, count: r.count })); } catch { /* an empty list is shown */ }
+    const requests = (await store.requestsPublic()).filter((r) => r.status === "open").slice(0, 3).map((r) => ({ id: r.id, title: r.title, needs: Number(r.needs) }));
+    return jsonRes({ contributors, requests }, 200, "public, max-age=60");
+  }
+
   if (path === "/api/item" && method === "GET") {
     const item = cleanItem(url.searchParams.get("item"));
     if (!item) return jsonRes({ error: "bad", message: "That is not a kit." }, 400);
@@ -646,7 +654,7 @@ async function route(request, env) {
   if (path === "/collection" || path === "/settings/public" || path === "/api/collection" || path === "/collection/toggle" || path === "/profile" || path === "/settings" || path === "/collection/save" || path === "/collection/remove" || path === "/account/export" || path === "/account/delete") {
     return accountRoutes(request, env, url, path, method);
   }
-  if (["/api/counts", "/api/item", "/api/vote", "/api/note", "/api/note/delete", "/api/note/report"].includes(path)) return communityRoutes(request, env, url, path, method);
+  if (["/api/counts", "/api/community", "/api/item", "/api/vote", "/api/note", "/api/note/delete", "/api/note/report"].includes(path)) return communityRoutes(request, env, url, path, method);
   if (path === "/admin/notes" || path === "/admin/notes/decide") return notesAdmin(request, env, url, path, method);
   if (path === "/contributors" || path.startsWith("/u/")) return contributorRoutes(request, env, path, method);
   if (path === "/requests" || path.startsWith("/requests/")) return requestRoutes(request, env, url, path, method);

@@ -85,17 +85,26 @@ sub(7, "gina", "https://github.com/o/g", "recommended");
 
 // ---- shown by default, no switch to flip
 let html = await text(await call("/contributors"));
-const order = [...html.matchAll(/class="login" href="\/u\/([^"]+)"/g)].map((m) => m[1]);
+const listHtml = html.slice(html.indexOf('<ol class="lb-list">'));
+const order = [...listHtml.matchAll(/class="login" href="\/u\/([^"]+)"/g)].map((m) => m[1]);
 must(order.join() === "carol,dave,eve,frank,gina", `everyone with a live listing is on the board, most first, ties by name: ${order.join()}`);
 must(html.includes('class="place place-1"') && html.includes('class="place place-2"') && html.includes('class="place place-3"') && !html.includes('class="place place-4"'), "the top three stand on a podium");
-must(/place-1[\s\S]*?1st[\s\S]*?carol[\s\S]*?<strong>2<\/strong> kits listed/.test(html), "first place is carol with two live listings (the removed one and the pending one do not count)");
-must(html.includes("Everyone else") && /<ol class="board" start="4">[\s\S]*?gina/.test(html), "everyone after the top three is in the list below, with their count");
-must(/2nd[\s\S]*?dave[\s\S]*?2nd[\s\S]*?eve/.test(html), "a tie shares a place");
+must(/place-1"[\s\S]*?class="crown"[\s\S]*?carol[\s\S]*?2 kits/.test(html) && /place-2"[\s\S]*?<span class="posn">2<\/span>/.test(html) && /place-3"[\s\S]*?<span class="posn">2<\/span>/.test(html), "first place wears the crown and is carol with two live listings (the removed and pending ones do not count); second and third show their place");
+must(/<span class="rank">1<\/span>[\s\S]*?carol[\s\S]*?<span class="score">2<\/span>/.test(listHtml) && /gina[\s\S]*?<span class="score">1<\/span>/.test(listHtml) && !html.includes("Everyone else"), "everyone, top three included, is in the ranked list with a score box");
+must(/<span class="rank">2<\/span>[\s\S]*?dave[\s\S]*?<span class="rank">2<\/span>[\s\S]*?eve/.test(listHtml), "a tie shares a place");
 must(html.includes("First listing") && html.includes("Picked") && html.includes("Author") && !html.includes("Five listed"), "badges follow what the person has done");
 must(html.includes("5</strong> people") && html.includes("6</strong> kits"), "the page says how many people and kits");
 must(html.includes("&lt;") === false || !html.includes("<script>alert(1)"), "nothing hostile reaches the board unescaped");
 must((await call("/contributors")).headers.get("Content-Security-Policy").includes("default-src 'none'"), "the board carries the app's strict policy");
 must((await call("/u/carol")).status === 200 && (await call("/u/gina")).status === 200, "every contributor has a public page");
+
+// ---- the home page's strip
+{
+  const c = await call("/api/community");
+  const d = await c.json();
+  must(c.status === 200 && (c.headers.get("Cache-Control") ?? "").includes("max-age") && d.contributors.map((x) => x.login).join() === "carol,dave,eve" && d.contributors[0].count === 2 && Array.isArray(d.requests), "the home strip carries the top three contributors and is cacheable");
+  must(!JSON.stringify(d).includes("token") && d.contributors.every((x) => Object.keys(x).sort().join() === "count,id,login"), "and only a name, a number and a public GitHub id for each");
+}
 
 // ---- a person's page
 html = await text(await call("/u/carol"));
@@ -124,6 +133,7 @@ must((await call("/settings/public", { method: "POST", cookies: eve, origin: "ht
 let r = await call("/settings/public", { method: "POST", cookies: eve, origin: OK, form: { public: "no" } });
 must(r.status === 303 && r.headers.get("Location") === "/settings?m=publicOff", "eve hides her name");
 html = await text(await call("/contributors"));
+must((await (await call("/api/community")).json()).contributors.map((x) => x.login).join() === "carol,dave,frank", "a hidden name leaves the home strip too");
 must(!html.includes("@eve") && (await call("/u/eve")).status === 404 && (await item("https://github.com/o/d")).credit === null, "hidden means off the board, off her page and off the listing, at once");
 html = await text(await call("/profile", { cookies: eve }));
 must(html.includes("<strong>1</strong> kit listed") && html.includes("Your name is hidden"), "she still sees her own count");
@@ -135,7 +145,7 @@ must(r.headers.get("Location") === "/settings?m=publicOn" && (await text(await c
 // ---- a listing taken off the site stops counting at once
 INDEX = INDEX.filter((e) => e.u !== "https://github.com/o/a");
 html = await text(await call("/contributors"));
-must(/carol[\s\S]*?<strong>1<\/strong> kit listed/.test(html), "removing a listing lowers the count straight away");
+must(/carol[\s\S]*?<span class="score">1<\/span>/.test(html.slice(html.indexOf('<ol class="lb-list">'))), "removing a listing lowers the score straight away");
 resetIndex();
 
 // ---- the data download, and deleting an account
@@ -147,7 +157,7 @@ must(r.status === 200 && rows("SELECT * FROM profiles WHERE user_id = 4").length
 // ---- with nobody, a friendly empty state
 raw.prepare("DELETE FROM submissions").run();
 html = await text(await call("/contributors"));
-must(html.includes("Nobody is on the board yet") && !html.includes("podium"), "an empty board says so and invites the first kit");
+must(html.includes("Nobody is on the board yet") && !html.includes("podium") && !html.includes("lb-list"), "an empty board says so and invites the first kit");
 
 for (const t of everything) must(!/<script(?!>alert)|\son\w+=/i.test(t.replace(/&lt;[^&]*&gt;/g, "")), "no scripts or inline event handlers in any page");
 

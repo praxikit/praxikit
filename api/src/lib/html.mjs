@@ -49,32 +49,37 @@ export const CSS = `
 .app .need-btn .count{padding:0 8px;border-radius:99px;background:var(--code-bg);color:var(--muted);font-size:.82rem}
 .app .req-form{max-width:640px;margin:1rem 0 2rem}
 @media (max-width:560px){.app .request{flex-direction:column}}
-.app .podium{list-style:none;padding:0;margin:1.2rem 0 2rem;display:grid;gap:14px;grid-template-columns:repeat(3,minmax(0,1fr));align-items:end}
-.app .place{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--line);border-radius:14px;padding:18px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;box-shadow:var(--shadow-sm)}
-.app .place .medal{font-weight:800;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.app .place img{border-radius:50%;border:2px solid var(--line)}
-.app .place .login{font-weight:700;text-decoration:none;overflow-wrap:anywhere}
-.app .place .big{color:var(--muted);font-size:.93rem}
-.app .place .big strong{display:block;font-size:2rem;line-height:1.1;color:var(--fg);font-variant-numeric:tabular-nums}
-.app .place .badge-row{justify-content:center}
-.app .place-1{order:2;border-top-color:#d9a21b;padding-block:28px}.app .place-1 .medal{color:#b9860f}.app .place-1 img{border-color:#d9a21b;width:92px;height:92px}
-.app .place-2{order:1;border-top-color:#9aa6a3}
-.app .place-3{order:3;border-top-color:#c27a4c}.app .place-3 .medal{color:#a8643b}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .app .place-1 .medal{color:#e6b93a}:root:not([data-theme="light"]) .app .place-3 .medal{color:#d9926a}}
-:root[data-theme="dark"] .app .place-1 .medal{color:#e6b93a}:root[data-theme="dark"] .app .place-3 .medal{color:#d9926a}
-@media (max-width:640px){.app .podium{grid-template-columns:1fr}.app .place-1,.app .place-2,.app .place-3{order:0}.app .place-1{padding-block:18px}.app .place-1 img{width:72px;height:72px}}
-.app .board{list-style:none;padding:0;margin:0 0 1.5rem;display:grid;gap:10px}
-.app .board > li{display:grid;grid-template-columns:2.2rem 40px 1fr auto;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
-.app .board .rank{font-weight:750;font-size:1.1rem;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
-.app .board img{border-radius:50%;border:1px solid var(--line)}
-.app .board .login{font-weight:650;text-decoration:none}
-.app .board .score{color:var(--muted);font-size:.93rem;white-space:nowrap}
-.app .board .score strong{color:var(--fg);font-size:1.1rem}
+.app .lb{background:linear-gradient(165deg,#0c786e 0%,#0a4f49 55%,#062f2c 100%);color:#fff;border-radius:22px;padding:clamp(18px,3.5vw,34px) clamp(14px,3.5vw,34px);max-width:760px;margin:1.2rem auto 2rem;box-shadow:var(--shadow-md)}
+.app .lb-title{text-align:center;font-size:1rem;letter-spacing:.24em;text-transform:uppercase;font-weight:800;margin:0 0 1.4rem;color:#fff}
+.app .podium{list-style:none;padding:0;margin:0 auto 1.6rem;max-width:560px;display:flex;justify-content:center;align-items:flex-end;gap:clamp(8px,3vw,28px)}
+.app .place{flex:0 1 31%;min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px}
+.app .place-1{order:2;padding-bottom:12px}.app .place-2{order:1}.app .place-3{order:3}
+.app .place .posn{font-weight:800;font-size:1.1rem;color:#fff}
+.app .crown{width:36px;height:auto;color:#f5b73b;margin-bottom:-2px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+.app .place .ring{display:block;border-radius:50%;padding:3px;background:rgba(255,255,255,.8)}
+.app .place-1 .ring{background:#f5b73b;padding:4px}
+.app .place img{display:block;border-radius:50%;background:#fff;width:clamp(54px,14vw,84px);height:clamp(54px,14vw,84px)}
+.app .place-1 img{width:clamp(74px,19vw,116px);height:clamp(74px,19vw,116px)}
+.app .place .login{color:#fff;font-weight:700;font-size:.92rem;text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app .place .login:hover{text-decoration:underline}
+.app .place .pts{color:#ffc24d;font-weight:800;font-size:.92rem}
+.app .lb-list{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.app .lb-list > li{display:grid;grid-template-columns:1.9rem 44px minmax(0,1fr) auto;align-items:center;gap:12px;background:rgba(255,255,255,.1);border-radius:14px;padding:6px 6px 6px 12px}
+.app .lb-list .rank{font-weight:800;color:#ffc24d;text-align:center;font-variant-numeric:tabular-nums}
+.app .lb-list img{border-radius:50%;border:2px solid rgba(255,255,255,.85);background:#fff}
+.app .lb-list .who{min-width:0}
+.app .lb-list .login{color:#fff;font-weight:700;text-decoration:none;overflow-wrap:anywhere}
+.app .lb-list .login:hover{text-decoration:underline}
+.app .lb-list .score{background:rgba(0,0,0,.24);border-radius:10px;padding:12px 18px;min-width:4.6rem;text-align:center;color:#ffc24d;font-weight:800;font-size:1.15rem;font-variant-numeric:tabular-nums}
+.app .lb .badge-row{margin-top:.2rem}
+.app .lb .badge-chip{background:rgba(255,255,255,.16);color:#fff}
+.app .lb a:focus-visible{outline-color:#fff}
+.app .lb-empty{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.3);color:#fff}.app .lb-empty a{color:#ffc24d}
+@media (max-width:420px){.app .lb-list > li{grid-template-columns:1.5rem 38px minmax(0,1fr) auto;gap:8px}.app .lb-list .score{padding:10px 12px;min-width:3.4rem}}
 .app .badge-row,.app .badge-list{list-style:none;padding:0;margin:.3rem 0 0;display:flex;flex-wrap:wrap;gap:6px}
 .app .badge-chip{font-size:.75rem;font-weight:650;padding:2px 10px;border-radius:99px;background:var(--accent-bg);color:var(--accent)}
 .app .badge-list{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))}
 .app .badge-list li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column}
-@media (max-width:520px){.app .board > li{grid-template-columns:1.6rem 36px 1fr;}.app .board .score{grid-column:3}}
 .app .danger-zone{border:1px solid var(--bad);border-radius:8px;padding:6px 16px 14px;margin-top:2rem}
 `;
 

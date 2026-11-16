@@ -36,7 +36,7 @@ class El {
 }
 
 /** One fake page. `hint` says whether the sign-in hint cookie is present; `me` is what /api/me answers (null = 401). */
-async function run({ hint = false, me = null, saved = [], dark = false, kits = false, search = "", community = null, counts = null, statKeys = [], creditEl = null }) {
+async function run({ hint = false, me = null, saved = [], dark = false, kits = false, search = "", community = null, counts = null, statKeys = [], creditEl = null, home = null }) {
   const calls = [], docListeners = {}, ids = {};
   const root = new El("html"), body = new El("body");
   body.attrs = { "data-root": "/", "data-app": "https://praxikit.com" };
@@ -57,6 +57,7 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
     list.ul = ul; list.segs = ["all", "built", "pick", "listed"].map((s) => { const b = new El("button"); b.attrs = { "data-show": s, "aria-pressed": String(s === "all") }; return b; });
   }
   const stats = statKeys.map((k) => { const e = new El("p"); e.attrs = { "data-stat": k }; e.hidden = true; return e; });
+  if (home) { ids["home-board"] = new El("ol"); ids["home-reqs"] = new El("ul"); }
   if (community) { ids["community-body"] = new El("div"); ids.community = new El("section"); ids.community.attrs = { "data-item": community.item }; }
   const doc = {
     createElementNS: (ns, t) => new El(t),
@@ -71,6 +72,7 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
   const fetchStub = async (url, init = {}) => {
     calls.push([String(url), init.method ?? "GET"]);
     if (String(url).startsWith("/api/item")) return { ok: true, json: async () => community.data() };
+    if (String(url) === "/api/community") return home.fail ? { ok: false, json: async () => ({}) } : { ok: true, json: async () => home.data };
     if (String(url) === "/api/counts") return { ok: true, json: async () => counts };
     if (String(url) === "/api/vote") { community.voted = !community.voted; return { ok: true, json: async () => ({ voted: community.voted }) }; }
     if (String(url) === "/api/note") { community.posted = init.body; return { ok: true, json: async () => ({ saved: true, status: "pending" }) }; }
@@ -185,6 +187,23 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
   must(t2.ids.tag.value === "" && t2.list.ul.children.filter((c) => !c.hidden).length === 4, "an unknown tag in the address is ignored");
   const bad = await run({ kits: true, search: "?show=<script>&sort=evil&q=" + "x".repeat(300) });
   must(!bad.threw && bad.ids.q.value.length === 100 && bad.ids.sort.value === "featured", "a hostile address is ignored or cut down");
+}
+
+// ---- the home strip
+{
+  const walk = (el) => [el, ...el.children.flatMap(walk)];
+  const text = (el) => walk(el).map((n) => n.textContent).join(" ");
+  const h = await run({ home: { data: { contributors: [{ login: "maya", id: 21, count: 4 }, { login: "<b>x</b>", id: "7", count: 1 }, { login: "dev", id: 22, count: 1 }], requests: [{ id: 1, title: "A skill for <i>tickets</i>", needs: 14 }, { id: 2, title: "One more thing", needs: 1 }] } } });
+  await new Promise((r) => setTimeout(r, 40));
+  const people = h.ids["home-board"].children, asks = h.ids["home-reqs"].children;
+  must(people.length === 2 && people[0].children.some((c) => c.textContent === "@maya" && c.href === "/u/maya") && /4 kits/.test(text(people[0])) && /1 kit\b/.test(text(people[1])), "the home strip lists contributors with links and counts, and skips an entry with a bad id");
+  must(asks.length === 2 && asks[0].children[0].href === "/requests" && asks[0].children[0].textContent === "A skill for <i>tickets</i>" && /14 need this/.test(text(asks[0])) && /1 needs this/.test(text(asks[1])), "and the most wanted requests, as plain text, with their counts");
+  const e = await run({ home: { data: { contributors: [], requests: [] } } });
+  await new Promise((r) => setTimeout(r, 40));
+  must(/Be the first/.test(text(e.ids["home-board"])) && /Ask for the first kit/.test(text(e.ids["home-reqs"])), "with nothing yet, it invites the first contribution");
+  const f = await run({ home: { fail: true } });
+  await new Promise((r) => setTimeout(r, 40));
+  must(/Open the leaderboard/.test(text(f.ids["home-board"])) && /Open the requests page/.test(text(f.ids["home-reqs"])), "if the app cannot answer, it points to the pages instead of staying blank");
 }
 
 // ---- community: counts on cards, "helped me" and notes on a kit's page
