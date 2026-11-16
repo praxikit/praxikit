@@ -150,3 +150,18 @@ The approve form has an **I use this kit** tick and a **How I use it** note (up 
    npx wrangler d1 execute praxikit-admin --remote --file=migrations/0004_picks.sql
    ```
 2. Redeploy: `npx wrangler deploy`.
+
+### Tags, and the website's submit form
+
+The approve form has a **Tags** field, pre-filled from the repository's own GitHub topics. Tags are lowercase, hyphenated, 2 to 24 characters, at most 12 per kit; the app and the site use the same rules (a test keeps them identical). They show on cards (two rows at most), on `/tags/`, and in site search.
+
+The website's `/submit/` page is a form that sends the repository link to this app (`site/config.json` holds the app's address). `/submit?url=` accepts only a `https://github.com/owner/repo` link, fills it in, and keeps it through the GitHub sign-in in a short-lived `__Host-praxikit-next` cookie that is re-checked when read.
+
+Setup, **once**, after pulling:
+
+```bash
+npx wrangler d1 execute praxikit-admin --remote --file=migrations/0005_tags.sql
+npx wrangler deploy
+```
+
+(Run `0004_picks.sql` first if you have not.) Until the redeploy, approving from the app fails: the approve workflow no longer takes an `author` input.

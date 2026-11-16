@@ -37,7 +37,7 @@ const must = (cond, msg) => { if (!cond) failures.push(msg); };
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
-must(htmlFiles.length === 18, `expected home, 404, kits, 4 type pages, updates, picks, old recommended redirect, submit, policy, 2 collections, 4 kit pages = 18 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 21, `expected home, 404, kits, 4 type pages, updates, picks, old recommended redirect, submit, policy, 2 collections, 4 kit pages, tags index, 1 tag page, search = 21 html files, got ${htmlFiles.length}`);
 for (const f of htmlFiles) {
   const h = readFileSync(f, "utf8");
   // drop only our own inline scripts (marked data-site); any other <script> is a failure
@@ -53,7 +53,7 @@ const idx = readFileSync(join(out, "index.html"), "utf8");
 must(idx.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "payload not shown escaped on index");
 must(/href="https:\/\/github\.com\/o\/rec" rel="noopener noreferrer"/.test(idx), "a pick shown on the home page is missing rel=noopener noreferrer");
 const skillsPage = readFileSync(join(out, "kits/skills/index.html"), "utf8");
-must(/href="https:\/\/github\.com\/o\/comm" rel="noopener noreferrer"/.test(skillsPage) && skillsPage.includes("Listed") && skillsPage.includes("Submitted by its author") && !skillsPage.includes("My pick") && skillsPage.includes("not built by Praxikit") && skillsPage.includes("Reviewed at <code>aaaaaaa</code>"), "a community listing shows on its type page as someone else's work, with the reviewed commit");
+must(/href="https:\/\/github\.com\/o\/comm" rel="noopener noreferrer"/.test(skillsPage) && skillsPage.includes("Listed") && skillsPage.includes("Submitted by its author") && !skillsPage.includes(`class="kind pick"`) && skillsPage.includes("not built by Praxikit") && skillsPage.includes("Reviewed at <code>aaaaaaa</code>"), "a community listing shows on its type page as someone else's work, with the reviewed commit");
 const mcpPage = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
 must(mcpPage.includes("My pick") && mcpPage.includes("How I use it:") && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("o/rec") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
 must(idx.includes("Changed since review") && idx.includes('href="https://github.com/o/rec/compare/' + SHA + '...HEAD"'), "a listing whose repository moved on says so and links to the comparison");
@@ -76,7 +76,7 @@ const sub = readFileSync(join(out, "submit/index.html"), "utf8");
 must(sub.includes("template=suggest-kit.yml") && sub.includes("template=recommend.yml"), "submit page should open the issue forms");
 // routes: the home page shows a few kits and links on to pages instead of holding everything
 must(idx.includes('href="kits/"') && idx.includes('href="kits/plugins/"') && idx.includes('href="kits/skills/"') && idx.includes('href="kits/mcp/"') && idx.includes('href="kits/other/"'), "home must link to the kits page and each type page");
-must(idx.includes('href="updates/"') && idx.includes('href="picks/"') && idx.includes('href="submit/"') && idx.includes("<body data-home>"), "home must link to updates, picks and submit");
+must(idx.includes('href="updates/"') && idx.includes('href="picks/"') && idx.includes('href="submit/"') && idx.includes("<body data-home data-root=\"./\">"), "home must link to updates, picks and submit");
 must((idx.match(/<li class="card[ "]/g) ?? []).length <= 3 + 3, "home should show at most three kits (and three picks)");
 const pol = readFileSync(join(out, "policy/index.html"), "utf8");
 must(pol.includes("security/advisories/new") && pol.includes("template=report-listing.yml") && pol.includes("docs/removals.md") && pol.includes("not a safety guarantee") && pol.includes("one maintainer"), "policy page needs the private channel, the report form, the removal log and honest limits");
@@ -109,6 +109,29 @@ const few = readFileSync(join(root2, "out", "index.html"), "utf8");
 must(few.includes('class="card"') && !few.includes('id="q"'), "few kits show cards and no search box");
 must(!/<img src=x/.test(few) && few.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "card is not escaped");
 must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes("View details") && !readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('id="q"'), "with one kit the kits page shows a card with View details and no search");
+
+// tags, search and the submit form
+{
+  const tagsIdx = readFileSync(join(out, "tags", "index.html"), "utf8");
+  must(existsSync(join(out, "tags", "x", "index.html")) && tagsIdx.includes('href="x/"'), "a valid tag gets a page and an index entry");
+  const evilKit = readFileSync(join(out, "k", "evil", "index.html"), "utf8");
+  must(!evilKit.includes("<script>alert(1)</script>") && !/<img src=x/.test(evilKit), "a hostile tag is not rendered as markup");
+  const hostileTagLinks = walk(out).filter((f) => f.endsWith(".html")).some((f) => /href="[^"]*tags[/][^"]*[<>' ]/.test(readFileSync(f, "utf8")));
+  must(!hostileTagLinks, "no page links to a tag page built from a hostile tag");
+  must(readFileSync(join(out, "kits", "index.html"), "utf8").includes("Browse by tag"), "the kits page offers tags");
+  const index = JSON.parse(readFileSync(join(out, "search-index.json"), "utf8"));
+  must(Array.isArray(index) && index.length > 0 && index.every((e) => typeof e.t === "string" && typeof e.u === "string" && (!/^[a-z]+:/.test(e.u) || e.u.startsWith("https://github.com/"))), "the search index has only relative or github.com links");
+  const js = readFileSync(join(out, "index.html"), "utf8");
+  const a = js.indexOf("/*search-start*/"), b = js.indexOf("/*search-end*/");
+  must(a > 0 && b > a, "searchIndex markers are present");
+  const searchIndex = new Function(js.slice(a, b) + "; return searchIndex;")();
+  const sample = [{ t: "keel", k: "kit", u: "k/keel/", d: "Plans projects in phases", g: "planning critique" }, { t: "marketing", k: "kit", u: "k/m/", d: "Posts and ads", g: "marketing seo" }, { t: "Playwright MCP", k: "pick", u: "https://github.com/o/p", d: "browser testing", g: "mcp testing" }];
+  must(searchIndex(sample, "planning")[0].t === "keel", "searching a tag finds the kit");
+  must(searchIndex(sample, "ads marketing").length === 1 && searchIndex(sample, "zzz").length === 0 && searchIndex(sample, "   ").length === 0, "all words must match; nonsense and blanks find nothing");
+  must(searchIndex(sample, "test")[0].t === "Playwright MCP", "partial words match tags and text");
+  const submit = readFileSync(join(out, "submit", "index.html"), "utf8");
+  must(submit.includes("opens a GitHub issue") === false && submit.includes("github.com/") , "submit page renders");
+}
 
 // a non-https listing url must be refused
 put("site/listings.json", JSON.stringify([{ name: "x", url: "javascript:alert(1)", author: "a", why: "w", kind: "skill", source: "community", added: "2026-11-14", commit: SHA, checks: "no-flags-found" }]));

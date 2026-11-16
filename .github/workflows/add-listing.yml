@@ -23,9 +23,10 @@ on:
         required: true
         type: choice
         options: [recommended, community]
-      author:
-        description: Who made it
-        required: true
+      tags:
+        description: Comma-separated tags to help people find it (for example planning, marketing)
+        required: false
+        default: ""
         type: string
       why:
         description: One honest sentence on what it is or why you list it
@@ -73,7 +74,7 @@ jobs:
           IN_URL: ${{ inputs.url }}
           IN_KIND: ${{ inputs.kind }}
           IN_SOURCE: ${{ inputs.source }}
-          IN_AUTHOR: ${{ inputs.author }}
+          IN_TAGS: ${{ inputs.tags }}
           IN_WHY: ${{ inputs.why }}
           IN_ALLOW_FAILED: ${{ inputs.allow_failed }}
           IN_PICK: ${{ inputs.pick }}

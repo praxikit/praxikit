@@ -4,6 +4,8 @@
  * README is ever rendered as markup or HTML, and nothing here runs code from the repository.
  */
 const API = "https://api.github.com";
+import { parseTags } from "./tags.mjs";
+
 const UA = "praxikit-admin";
 const NAME = /^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,98}[A-Za-z0-9_.-])?$/;
 
@@ -91,7 +93,7 @@ export async function fetchRepoInfo(env, repo) {
     license: info.license?.spdx_id && info.license.spdx_id !== "NOASSERTION" ? String(info.license.spdx_id).slice(0, 40) : "",
     archived: !!info.archived, fork: !!info.fork, pushedAt: String(info.pushed_at ?? "").slice(0, 10),
     commit, readmeUrl: readmePath ? `https://github.com/${repo.owner}/${repo.repo}/blob/${commit}/${readmePath}` : "",
-    excerpt, kind: guessKind(paths), truncated,
+    excerpt, kind: guessKind(paths), truncated, topics: parseTags(Array.isArray(info.topics) ? info.topics.slice(0, 30).map((x) => String(x).slice(0, 40)).join(",") : ""),
   };
 }
 

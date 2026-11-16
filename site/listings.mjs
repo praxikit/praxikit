@@ -28,9 +28,23 @@ export function validateListing(l) {
   if (l.pick !== undefined && l.pick !== true) e.push("pick, when present, must be true");
   if (l.pick === true && !PLAIN(l.note, 200)) e.push("a pick needs a note of 1 to 200 plain characters on how it is used");
   if (l.pick !== true && l.note !== undefined) e.push("note is only for picks");
-  const known = new Set(["name", "url", "author", "why", "kind", "source", "added", "commit", "checks", "issue", "pick", "note"]);
+  if (l.tags !== undefined && !(Array.isArray(l.tags) && l.tags.length >= 1 && l.tags.length <= 12 && l.tags.every((t) => typeof t === "string" && TAG.test(t)) && new Set(l.tags).size === l.tags.length)) e.push("tags must be 1 to 12 different lowercase words (letters, digits, hyphens; 2 to 24 characters)");
+  const known = new Set(["name", "url", "author", "why", "kind", "source", "added", "commit", "checks", "issue", "pick", "note", "tags"]);
   for (const k of Object.keys(l)) if (!known.has(k)) e.push(`unknown field ${String(k).slice(0, 30)}`);
   return e;
+}
+
+export const TAG = /^[a-z0-9][a-z0-9-]{1,23}$/;
+
+/** Turns "Planning, model routing; SEO" into ["planning", "model-routing", "seo"]: lowercase, hyphens, 2 to 24 characters, no repeats, at most 12. */
+export function parseTags(text, max = 12) {
+  const seen = new Set(), out = [];
+  for (const raw of String(text ?? "").split(/[,\n;]+/)) {
+    const t = raw.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24).replace(/-+$/, "");
+    if (TAG.test(t) && !seen.has(t)) { seen.add(t); out.push(t); }
+    if (out.length >= max) break;
+  }
+  return out;
 }
 
 export const sameRepo = (a, b) => String(a).toLowerCase().replace(/\/+$/, "") === String(b).toLowerCase().replace(/\/+$/, "");

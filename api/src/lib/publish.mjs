@@ -20,7 +20,8 @@ export async function dispatchApprove(env, s) {
   try {
     r = await fetch(`${API}/repos/${env.REPO}/actions/workflows/${WORKFLOW}/dispatches`, {
       method: "POST", headers: hdr(env.GITHUB_DISPATCH_TOKEN),
-      body: JSON.stringify({ ref: "main", inputs: { submission_id: String(s.id), url: s.repo_url, name: s.final_name, kind: s.final_kind, source: s.source, author: s.owner, why: s.final_text, decided_by: s.decided_by, note: s.final_pick ? String(s.final_note ?? "") : "", // a non-empty note means a pick
+      body: JSON.stringify({ ref: "main", inputs: { submission_id: String(s.id), url: s.repo_url, name: s.final_name, kind: s.final_kind, source: s.source, why: s.final_text, decided_by: s.decided_by, note: s.final_pick ? String(s.final_note ?? "") : "", // a non-empty note means a pick
+        tags: String(s.final_tags ?? ""),
         // a listing approved after reading the checks is pinned to the commit they ran on; with no commit (a direct publish, where nobody read them) the workflow requires a clean result
         expected_commit: /^[0-9a-f]{12}$/.test(String(s.scan_commit ?? "")) ? s.scan_commit : "" } }),
     });

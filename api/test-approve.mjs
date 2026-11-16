@@ -113,7 +113,7 @@ const rows = () => D1.raw.prepare("SELECT * FROM submissions ORDER BY id").all()
 const byKey = (k) => rows().find((r) => r.repo_key === k);
 const submit = async (session, url, why = "") => note(await call("/submit", { method: "POST", cookies: session, origin: OK, form: { url, why } }));
 const act = async (session, id, what, form = {}, extra = {}) => note(await call(`/admin/submissions/${id}/${what}`, { method: "POST", cookies: session, origin: OK, form, ...extra }));
-const approveForm = (over = {}) => ({ name: "Good kit", kind: "plugin", text: "Does a useful thing for agents.", ...over });
+const approveForm = (over = {}) => ({ name: "Good kit", kind: "plugin", text: "Does a useful thing for agents.", tags: "", ...over });
 
 let runSeq = 7000;
 /** Pretends the scan job finished. The result is carried by the result job's name. */
@@ -196,14 +196,14 @@ must(scanRow.scan_state === "done" && scanRow.scan_label === "checks-flagged" &&
 }
 r = await act(owner, good.id, "approve", approveForm());
 must(r.headers.get("Location").endsWith("?m=needread") && byKey("alice/good").status === "pending" && dispatches.length === 0, "a flagged result cannot be approved without confirming the report was read");
-r = await act(owner, good.id, "approve", approveForm({ name: "Edited name", kind: "skill", text: "<script>alert(1)</script> Edited card text.", read: "yes" }));
+r = await act(owner, good.id, "approve", approveForm({ name: "Edited name", kind: "skill", text: "<script>alert(1)</script> Edited card text.", read: "yes", tags: "Planning, model routing, <b>x</b>, planning" }));
 must(r.status === 303 && r.headers.get("Location").endsWith("?m=approved"), `a valid approval is accepted, got ${r.status} ${r.headers.get("Location")}`);
 let row = byKey("alice/good");
 must(row.status === "approved" && row.decided_by === "ratul" && row.final_name === "Edited name" && row.final_kind === "skill" && row.final_text.includes("Edited card text") && row.publish_state === "dispatched", "the decision records who, and what the maintainer confirmed (not what the submitter guessed)");
 must(dispatches.length === 1 && dispatches[0].auth === `Bearer ${DISPATCH}`, "the publish job is started once, with the dedicated token (not the read-only one)");
 {
   const d = dispatches[0].body;
-  must(d.ref === "main" && d.inputs.submission_id === String(good.id) && d.inputs.url === "https://github.com/alice/good" && d.inputs.name === "Edited name" && d.inputs.kind === "skill" && d.inputs.source === "recommended" && d.inputs.author === "alice" && d.inputs.why.includes("Edited card text") && d.inputs.decided_by === "ratul" && d.inputs.expected_commit === SHA.slice(0, 12) && !("require_clean" in d.inputs) && !("pick" in d.inputs) && d.inputs.note === "" && !("allow_failed" in d.inputs) && Object.keys(d.inputs).length === 10, "the workflow gets exactly the confirmed fields, pinned to the commit whose checks were read, and no way to skip the scan");
+  must(d.ref === "main" && d.inputs.submission_id === String(good.id) && d.inputs.url === "https://github.com/alice/good" && d.inputs.name === "Edited name" && d.inputs.kind === "skill" && d.inputs.source === "recommended" && !("author" in d.inputs) && d.inputs.tags === "planning,model-routing,b-x-b" && d.inputs.why.includes("Edited card text") && d.inputs.decided_by === "ratul" && d.inputs.expected_commit === SHA.slice(0, 12) && !("require_clean" in d.inputs) && !("pick" in d.inputs) && d.inputs.note === "" && !("allow_failed" in d.inputs) && Object.keys(d.inputs).length === 10, "the workflow gets exactly the confirmed fields, pinned to the commit whose checks were read, and no way to skip the scan");
 }
 r = await act(owner, good.id, "approve", approveForm());
 must(r.headers.get("Location").endsWith("?m=already") && dispatches.length === 1, "approving twice is refused and does not start a second job");

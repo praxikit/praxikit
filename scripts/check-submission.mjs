@@ -133,7 +133,7 @@ const EXEC = [
 const INJECTION = [
   ["tells the model to ignore earlier instructions", /ignore (?:all |any )?(?:previous|prior|above|earlier) instructions/i],
   ["tells the model to hide something from the user", /do not (?:tell|inform|mention (?:this )?to) the user|without (?:telling|informing|asking) the user/i],
-  ["mentions exfiltration", /exfiltrat/i], ["tells the model to disable safeguards", /disable (?:the )?(?:sandbox|permission|safety)/i],
+  ["mentions exfiltration", /exfiltrat/i], ["tells the model to disable safeguards", /disable (?:the )?(?:sandbox|permission|safety)/i, true], // only meaningful in files that instruct an agent; docs may explain a flag
 ];
 const LICENCES = [["MIT", /\bMIT License\b|Permission is hereby granted, free of charge/i], ["Apache-2.0", /Apache License[\s\S]{0,40}Version 2\.0/i], ["BSD", /Redistribution and use in source and binary forms/i],
   ["ISC", /\bISC License\b/i], ["MPL-2.0", /Mozilla Public License[\s\S]{0,30}2\.0/i], ["GPL", /GNU (?:Affero |Lesser )?General Public License/i], ["Unlicense", /This is free and unencumbered software/i]];
@@ -175,7 +175,7 @@ export function scanDir(root, declared = "") {
         for (const [label, re] of NETWORK) if (re.test(ln)) { if (bucket === "Docs") hits.netDocs++; else hits[`net${bucket}`].push(`${at} (${label})`); break; }
         for (const [label, re] of EXEC) if (re.test(ln)) { if (bucket === "Docs") hits.execDocs++; else hits[`exec${bucket}`].push(`${at} (${label})`); break; }
       }
-      if (isMd) for (const [label, re] of INJECTION) if (re.test(ln)) { hits.injection.push(`${at} (${label})`); break; }
+      if (isMd) for (const [label, re, instrOnly] of INJECTION) if ((!instrOnly || instr) && re.test(ln)) { hits.injection.push(`${at} (${label})`); break; }
     });
     if (name === "hooks.json" || (name === "settings.json" && /\.claude\//.test(f.rel)) || name === "plugin.json") {
       try {

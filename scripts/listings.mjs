@@ -18,7 +18,7 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseIssue, scanUrl, safe, MARKER } from "./check-submission.mjs";
-import { validateListing, sameRepo } from "../site/listings.mjs";
+import { validateListing, sameRepo, parseTags } from "../site/listings.mjs";
 
 export const KIND_BY_LABEL = { Plugin: "plugin", Skill: "skill", Agent: "agent", Hook: "hook", "MCP config": "mcp", Template: "template", Adapter: "adapter" };
 
@@ -56,10 +56,11 @@ export function entryFromIssue(form, author, issue, scan, today) {
 /** Maps the admin "Add listing" workflow inputs and their scan to a listing entry. */
 export function entryFromDispatch(env, scan, today) {
   const entry = {
-    name: clean(env.IN_NAME, 80), url: scan.page ?? "", author: clean(env.IN_AUTHOR, 80), why: clean(env.IN_WHY, 400),
+    name: clean(env.IN_NAME, 80), url: scan.page ?? "", author: clean(env.IN_AUTHOR || scan.owner, 80), why: clean(env.IN_WHY, 400),
     kind: clean(env.IN_KIND, 20), source: clean(env.IN_SOURCE, 20), added: today, commit: scan.sha ?? "", checks: scan.label ?? "needs-manual-review",
     // "I use this": the owner's pick, with a note on how
     ...(String(env.IN_PICK) === "true" ? { pick: true, note: clean(env.IN_NOTE, 200) } : {}),
+    ...(parseTags(env.IN_TAGS).length ? { tags: parseTags(env.IN_TAGS) } : {}),
   };
   // approving what was reviewed: the repository must still be at the commit whose checks the maintainer read
   const expect = clean(env.IN_EXPECT_COMMIT, 40).toLowerCase();

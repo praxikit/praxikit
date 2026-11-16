@@ -17,11 +17,15 @@ import { signToken, verifyToken, randomToken, safeEqual, parseCookies, cookie } 
 import { authorizeUrl, exchangeCode, getUser, decideRole, listPending } from "./lib/github.mjs";
 import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, precheck, UserError } from "./lib/repo.mjs";
 import { storeFor } from "./lib/store.mjs";
+import { parseTags } from "./lib/tags.mjs";
 import { dispatchApprove, dispatchScan, syncPublishing, syncScans, publishingConfigured } from "./lib/publish.mjs";
 import { CSS, signInPage, messagePage, adminPage, submitPage, minePage, detailPage, FLASH } from "./lib/html.mjs";
 
 const SESSION_COOKIE = "__Host-praxikit-session";
 const STATE_COOKIE = "__Host-praxikit-state";
+const NEXT_COOKIE = "__Host-praxikit-next"; // the repository link a visitor typed on the website, kept across the GitHub sign-in
+/** A repository link that is safe to carry around: only the cleaned https://github.com/owner/repo form survives. */
+const cleanRepo = (text) => { const r = parseRepo(String(text ?? "").slice(0, 200)); return r ? r.url : ""; };
 const SESSION_SECONDS = 4 * 60 * 60; // short on purpose: a removed maintainer loses access within hours
 const STATE_SECONDS = 10 * 60;
 const SUBMISSIONS_PER_DAY = 5, SUBMISSIONS_PER_DAY_MAINTAINER = 30;
@@ -119,7 +123,7 @@ async function submit(request, env, session) {
   try {
     newId = await store.insert({
       repo_url: repo.url, repo_key: repo.key, name: info.name, owner: info.owner, owner_type: info.ownerType, submitted_by: session.sub, submitted_by_id: session.id,
-      source, kind_guess: info.kind, license: info.license, commit_sha: info.commit, readme_url: info.readmeUrl, readme_excerpt: info.excerpt,
+      source, kind_guess: info.kind, license: info.license, commit_sha: info.commit, readme_url: info.readmeUrl, readme_excerpt: info.excerpt, topics: info.topics.join(","),
       why: source === "recommended" ? values.why : "", precheck: JSON.stringify(pre.checks), precheck_status: pre.status, created_at: new Date().toISOString(),
     });
   } catch (e) {
@@ -129,8 +133,8 @@ async function submit(request, env, session) {
   // a maintainer's own submission is published directly, after the same scan. It is held for review if it cannot be.
   if (session.role === "admin") {
     const text = oneLine(source === "recommended" && values.why ? values.why : info.excerpt || `${info.name} by ${info.owner}`, 400);
-    if (fresh(session) && info.kind && pre.status !== "fail" && publishingConfigured(env) && (await store.approve(newId, { by: session.sub, name: oneLine(info.name, 80), kind: info.kind, text, at: new Date().toISOString() }))) {
-      await startPublish(env, store, { id: newId, repo_url: repo.url, source, owner: info.owner, final_name: oneLine(info.name, 80), final_kind: info.kind, final_text: text, decided_by: session.sub });
+    if (fresh(session) && info.kind && pre.status !== "fail" && publishingConfigured(env) && (await store.approve(newId, { by: session.sub, name: oneLine(info.name, 80), kind: info.kind, text, at: new Date().toISOString(), tags: info.topics.join(",") }))) {
+      await startPublish(env, store, { final_tags: info.topics.join(","), id: newId, repo_url: repo.url, source, owner: info.owner, final_name: oneLine(info.name, 80), final_kind: info.kind, final_text: text, decided_by: session.sub });
       return send("", { status: 303, location: "/mine?ok=direct" });
     }
     return send("", { status: 303, location: "/mine?ok=held" });
@@ -146,14 +150,15 @@ async function approveRoute(request, env, s, id) {
   let f; try { f = await request.formData(); } catch { return back(base, "bad"); }
   const name = oneLine(f.get("name"), 100), kind = String(f.get("kind") ?? ""), text = oneLine(f.get("text"), 500);
   const pick = f.get("pick") === "yes", pickNote = pick ? oneLine(f.get("pick_note"), 300) : "";
+  const tags = parseTags(oneLine(f.get("tags"), 400)).join(",");
   if (!name || name.length > 80 || !KINDS.includes(kind) || !text || text.length > 400 || (pick && (!pickNote || pickNote.length > 200))) return back(base, "bad");
   const row = await store.get(id);
   if (!row || row.status !== "pending") return back(base, "already");
   // approving needs the full checks to have run, on a commit we can pin the listing to
   if (row.scan_state !== "done" || !/^[0-9a-f]{12}$/.test(String(row.scan_commit)) || !["no-flags-found", "checks-flagged"].includes(row.scan_label)) return back(base, "needscan");
   if (row.scan_label === "checks-flagged" && f.get("read") !== "yes") return back(base, "needread");
-  if (!(await store.approve(id, { by: s.sub, name, kind, text, at: new Date().toISOString(), pick, note: pickNote }))) return back(base, "already");
-  const state = await startPublish(env, store, { ...row, final_name: name, final_kind: kind, final_text: text, final_pick: pick ? 1 : 0, final_note: pickNote, decided_by: s.sub });
+  if (!(await store.approve(id, { by: s.sub, name, kind, text, at: new Date().toISOString(), pick, note: pickNote, tags }))) return back(base, "already");
+  const state = await startPublish(env, store, { ...row, final_name: name, final_kind: kind, final_text: text, final_pick: pick ? 1 : 0, final_note: pickNote, final_tags: tags, decided_by: s.sub });
   return back(base, state === "dispatched" ? "approved" : "failed");
 }
 
@@ -216,7 +221,8 @@ async function route(request, env) {
     // "user" asks GitHub only who you are; the default, "admin", also reads org and team membership
     const mode = url.searchParams.get("mode") === "user" ? "user" : "admin";
     const state = `${mode}.${randomToken()}`;
-    return send("", { status: 302, location: authorizeUrl(env, state, mode === "user" ? "read:user" : "read:user read:org"), cookies: [cookie(STATE_COOKIE, state, { maxAge: STATE_SECONDS })] });
+    const next = mode === "user" ? cleanRepo(url.searchParams.get("next")) : "";
+    return send("", { status: 302, location: authorizeUrl(env, state, mode === "user" ? "read:user" : "read:user read:org"), cookies: [cookie(STATE_COOKIE, state, { maxAge: STATE_SECONDS }), ...(next ? [cookie(NEXT_COOKIE, next, { maxAge: STATE_SECONDS })] : [])] });
   }
 
   if (path === "/auth/callback" && method === "GET") {
@@ -235,7 +241,9 @@ async function route(request, env) {
       return send(signInPage("Sign-in could not be completed. Try again in a moment."), { status: 502, cookies: [clearState] });
     }
     const session = await signToken({ sub: user.login, id: user.id, role: who.role, via: who.via ?? "", iat: Date.now(), exp: Date.now() + SESSION_SECONDS * 1000 }, env.SESSION_SECRET);
-    return send("", { status: 302, location: mode === "user" ? "/submit" : "/admin", cookies: [clearState, cookie(SESSION_COOKIE, session, { maxAge: SESSION_SECONDS })] });
+    const carried = mode === "user" ? cleanRepo(parseCookies(request.headers.get("Cookie"))[NEXT_COOKIE]) : "";
+    const where = mode === "user" ? (carried ? `/submit?url=${encodeURIComponent(carried)}` : "/submit") : "/admin";
+    return send("", { status: 302, location: where, cookies: [clearState, cookie(NEXT_COOKIE, "", { maxAge: 0 }), cookie(SESSION_COOKIE, session, { maxAge: SESSION_SECONDS })] });
   }
 
   if (path === "/auth/logout" && method === "POST") {
@@ -252,9 +260,10 @@ async function route(request, env) {
   if (path === "/submit") {
     const s = await sessionOf(request, env);
     if (method === "GET") {
-      if (!s) return send(signInPage("", { submit: true }));
+      const prefill = cleanRepo(url.searchParams.get("url")); // a link from the website form; anything that is not a github.com repository is dropped
+      if (!s) return send(signInPage("", { submit: true, next: prefill }));
       if (!storeFor(env)) return send(messagePage("Submissions are not open yet", "This app has no database connected yet.", false), { status: 503 });
-      return send(submitPage({ session: s }));
+      return send(submitPage({ session: s, values: { url: prefill } }));
     }
     if (method === "POST") return s ? submit(request, env, s) : send(signInPage("Sign in first, then submit again.", { submit: true }), { status: 401 });
   }

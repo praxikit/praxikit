@@ -23,6 +23,9 @@ const arg = (n, d) => { const i = process.argv.indexOf(n); return i > -1 ? proce
 const ROOT = arg("--root", join(here, ".."));
 const OUT = arg("--out", join(ROOT, "site", "dist"));
 const REPO = "https://github.com/praxikit/praxikit";
+// site/config.json: { "app": "https://..." } is the address of the admin app that takes submissions
+const CONFIG = (() => { try { return JSON.parse(readFileSync(join(ROOT, "site", "config.json"), "utf8")); } catch { return {}; } })();
+const APP = typeof CONFIG.app === "string" && /^https:\/\/[A-Za-z0-9.-]+(:\d+)?$/.test(CONFIG.app.replace(/\/+$/, "")) ? CONFIG.app.replace(/\/+$/, "") : "";
 const HOME_URL = "https://praxikit.github.io/praxikit/";
 
 const KIND_LABEL = { plugin: "Plugin", skill: "Skill", agent: "Agent", hook: "Hook", mcp: "MCP config", template: "Template", adapter: "Adapter" };
@@ -135,8 +138,13 @@ function trustChecks(k) {
 }
 
 // ---------- html pieces ----------
-const LOGO = `<svg class="logo" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true" focusable="false"><rect width="32" height="32" rx="6" fill="var(--accent)"/><path d="M9 8h9a5 5 0 0 1 0 10h-4v6" fill="none" stroke="var(--accent-fg)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const FAVICON = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#0b6b63"/><path d="M9 8h9a5 5 0 0 1 0 10h-4v6" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
+// The mark: building blocks (kits) assembled into a P. The one block set apart in amber is the pick.
+const BLOCKS = [[0, 0], [8, 0], [0, 8], [0, 16], [8, 16], [0, 24]]; // x, y of each block on a 3 by 4 grid (6 wide, 2 gap)
+const SPARK = [16, 8];
+const mark = (fill, spark) => BLOCKS.map(([x, y]) => `<rect x="${x}" y="${y}" width="6" height="6" rx="1.4" fill="${fill}"/>`).join("") + `<rect x="${SPARK[0]}" y="${SPARK[1]}" width="6" height="6" rx="1.4" fill="${spark}"/>`;
+const LOGO = `<svg class="logo" viewBox="0 0 22 30" width="22" height="30" aria-hidden="true" focusable="false">${mark("var(--accent)", "var(--spark)")}</svg>`;
+const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1 30 32" width="240" height="256">${mark("#0f8a7e", "#d97a14")}</svg>`;
+const FAVICON = "data:image/svg+xml," + encodeURIComponent(LOGO_SVG.replace(' width="240" height="256"', ""));
 const ISSUE = (t) => `${REPO}/issues/new?template=${t}`;
 
 const THEME_BOOT = `try{var t=localStorage.getItem("praxikit-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}`;
@@ -290,11 +298,90 @@ const SITE_JS = `
     });
     var clear = document.getElementById("clear");
     if (clear) clear.addEventListener("click", function () { q.value = ""; active = "all"; chips.forEach(function (o) { o.setAttribute("aria-pressed", String(o.getAttribute("data-chip") === "all")); }); apply(); q.focus(); });
+    apply();
+  }
+
+  // ---- site search: a prebuilt index, matched in the browser. Results are built with textContent only.
+  var root = document.body.getAttribute("data-root") || "./";
+  /*search-start*/
+  function searchIndex(index, query) {
+    var words = String(query || "").toLowerCase().split(" ").filter(function (w) { return w.length > 0; });
+    if (!words.length) return [];
+    var out = [];
+    index.forEach(function (e) {
+      var title = String(e.t || "").toLowerCase(), tags = String(e.g || "").toLowerCase(), desc = String(e.d || "").toLowerCase(), score = 0, ok = true;
+      words.forEach(function (w) {
+        var s = 0;
+        if (title.indexOf(w) === 0) s += 6; else if (title.indexOf(w) > -1) s += 4;
+        if (tags.split(" ").indexOf(w) > -1) s += 4; else if (tags.indexOf(w) > -1) s += 2;
+        if (desc.indexOf(w) > -1) s += 1;
+        if (!s) ok = false;
+        score += s;
+      });
+      if (ok) out.push({ e: e, score: score + (e.k === "pick" ? 1 : 0) });
+    });
+    out.sort(function (a, b) { return b.score - a.score || String(a.e.t).localeCompare(String(b.e.t)); });
+    return out.map(function (x) { return x.e; });
+  }
+  /*search-end*/
+  var KIND_NAME = { kit: "Praxikit kit", skill: "Skill or command", pick: "My pick", listed: "Listed", tag: "Tag", page: "Page" };
+  var indexPromise = null;
+  function loadIndex() {
+    if (!indexPromise) indexPromise = fetch(root + "search-index.json").then(function (r) { return r.ok ? r.json() : []; }).catch(function () { return []; });
+    return indexPromise;
+  }
+  function hrefOf(e) {
+    var u = String(e.u || "");
+    if (u.indexOf("https://github.com/") === 0) return u;
+    if (u.indexOf("://") > -1 || u.charAt(0) === "/") return "";
+    return root + u;
+  }
+  function renderResults(list, into, limit) {
+    into.textContent = "";
+    list.slice(0, limit).forEach(function (e) {
+      var href = hrefOf(e); if (!href) return;
+      var li = document.createElement("li"), a = document.createElement("a"), kind = document.createElement("span"), d = document.createElement("span");
+      a.href = href; a.textContent = e.t; if (e.ext) a.rel = "noopener noreferrer";
+      kind.className = "r-kind"; kind.textContent = KIND_NAME[e.k] || "";
+      d.className = "r-desc"; d.textContent = e.d || "";
+      li.appendChild(a); li.appendChild(kind); li.appendChild(d); into.appendChild(li);
+    });
+  }
+  var box = document.getElementById("site-q");
+  if (box) {
+    var sug = document.createElement("ul"); sug.className = "suggest"; sug.hidden = true; sug.setAttribute("aria-label", "Search suggestions");
+    box.parentNode.appendChild(sug);
+    box.addEventListener("input", function () {
+      var term = box.value.trim();
+      if (term.length < 2) { sug.hidden = true; return; }
+      loadIndex().then(function (idx) {
+        if (box.value.trim() !== term) return;
+        var found = searchIndex(idx, term);
+        renderResults(found, sug, 6);
+        sug.hidden = !sug.childNodes.length;
+      });
+    });
+    box.addEventListener("keydown", function (e) { if (e.key === "Escape") { sug.hidden = true; box.blur(); } });
+    document.addEventListener("click", function (e) { if (!box.parentNode.contains(e.target)) sug.hidden = true; });
     document.addEventListener("keydown", function (e) {
       var t = e.target && e.target.tagName;
-      if (e.key === "/" && t !== "INPUT" && t !== "TEXTAREA") { e.preventDefault(); q.focus(); }
+      if (e.key === "/" && t !== "INPUT" && t !== "TEXTAREA" && t !== "SELECT") { e.preventDefault(); box.focus(); }
     });
-    apply();
+  }
+  var results = document.getElementById("results");
+  if (results) {
+    var qs = new URLSearchParams(location.search), term0 = (qs.get("q") || "").slice(0, 100), field = document.getElementById("search-q"), status = document.getElementById("search-status");
+    if (field) field.value = term0;
+    function run(term) {
+      if (!term.trim()) { results.textContent = ""; status.textContent = "Type to search kits, picks, skills, tags and pages."; return; }
+      loadIndex().then(function (idx) {
+        var found = searchIndex(idx, term);
+        renderResults(found, results, 50);
+        status.textContent = found.length ? found.length + (found.length === 1 ? " result" : " results") + " for " + term : "Nothing matches " + term + ". Try fewer words, or browse the tags.";
+      });
+    }
+    if (field) field.addEventListener("input", function () { run(field.value); });
+    run(term0);
   }
 })();
 `;
@@ -321,17 +408,18 @@ ${head}
 <link rel="stylesheet" href="${up}style.css">
 <script data-site>${THEME_BOOT}</script>
 </head>
-<body${home ? " data-home" : ""}>
+<body${home ? " data-home" : ""} data-root="${up}">
 <a class="skip" href="#main">Skip to content</a>
 <header class="top"><div class="wrap bar">
 <a class="brand" href="${up}" aria-label="Praxikit home">${LOGO}<span>Praxikit</span></a>
+<form class="site-search" role="search" action="${up}search/" method="get"><label class="vh" for="site-q">Search the catalogue</label><input id="site-q" name="q" type="search" placeholder="Search  ( / )" autocomplete="off" spellcheck="false" maxlength="100"></form>
 <nav aria-label="Main"><a href="${up}kits/"${cur("kits")}>Kits</a><a href="${up}updates/"${cur("updates")}>Updates</a><a href="${up}picks/"${cur("picks")}>Picks</a><a href="${up}submit/"${cur("submit")}>Submit</a><a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
 <button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg></button></nav>
 </div></header>
 <main id="main">
 ${body}
 </main>
-<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>Kits for AI coding agents. MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Submit a kit</a></div></div></footer>
+<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>Kits for AI coding agents. MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a></div></div></footer>
 <script data-site>${SITE_JS}</script>
 </body>
 </html>
@@ -368,6 +456,16 @@ function loadDrift() {
   try { return Object.fromEntries(Object.entries(readJson(f)).filter(([, v]) => ["same", "changed", "unreachable"].includes(v))); } catch { return {}; }
 }
 // who put it forward: shown small, as context. It does not decide whether it is a pick.
+const SLUG_OK = /^[a-z0-9-]{1,40}$/;
+const tagsOf = (item) => (Array.isArray(item.tags) ? item.tags.map(String).filter(Boolean) : []);
+const MAX_CHIPS = 8; // a card shows at most two rows of tags; the rest are on the tag pages and in the tooltip of "+N"
+function tagChips(item, up) {
+  const all = tagsOf(item);
+  if (!all.length) return "";
+  const shown = all.slice(0, MAX_CHIPS);
+  return `<ul class="taglist" aria-label="Tags">${shown.map((t) => `<li>${SLUG_OK.test(t) ? `<a class="tag" href="${up}tags/${esc(t)}/">${esc(t)}</a>` : `<span class="tag">${esc(t)}</span>`}</li>`).join("")}${all.length > shown.length ? `<li><span class="tag more" title="${esc(all.slice(MAX_CHIPS).join(", "))}">+${all.length - shown.length}</span></li>` : ""}</ul>`;
+}
+
 const SOURCE_LABEL = { community: "submitted by its author", recommended: "suggested by someone else" };
 const CHECK_WORDS = { "no-flags-found": "automatic checks found nothing", "checks-flagged": "automatic checks flagged things a person reviewed", "checks-failed": "automatic checks failed, accepted by the admin", "needs-manual-review": "reviewed by hand" };
 
@@ -378,12 +476,13 @@ function extCard(l, up) {
   const drift = st === "changed" ? { badge: '<span class="kind warn">Changed since review</span>', note: ` <a href="${esc(l.url)}/compare/${esc(l.commit)}...HEAD" rel="noopener noreferrer">See what changed</a>.` }
     : st === "unreachable" ? { badge: '<span class="kind warn">Repository not reachable</span>', note: " It may have been removed or made private." } : { badge: "", note: "" };
   const groups = [slug(KIND_LABEL[l.kind] ?? l.kind), l.pick ? "picks" : "listed"].join(" ");
-  const text = [l.name, l.why, l.author, l.kind, l.source].join(" ").toLowerCase();
+  const text = [l.name, l.why, l.note ?? "", l.author, l.kind, l.source, ...tagsOf(l)].join(" ").toLowerCase();
   return `<li class="card" data-card data-groups="${esc(groups)}" data-text="${esc(text)}">
 <div class="meta-line">${l.pick ? '<span class="kind pick">My pick</span>' : '<span class="kind ext">Listed</span>'}<span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span>${drift.badge}</div>
 <h3><a class="name" href="${esc(l.url)}" rel="noopener noreferrer">${esc(l.name)}</a></h3>
 <p class="muted">by ${esc(l.author)}, not built by Praxikit. ${esc(SOURCE_LABEL[l.source])[0].toUpperCase() + esc(SOURCE_LABEL[l.source]).slice(1)}.</p>
 <p class="promise">${esc(l.why)}</p>
+${tagChips(l, up)}
 ${l.pick ? `<p class="pick-note"><strong>How I use it:</strong> ${esc(l.note)}</p>` : ""}
 <div class="card-foot"><span>Reviewed at <code>${esc(l.commit.slice(0, 7))}</code>, ${esc(CHECK_WORDS[l.checks] ?? l.checks)}. Installs follow the author's latest version, which can differ.${drift.note}</span><a class="details" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a></div>
 </li>`;
@@ -400,6 +499,7 @@ function card(k, up) {
 <div class="meta-line">${badge(k)}</div>
 <h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
 <p class="promise">${esc(k.promise)}</p>
+${tagChips(k, up)}
 <div class="card-foot"><span>${esc(bits)}${bits && latest ? " · " : ""}${latest ? `updated ${esc(latest)}` : ""}</span><a class="details" href="${up}k/${esc(k.name)}/">View details</a></div>
 </li>`;
 }
@@ -488,12 +588,13 @@ function kitsPage(kits, group) {
   const list = group ? inGroup(kits, group) : kits;
   const depth = group ? 2 : 1, up = "../".repeat(depth);
   const title = group ? group.label : "All kits";
-  const search = kits.length >= 4 ? `<div class="toolbar"><label class="search"><span class="vh">Search kits</span><input id="q" type="search" placeholder="Search kits  ( / )" autocomplete="off" spellcheck="false"></label></div>` : "";
+  const search = kits.length >= 4 ? `<div class="toolbar"><label class="search"><span class="vh">Search kits</span><input id="q" type="search" placeholder="Filter these kits" autocomplete="off" spellcheck="false"></label></div>` : "";
   const empty = group && !list.length ? `<div class="empty"><p><strong>No ${esc(group.noun)} yet.</strong> <a href="${up}submit/">Submit one</a> or <a href="${up}kits/">see all kits</a>.</p></div>` : "";
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="${up}">Home</a> / ${group ? `<a href="${up}kits/">Kits</a> / ${esc(group.label)}` : "Kits"}</p>
 <div class="sec-head"><h1>${esc(title)}</h1><p class="muted" id="count" aria-live="polite">${plural(list.length, "kit")}</p></div>
 ${group ? `<p class="lead">${esc(group.blurb)}</p>` : '<p class="lead">Kits built by Praxikit, plus kits by other people that were submitted and reviewed, each marked as such. Praxikit kits have their own page with what they add, what they read and send, and their changelog.</p>'}
 ${typeNav(kits, up, group ? group.id : "all")}
+${tagCloud(collectTags(kits), up)}
 ${search}
 <div id="kits">${list.length ? listHtml(list, up) : ""}</div>
 ${empty}
@@ -528,20 +629,26 @@ function movedPage() {
 }
 
 function submitPage() {
+  const form = APP
+    ? `<form class="submit-form" method="get" action="${esc(APP)}/submit">
+<label for="repo">Repository link</label>
+<div class="row"><input id="repo" name="url" type="url" required maxlength="200" placeholder="https://github.com/owner/repo" autocomplete="off"><button class="btn" type="submit">Continue with GitHub</button></div>
+<p class="muted">You will sign in with GitHub (only your username is read) and confirm on the next screen. Your link is passed along so you do not paste it twice.</p>
+</form>
+<p class="muted">Prefer GitHub issues, or the app is down? <a href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Open an issue instead</a>.</p>`
+    : `<div class="submit"><div id="submit"><h2>You built one</h2><p>Describe it, link the repository and say what it reads, writes and sends.</p><p><a class="btn" href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Open the submission form</a></p></div>
+<div id="recommend"><h2>You found someone else's</h2><p>Suggest a kit made by someone else, and say why. It is listed after the checks and a read-through. It becomes one of the owner's picks only if the owner uses it.</p><p><a class="btn ghost" href="${esc(ISSUE("recommend.yml"))}" rel="noopener noreferrer">Open the suggestion form</a></p></div></div>`;
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Submit</p><h1>Submit a kit</h1>
-<p class="lead">Free. Both forms open a public GitHub issue, so you need a free GitHub account and should not paste secrets.</p>
-<div class="submit">
-<div id="submit"><h2>You built one</h2><p>Describe it, link the repository and say what it reads, writes and sends.</p><p><a class="btn" href="${esc(ISSUE("suggest-kit.yml"))}" rel="noopener noreferrer">Open the submission form</a></p></div>
-<div id="recommend"><h2>You found someone else's</h2><p>Suggest a kit made by someone else, and say why. It is listed after the checks and a read-through. It becomes one of the owner's picks only if the owner uses it.</p><p><a class="btn ghost" href="${esc(ISSUE("recommend.yml"))}" rel="noopener noreferrer">Open the suggestion form</a></p></div>
-</div>
+<p class="lead">Free. Paste the link to a public GitHub repository, yours or someone else's. We read its name, owner, licence and README from GitHub, so you do not need to describe it.</p>
+${form}
 <h2 class="sub">What happens next</h2>
 <ol class="flow">
-<li><strong>An automatic check reads the repository.</strong> It reads the public repository at the commit you linked, without running or installing anything, and comments on your issue: licence, secret-like strings, code that runs automatically, network access, binaries and hidden instructions. It reports what it found and never says a kit is safe.</li>
-<li><strong>A person reads the source.</strong> The result is a starting point, not a decision. Only GitHub links can be checked automatically; anything else is reviewed by hand.</li>
-<li><strong>If it is listed,</strong> the listing is pinned to the commit that person reviewed, and the checks run again if the kit changes.</li>
+<li><strong>The checks run.</strong> A maintainer asks for the full read-only scan: it reads the public repository at one commit without running or installing anything, and reports licence, secret-like strings, code that runs automatically, network access, binaries and hidden instructions. It reports what it found and never says a kit is safe.</li>
+<li><strong>A person reads the report and decides.</strong> The result is a starting point, not a decision. Only GitHub links can be checked automatically.</li>
+<li><strong>If it is listed,</strong> the listing is pinned to the commit that person reviewed, and a daily check marks it <em>Changed since review</em> if the repository moves on. It becomes one of the owner's <em>picks</em> only if the owner uses it.</li>
 </ol>
 <p class="muted">Nothing is listed for payment, and listing is not a promise that a kit is safe. Read the <a href="../policy/">policy</a> for how reports and removals work.</p></div>`;
-  return page({ title: "Submit a kit — Praxikit", depth: 1, body, current: "submit", canonical: `${HOME_URL}submit/`, description: "Submit a kit to Praxikit for free. An automatic read-only check runs, then a person reviews it." });
+  return page({ title: "Submit a kit — Praxikit", depth: 1, body, current: "submit", canonical: `${HOME_URL}submit/`, description: "Submit a kit to Praxikit for free: paste a public GitHub repository link. An automatic read-only check runs, then a person reviews it." });
 }
 
 function collectionPage(c, kits) {
@@ -594,6 +701,7 @@ function kitPage(k) {
 <h1>${esc(k.name)}</h1>
 <p class="meta-line">${badge(k)}${latest ? `<span>released ${esc(latest)}</span>` : ""}<span>${k.collections.map((c) => `<a href="../../c/${slug(c)}/">${esc(c)}</a>`).join(", ")}</span></p>
 <p class="lead">${esc(k.promise)}</p>
+${tagChips(k, "../../")}
 <div class="two">
 <div class="main-col">
 ${previewBlock(k)}
@@ -655,6 +763,49 @@ function notFoundPage() {
   return page({ title: "Not found — Praxikit", depth: 0, body, description: "Page not found." }).replace(/(href|src)="\.\//g, `$1="${HOME_URL}`);
 }
 
+// ---------- tags and search ----------
+function collectTags(items) {
+  const m = new Map();
+  for (const it of items) for (const t of new Set(tagsOf(it))) if (SLUG_OK.test(t)) { if (!m.has(t)) m.set(t, []); m.get(t).push(it); }
+  return m;
+}
+const sortedTags = (map) => [...map.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+function tagCloud(map, up) {
+  if (!map.size) return "";
+  const top = sortedTags(map).slice(0, 16);
+  return `<p class="tagcloud"><span class="muted">Browse by tag:</span> ${top.map(([t, l]) => `<a class="tag" href="${up}tags/${esc(t)}/">${esc(t)} <span class="count">${l.length}</span></a>`).join(" ")}${map.size > top.length ? ` <a href="${up}tags/">all ${map.size} tags</a>` : ""}</p>`;
+}
+function tagsIndexPage(map) {
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Tags</p><h1>Tags</h1><p class="lead">Find a kit by what it is for.</p>
+${map.size ? `<ul class="tagindex">${sortedTags(map).map(([t, l]) => `<li><a class="tag" href="${esc(t)}/">${esc(t)}</a> <span class="muted">${plural(l.length, "kit")}</span></li>`).join("")}</ul>` : '<p class="muted">No tags yet.</p>'}</div>`;
+  return page({ title: "Tags — Praxikit", depth: 1, body, canonical: `${HOME_URL}tags/`, description: "Browse Praxikit kits by tag." });
+}
+function tagPage(tag, list) {
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../../">Home</a> / <a href="../">Tags</a> / ${esc(tag)}</p><div class="sec-head"><h1>${esc(tag)}</h1><p class="muted">${plural(list.length, "kit")}</p></div>${listHtml(list, "../../")}</div>`;
+  return page({ title: `${tag} — Praxikit`, depth: 2, body, canonical: `${HOME_URL}tags/${tag}/`, description: `Praxikit kits tagged ${tag}.` });
+}
+function searchPage() {
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Search</p><h1>Search</h1>
+<form role="search" action="./" method="get" class="search-page"><label class="vh" for="search-q">Search kits, picks, skills, tags and pages</label><input id="search-q" name="q" type="search" placeholder="Try planning, marketing, mcp, keel" autocomplete="off" maxlength="100"><button class="btn" type="submit">Search</button></form>
+<p class="muted" id="search-status" aria-live="polite"></p>
+<ol class="results" id="results"></ol>
+<noscript><p class="note">Search needs JavaScript. You can still browse <a href="../kits/">all kits</a> or the <a href="../tags/">tags</a>.</p></noscript></div>`;
+  return page({ title: "Search — Praxikit", depth: 1, body, current: "search", canonical: `${HOME_URL}search/`, description: "Search Praxikit kits, picks, skills, tags and pages." });
+}
+/** One flat list the browser searches. Internal links are relative to the site root; outside links are github.com only. */
+function buildSearchIndex(kits, listings, tagMap) {
+  const out = [];
+  for (const k of kits) {
+    out.push({ t: k.name, k: "kit", u: `k/${k.name}/`, d: k.promise, g: tagsOf(k).join(" ") });
+    for (const sk of k.adds.skills) out.push({ t: k.kind === "plugin" ? `/${k.name}:${sk.name}` : sk.name, k: "skill", u: `k/${k.name}/`, d: short(sk.description), g: "" });
+    for (const ag of k.adds.agents) out.push({ t: ag.name, k: "skill", u: `k/${k.name}/`, d: short(ag.description), g: "" });
+  }
+  for (const l of listings) out.push({ t: l.name, k: l.pick ? "pick" : "listed", u: l.url, ext: 1, d: [l.pick ? `How I use it: ${l.note}` : "", l.why].filter(Boolean).join(" "), g: tagsOf(l).join(" ") });
+  for (const [t, l] of sortedTags(tagMap)) out.push({ t: `#${t}`, k: "tag", u: `tags/${t}/`, d: plural(l.length, "kit"), g: t });
+  for (const [t, u, d] of [["Kits", "kits/", "Every kit, by type"], ["Updates", "updates/", "Check your version and see what changed"], ["My picks", "picks/", "Kits the owner uses, with a note on how"], ["Submit a kit", "submit/", "Submit a public GitHub repository"], ["Policy", "policy/", "What a listing means, reports and removals"], ["Tags", "tags/", "Browse by tag"], ["Release feed", "feed.xml", "Subscribe to new versions"]]) out.push({ t, k: "page", u, d, g: "" });
+  return out;
+}
+
 // ---------- write ----------
 const write = (rel, text) => { const p = join(OUT, rel); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, text); };
 
@@ -675,10 +826,16 @@ write("picks/index.html", picksPage(picks));
 write("recommended/index.html", movedPage());
 write("submit/index.html", submitPage());
 write("policy/index.html", policyPage());
+const tagMap = collectTags(items);
+write("tags/index.html", tagsIndexPage(tagMap));
+for (const [t, l] of tagMap) write(`tags/${t}/index.html`, tagPage(t, l));
+write("search/index.html", searchPage());
+write("search-index.json", JSON.stringify(buildSearchIndex(kits, listings, tagMap)));
 write("404.html", notFoundPage());
 write("feed.xml", atomFeed(kits));
 for (const c of new Set(kits.flatMap((k) => k.collections))) write(`c/${slug(c)}/index.html`, collectionPage(c, kits));
 for (const k of kits) write(`k/${k.name}/index.html`, kitPage(k));
+write("logo.svg", LOGO_SVG);
 write("versions.json", JSON.stringify(Object.fromEntries(kits.map((k) => [k.name, { version: k.version, kind: k.kind }])), null, 2) + "\n");
 write(".nojekyll", "");
 console.log(`built ${kits.length} kit(s), ${listings.length} listing(s) (${picks.length} picks) -> ${OUT}`);

@@ -35,7 +35,9 @@ CREATE TABLE IF NOT EXISTS submissions (
   scan_run_url TEXT NOT NULL DEFAULT '',    -- where the full report is
   scan_at TEXT NOT NULL DEFAULT '',
   final_pick INTEGER NOT NULL DEFAULT 0,    -- 1 when the maintainer ticked "I use this" at approval
-  final_note TEXT NOT NULL DEFAULT ''       -- how they use it, one line, shown on the card for a pick
+  final_note TEXT NOT NULL DEFAULT '',      -- how they use it, one line, shown on the card for a pick
+  topics TEXT NOT NULL DEFAULT '',          -- the repository's GitHub topics, cleaned, comma-separated: the starting tags
+  final_tags TEXT NOT NULL DEFAULT ''       -- the tags the maintainer confirmed at approval, comma-separated
 );
 CREATE UNIQUE INDEX IF NOT EXISTS one_pending_per_repo ON submissions (repo_key) WHERE status = 'pending';
 CREATE INDEX IF NOT EXISTS by_user_time ON submissions (submitted_by_id, created_at);

@@ -40,7 +40,7 @@ export const signInPage = (note = "", opts = {}) => page("Sign in — Praxikit",
 <h1>${opts.submit ? "Sign in to submit a kit" : "Sign in"}</h1>
 ${opts.submit
     ? `<p>Sign in with GitHub, then paste the link to a public repository. We ask GitHub only who you are (your username); nothing else is read or kept.</p>
-${note ? `<p class="note">${esc(note)}</p>` : ""}<p><a class="btn" href="/auth/login?mode=user">Sign in with GitHub to submit</a></p>
+${note ? `<p class="note">${esc(note)}</p>` : ""}<p><a class="btn" href="/auth/login?mode=user${opts.next ? `&next=${encodeURIComponent(opts.next)}` : ""}">Sign in with GitHub to submit</a></p>${opts.next ? `<p class="muted">After signing in you will land back here with <code>${esc(opts.next)}</code> filled in.</p>` : ""}
 <p class="muted">Maintainers: <a href="/auth/login">sign in here</a>.</p>`
     : `<p>Sign in with GitHub. Maintainers of the catalogue are the owners of the <code>praxikit</code> organisation and the members of its <code>maintainers</code> team.</p>
 ${note ? `<p class="note">${esc(note)}</p>` : ""}<p><a class="btn" href="/auth/login">Sign in with GitHub</a></p>
@@ -155,6 +155,7 @@ ${scanned ? "" : '<p class="muted">Approving unlocks after the full checks have 
 <label for="name">Name on the card</label><input id="name" name="name" type="text" required maxlength="80" value="${esc(s.name)}">
 <label for="kind">Type</label>${kindSelect(s.kind_guess || "plugin")}${s.kind_guess ? "" : '<p class="hint">The file names did not show what this is; choose carefully.</p>'}
 <label for="text">Card text <span class="hint">(up to 400 characters; the README excerpt, or the recommender's note, to start with)</span></label><textarea id="text" name="text" required maxlength="400">${esc(defaultText)}</textarea>
+<label for="tags">Tags <span class="hint">(comma-separated, up to 12; they help people find it. Starting from the repository's own GitHub topics)</span></label><input id="tags" name="tags" type="text" maxlength="400" value="${esc(s.topics)}" placeholder="for example planning, marketing">
 <label class="check"><input type="checkbox" name="pick" value="yes"> I use this kit (list it as one of my picks)</label>
 <label for="pick_note">How I use it <span class="hint">(one line, up to 200 characters; needed if you ticked the box above, and shown on the card)</span></label><input id="pick_note" name="pick_note" type="text" maxlength="200">
 ${flagged ? '<label class="check"><input type="checkbox" name="read" value="yes" required> I have opened and read the full report above</label>' : ""}
@@ -166,7 +167,7 @@ ${flagged ? '<label class="check"><input type="checkbox" name="read" value="yes"
 </form>`
     : `<h2>Decision</h2>
 <dl><dt>Status</dt><dd>${esc(s.status)}${s.decided_by ? ` by @${esc(s.decided_by)} on ${esc(String(s.decided_at).slice(0, 10))}` : ""}</dd>
-${s.status === "approved" ? `<dt>Listed as</dt><dd>${esc(s.final_name)} (${esc(s.final_kind)}): ${esc(s.final_text)}</dd>${s.final_pick ? `<dt>My pick</dt><dd>${esc(s.final_note)}</dd>` : ""}<dt>Publishing</dt><dd>${esc(PUBLISH[s.publish_state] ?? s.publish_state)}${s.publish_note ? `<br><span class="muted">${esc(s.publish_note)}</span>` : ""}</dd>${s.scan_commit ? `<dt>Checks read at</dt><dd><code>${esc(s.scan_commit)}</code> (${esc(s.scan_label)})</dd>` : ""}` : ""}
+${s.status === "approved" ? `<dt>Listed as</dt><dd>${esc(s.final_name)} (${esc(s.final_kind)}): ${esc(s.final_text)}</dd>${s.final_pick ? `<dt>My pick</dt><dd>${esc(s.final_note)}</dd>` : ""}${s.final_tags ? `<dt>Tags</dt><dd>${esc(s.final_tags.split(",").join(", "))}</dd>` : ""}<dt>Publishing</dt><dd>${esc(PUBLISH[s.publish_state] ?? s.publish_state)}${s.publish_note ? `<br><span class="muted">${esc(s.publish_note)}</span>` : ""}</dd>${s.scan_commit ? `<dt>Checks read at</dt><dd><code>${esc(s.scan_commit)}</code> (${esc(s.scan_label)})</dd>` : ""}` : ""}
 ${s.status === "rejected" ? `<dt>Reason</dt><dd>${esc(s.decision_note)}</dd>` : ""}</dl>
 ${s.status === "approved" && s.publish_state === "blocked" ? `<form method="post" action="/admin/submissions/${Number(s.id)}/retry"><p><button type="submit"${canPublish ? "" : " disabled"}>Try publishing again</button></p></form>
 <form method="post" action="/admin/submissions/${Number(s.id)}/reopen"><p><button class="ghost" type="submit">Back to review</button> <span class="muted">Run the full checks, read them, and approve with the report in front of you.</span></p></form>` : ""}`;

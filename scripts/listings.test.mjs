@@ -40,6 +40,21 @@ for (const [label, bad] of [["pick without a note", { ...good, pick: true }], ["
   must(plain.ok && !("pick" in plain.entry) && !("note" in plain.entry), "without the pick flag, the note is dropped");
 }
 
+// ---- tags
+import { parseTags } from "../site/listings.mjs";
+must(JSON.stringify(parseTags("Planning, model routing; SEO\nplanning")) === JSON.stringify(["planning", "model-routing", "seo"]), "tags are lowercased, hyphenated, de-duplicated and split on commas, semicolons and lines");
+must(parseTags("a, <script>alert(1)</script>, ok-tag, -x-, " + "y".repeat(40)).join("|") === "script-alert-1-script|ok-tag|" + "y".repeat(24), "markup and odd characters become plain hyphenated words, and long ones are cut");
+must(parseTags(Array.from({ length: 30 }, (_, i) => "tag" + i).join(",")).length === 12 && parseTags("").length === 0 && parseTags(null).length === 0 && parseTags("a,b,!!!").length === 0, "at most 12 tags; nothing in, nothing out; one-letter and empty ones are dropped");
+must(validateListing({ ...good, tags: ["planning", "model-routing"] }).length === 0, "an entry with tags validates");
+for (const [label, bad] of [["no tags in the list", { ...good, tags: [] }], ["13 tags", { ...good, tags: Array.from({ length: 13 }, (_, i) => "tag" + i) }], ["an upper-case tag", { ...good, tags: ["Planning"] }], ["a tag with a space", { ...good, tags: ["a b"] }], ["a repeated tag", { ...good, tags: ["abc", "abc"] }], ["a tag that is not text", { ...good, tags: [5] }], ["tags that are not a list", { ...good, tags: "planning" }]])
+  must(validateListing(bad).length > 0, `refused: ${label}`);
+{
+  const e = entryFromDispatch({ IN_NAME: "T", IN_URL: "x", IN_WHY: "w", IN_KIND: "skill", IN_SOURCE: "community", IN_TAGS: "Marketing, SEO tools" }, { ...scanOk, owner: "coreyhaines31" }, "2026-11-15");
+  must(e.ok && e.entry.author === "coreyhaines31" && e.entry.tags.join() === "marketing,seo-tools", "the author is the repository's owner when none is given, and tags come through cleaned");
+  const none = entryFromDispatch({ IN_NAME: "T", IN_URL: "x", IN_WHY: "w", IN_KIND: "skill", IN_SOURCE: "community", IN_TAGS: "" }, { ...scanOk, owner: "someone" }, "2026-11-15");
+  must(none.ok && !("tags" in none.entry), "no tags means no tags field");
+}
+
 // ---- recommendation form -> entry
 const recForm = parseIssue("### Name of the kit\n\nPlaywright MCP\n\n### Link\n\nhttps://github.com/o/r\n\n### Who made it?\n\nMicrosoft\n\n### Category\n\nMCP config\n\n### Why do you recommend it?\n\nBrowser automation for agents.\n\nIt worked well.\n");
 const r1 = entryFromIssue(recForm, "opener", 7, scanOk, "2026-11-15");

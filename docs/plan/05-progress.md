@@ -129,3 +129,11 @@
 - Decision (owner): the word Recommended claimed more than was true (two listings got it without being used). The catalogue now has Built by Praxikit, **My picks** (kits the owner uses, with a one-line note on how; a tick on the approve form, validated: a pick needs a note, a note needs a pick) and **Listed** (scanned and read, not endorsed). Who put it forward stays as small context. New `/picks/` page; `/recommended/` redirects to it; navigation, home page, policy and submit copy updated; the issue form is now "Suggest someone else's kit". The two existing listings (Playwright MCP, marketingskills) are now plain Listed until the owner says they use them.
 - Needs the owner: migration `api/migrations/0004_picks.sql` and a redeploy of the app.
 - CI caught that the approve workflow had 12 manually-started inputs and the pinned actionlint allows 10. Fixed by deriving two of them (a non-empty `note` marks a pick; an empty `expected_commit` means clean-only), and `scripts/listings.test.mjs` now counts inputs on every workflow so the limit shows up locally.
+
+## 2026-11-16 — Logo, tags, search, a submit form on the site
+- **Logo**: six blocks assembled into a P with one amber block set apart (the kits, and the one the owner picked). Favicon and `logo.svg` come from the same source in `site/build.mjs`.
+- **Tags**: on listings and built kits (`tags`), validated the same way in the site and the app; the approve form pre-fills them from GitHub topics; cards show at most two rows; `/tags/` and `/tags/<tag>/` pages; a tag row on `/kits/`.
+- **Search**: `search-index.json` (kits, skills and commands, picks, listed, tags, pages) matched in the browser; header box with suggestions, `/` shortcut, `/search/` page. Results are built with `textContent` only.
+- **Submit**: the site's Submit page is a form that hands the link to the app; the app prefills it and carries it through sign-in. A muted GitHub-issue fallback stays.
+- **Scanner**: the "disable the sandbox" phrase now counts only in files that instruct an agent, so a README documenting a flag is no longer flagged.
+- Needs the owner: migrations `0004` (if not yet) and `0005`, then `npx wrangler deploy`. Approving from the app fails between the push and the redeploy.

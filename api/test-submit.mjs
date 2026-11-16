@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 import worker from "./src/index.mjs";
 import { verifyToken } from "./src/lib/crypto.mjs";
 import { parseRepo, readmeExcerpt, guessKind, precheck } from "./src/lib/repo.mjs";
+import { parseTags as appTags } from "./src/lib/tags.mjs";
+import { parseTags as siteTags } from "../site/listings.mjs";
 import { d1Store } from "./src/lib/store.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -52,7 +54,7 @@ fetch("https://evil.example/leak")
 More text.`;
 const repoBody = (owner, name, over = {}) => ({ name, owner: { login: owner, type: "User" }, private: false, archived: false, fork: false, license: { spdx_id: "MIT" }, default_branch: "main", pushed_at: "2026-11-01T00:00:00Z", ...over });
 const REPOS = {
-  "alice/good": { body: repoBody("alice", "good"), tree: [".claude-plugin/plugin.json", "README.md", "skills/a/SKILL.md"], readme: README },
+  "alice/good": { body: repoBody("alice", "good", { topics: ["Claude-Code", "Agents", "<b>x</b>", "agents", "z"] }), tree: [".claude-plugin/plugin.json", "README.md", "skills/a/SKILL.md"], readme: README },
   "alice/other": { body: repoBody("alice", "other"), tree: ["SKILL.md"], readme: "A second repository by the same person, with enough words to count." },
   "acme/tool": { body: repoBody("acme", "tool", { owner: { login: "acme", type: "Organization" }, license: null }), tree: ["SKILL.md"], readme: "Tools from the acme organisation, described in a full sentence here." },
   "someone/archived": { body: repoBody("someone", "archived", { archived: true, fork: true, pushed_at: "2019-01-01T00:00:00Z" }), tree: ["notes.txt"], readme: "An old archived repository that nobody has touched for years now." },
@@ -132,10 +134,13 @@ must(parseRepo("https://github.com/Owner/Repo.git").key === "owner/repo" && pars
 must(guessKind([".claude-plugin/plugin.json"]) === "plugin" && guessKind(["a/SKILL.md"]) === "skill" && guessKind([".mcp.json"]) === "mcp" && guessKind([".cursorrules"]) === "template" && guessKind(["x.txt"]) === "", "kind is guessed from file names");
 must(precheck({ license: "", kind: "", archived: false, fork: false, pushedAt: "2026-11-01", truncated: false }).status === "fail" && precheck({ license: "MIT", kind: "skill", archived: false, fork: false, pushedAt: "2026-11-01", truncated: false }).status === "pass" && precheck({ license: "MIT", kind: "", archived: true, fork: false, pushedAt: "2026-11-01", truncated: false }).status === "flag", "the quick check fails without a licence, flags oddities, passes when clean");
 
+// ---- the app and the site must clean tags the same way
+for (const sample of ["Planning, model routing; SEO", "a, <script>alert(1)</script>, ok-tag, -x-", "x".repeat(40), "", "A,b,C,,,d-e", Array.from({ length: 30 }, (_, i) => "t" + i).join(",")]) must(JSON.stringify(appTags(sample)) === JSON.stringify(siteTags(sample)), `tag rules agree for: ${sample.slice(0, 30)}`);
+
 // ---- the store, on real SQLite
 {
   const s = d1Store(D1);
-  const rec = (o = {}) => ({ repo_url: "https://github.com/x/y", repo_key: "x/y", name: "y", owner: "x", owner_type: "User", submitted_by: "u", submitted_by_id: 9, source: "community", kind_guess: "", license: "MIT", commit_sha: SHA, readme_url: "", readme_excerpt: "", why: "", precheck: "[]", precheck_status: "pass", created_at: "2026-11-15T10:00:00.000Z", ...o });
+  const rec = (o = {}) => ({ repo_url: "https://github.com/x/y", repo_key: "x/y", name: "y", owner: "x", owner_type: "User", submitted_by: "u", submitted_by_id: 9, source: "community", kind_guess: "", license: "MIT", commit_sha: SHA, readme_url: "", readme_excerpt: "", why: "", topics: "", precheck: "[]", precheck_status: "pass", created_at: "2026-11-15T10:00:00.000Z", ...o });
   const id = await s.insert(rec({ name: "'); DROP TABLE submissions;--" }));
   must(Number.isInteger(id) && id > 0 && (await s.get(id)).name === "'); DROP TABLE submissions;--" && rows().length === 1, "values are bound, never joined into SQL: a hostile name is stored as text and the table survives");
   let dup = false; try { await s.insert(rec()); } catch (e) { dup = e.message === "duplicate"; }
@@ -148,6 +153,30 @@ must(precheck({ license: "", kind: "", archived: false, fork: false, pushedAt: "
 must((await note(await call("/submit"))).status === 200 && (await (await call("/submit")).text()).includes('href="/auth/login?mode=user"'), "signed out, /submit offers the submitter sign-in");
 must((await call("/submit", { method: "POST", origin: OK, form: { url: "https://github.com/alice/good" } })).status === 401 && rows().length === 0, "posting without signing in is refused and stores nothing");
 must((await call("/mine")).status === 200 && (await (await call("/mine")).text()).includes("Sign in"), "/mine needs a sign-in");
+
+// ---- a link typed on the website form is carried through the sign-in
+{
+  const good = "https://github.com/alice/good";
+  const page = await (await note(await call("/submit?url=" + encodeURIComponent(good)))).text();
+  must(page.includes("next=" + encodeURIComponent(good)), "signed out, the sign-in link carries the repository from the website form");
+  const junk = await (await note(await call("/submit?url=" + encodeURIComponent("javascript:alert(1)")))).text();
+  must(!junk.includes("javascript:") && !junk.includes("next="), "anything that is not a github.com repository is dropped, not echoed");
+  const evil = await (await note(await call("/submit?url=" + encodeURIComponent("https://evil.example/x/y\"><script>alert(1)</script>")))).text();
+  must(!evil.includes("evil.example") && !evil.includes("<script>alert(1)"), "a hostile link is neither kept nor echoed");
+  const login = await note(await call("/auth/login?mode=user&next=" + encodeURIComponent(good)));
+  must(cookieValue(login, "__Host-praxikit-next") !== undefined && decodeURIComponent(cookieValue(login, "__Host-praxikit-next")) === good, "the repository is kept in a short-lived cookie");
+  const noNext = await note(await call("/auth/login?mode=user&next=" + encodeURIComponent("https://evil.example/o/r")));
+  must(cookieValue(noNext, "__Host-praxikit-next") === undefined, "a link that is not on github.com is never stored");
+  const adminLogin = await note(await call("/auth/login?next=" + encodeURIComponent(good)));
+  must(cookieValue(adminLogin, "__Host-praxikit-next") === undefined, "the maintainer sign-in ignores it");
+  const loc = new URL(login.headers.get("Location"));
+  const cb = await note(await call("/auth/callback?code=u-carol&state=" + encodeURIComponent(loc.searchParams.get("state")), { cookies: { "__Host-praxikit-state": cookieValue(login, "__Host-praxikit-state"), "__Host-praxikit-next": cookieValue(login, "__Host-praxikit-next") } }));
+  must(cb.headers.get("Location") === "/submit?url=" + encodeURIComponent(good), "after signing in the visitor lands on the form with the link filled in: " + cb.headers.get("Location"));
+  const form = await (await note(await call("/submit?url=" + encodeURIComponent(good), { cookies: { "__Host-praxikit-session": cookieValue(cb, "__Host-praxikit-session") } }))).text();
+  must(form.includes('value="' + good + '"'), "the signed-in form is prefilled");
+  const tamper = await note(await call("/auth/callback?code=u-carol&state=" + encodeURIComponent(loc.searchParams.get("state")), { cookies: { "__Host-praxikit-state": cookieValue(login, "__Host-praxikit-state"), "__Host-praxikit-next": "https://evil.example/o/r" } }));
+  must(tamper.headers.get("Location") === "/submit", "a tampered next cookie is ignored");
+}
 
 // ---- submitter sign-in asks only who you are
 calls.length = 0;
@@ -167,6 +196,7 @@ let row = rows()[0];
 must(row.source === "recommended" && row.owner === "alice" && row.submitted_by === "carol" && row.license === "MIT" && row.kind_guess === "plugin" && row.commit_sha === SHA, "someone else's repository is a recommendation, with owner, licence, kind and commit read from GitHub");
 must(row.readme_url === `https://github.com/alice/good/blob/${SHA}/README.md` && row.readme_excerpt.startsWith("A small tool that does things") && !/[<>@]/.test(row.readme_excerpt), "the README link is built by us and the excerpt is plain text");
 must(row.why === "Used it daily, it saves me an hour a week." && row.precheck_status === "pass", "a recommender's note is kept; the quick check passes");
+must(row.topics === "claude-code,agents,b-x-b", `GitHub topics become cleaned starting tags: ${row.topics}`);
 must(calls.filter((c) => c.url.startsWith("https://api.github.com/repos/alice/good")).every((c) => c.auth === `Bearer ${TOKEN}`), "GitHub lookups use the server's read-only token");
 
 const alice = await signIn("u-alice", "user");

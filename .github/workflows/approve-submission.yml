@@ -29,9 +29,10 @@ on:
         required: true
         type: choice
         options: [recommended, community]
-      author:
-        description: Who made it (the repository's owner)
-        required: true
+      tags:
+        description: Comma-separated tags to help people find it (for example planning, marketing)
+        required: false
+        default: ""
         type: string
       why:
         description: The text shown on the card
@@ -73,7 +74,7 @@ jobs:
           IN_URL: ${{ inputs.url }}
           IN_KIND: ${{ inputs.kind }}
           IN_SOURCE: ${{ inputs.source }}
-          IN_AUTHOR: ${{ inputs.author }}
+          IN_TAGS: ${{ inputs.tags }}
           IN_WHY: ${{ inputs.why }}
           IN_ALLOW_FAILED: "false"
           IN_NOTE: ${{ inputs.note }}

@@ -2,7 +2,7 @@
  * Submissions in Cloudflare D1 (SQLite). Every query is a prepared statement with bound values;
  * nothing is ever built by joining strings. `db` is the D1 binding.
  */
-const COLUMNS = ["repo_url", "repo_key", "name", "owner", "owner_type", "submitted_by", "submitted_by_id", "source", "kind_guess", "license", "commit_sha", "readme_url", "readme_excerpt", "why", "precheck", "precheck_status", "created_at"];
+const COLUMNS = ["repo_url", "repo_key", "name", "owner", "owner_type", "submitted_by", "submitted_by_id", "source", "kind_guess", "license", "commit_sha", "readme_url", "readme_excerpt", "why", "precheck", "precheck_status", "created_at", "topics"];
 
 export function d1Store(db) {
   return {
@@ -24,8 +24,8 @@ export function d1Store(db) {
     async pending(limit = 100) { return (await db.prepare("SELECT * FROM submissions WHERE status = 'pending' ORDER BY id DESC LIMIT ?").bind(limit).all()).results ?? []; },
     async recent(limit = 15) { return (await db.prepare("SELECT * FROM submissions WHERE status <> 'pending' ORDER BY id DESC LIMIT ?").bind(limit).all()).results ?? []; },
     /** Approving is one atomic step: it only succeeds while the submission is still pending. Returns true if it did. */
-    async approve(id, { by, name, kind, text, at, pick = false, note = "" }) {
-      const r = await db.prepare("UPDATE submissions SET status = 'approved', decided_by = ?, decided_at = ?, final_name = ?, final_kind = ?, final_text = ?, final_pick = ?, final_note = ?, publish_state = 'dispatching', publish_note = '' WHERE id = ? AND status = 'pending'").bind(by, at, name, kind, text, pick ? 1 : 0, pick ? note : "", id).run();
+    async approve(id, { by, name, kind, text, at, pick = false, note = "", tags = "" }) {
+      const r = await db.prepare("UPDATE submissions SET status = 'approved', decided_by = ?, decided_at = ?, final_name = ?, final_kind = ?, final_text = ?, final_pick = ?, final_note = ?, final_tags = ?, publish_state = 'dispatching', publish_note = '' WHERE id = ? AND status = 'pending'").bind(by, at, name, kind, text, pick ? 1 : 0, pick ? note : "", tags, id).run();
       return Number(r.meta?.changes) === 1;
     },
     async reject(id, { by, note, at }) {
