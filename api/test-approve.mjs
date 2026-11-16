@@ -221,7 +221,7 @@ LISTED = ["https://github.com/alice/good"];
 const adminHtml = await (await note(await call("/admin", { cookies: owner }))).text();
 must(byKey("alice/good").publish_state === "listed" && adminHtml.includes("Recently decided") && adminHtml.includes("Listed. It is on the catalogue."), "a finished job whose listing is live becomes Listed");
 must(!adminHtml.includes("<script>alert(1)</script>") && (await (await call(`/admin/submissions/${good.id}`, { cookies: owner })).text()).includes("&lt;script&gt;alert(1)&lt;/script&gt; Edited card text."), "card text is shown escaped");
-must((await (await call("/mine", { cookies: carol })).text()).includes("Listed"), "the submitter sees that it is listed");
+must((await (await call("/profile", { cookies: carol })).text()).includes("Listed"), "the submitter sees that it is listed");
 
 // ---- blocked jobs and retry
 await submit(carol, "https://github.com/alice/third");
@@ -232,7 +232,7 @@ RUNS = [{ id: 9002, display_title: `approve #${third.id}`, status: "completed", 
 const blockedHtml = await (await note(await call(`/admin/submissions/${third.id}`, { cookies: owner }))).text();
 row = byKey("alice/third");
 must(row.publish_state === "blocked" && row.publish_note.includes("https://github.com/praxikit/praxikit/actions/runs/9002") && blockedHtml.includes("Try publishing again"), "a failed job is Blocked, links to its run, and offers a retry");
-must((await (await call("/mine", { cookies: carol })).text()).includes("stopped it"), "the submitter is told it was held up, without details");
+must((await (await call("/profile", { cookies: carol })).text()).includes("stopped it"), "the submitter is told it was held up, without details");
 r = await act(owner, third.id, "retry");
 must(r.headers.get("Location").endsWith("?m=retried") && dispatches.length === 3 && byKey("alice/third").publish_state === "dispatched", "retry starts the job again");
 r = await act(owner, third.id, "retry");
@@ -277,7 +277,7 @@ must(r.status === 403 && byKey("alice/reject").status === "pending", "a plain us
 r = await act(owner, rej.id, "reject", { note: "No licence file yet. Add one and submit again." });
 row = byKey("alice/reject");
 must(r.headers.get("Location").endsWith("?m=rejected") && row.status === "rejected" && row.decided_by === "ratul" && row.decision_note.startsWith("No licence file yet"), "a rejection records who and why");
-must((await (await call("/mine", { cookies: carol })).text()).includes("Not listed: No licence file yet. Add one and submit again."), "the submitter sees the reason");
+must((await (await call("/profile", { cookies: carol })).text()).includes("Not listed: No licence file yet. Add one and submit again."), "the submitter sees the reason");
 r = await act(owner, rej.id, "reject", { note: "again" });
 must(r.headers.get("Location").endsWith("?m=already"), "rejecting twice is refused");
 await submit(dave, "https://github.com/alice/reject");
@@ -287,14 +287,14 @@ must(rows().filter((x) => x.repo_key === "alice/reject").length === 2, "after a 
 const before = dispatches.length;
 r = await submit(owner, "https://github.com/alice/direct");
 row = byKey("alice/direct");
-must(r.headers.get("Location") === "/mine?ok=direct" && row.status === "approved" && row.decided_by === "ratul" && row.final_kind === "skill" && row.publish_state === "dispatched" && dispatches.length === before + 1 && dispatches.at(-1).body.inputs.decided_by === "ratul" && dispatches.at(-1).body.inputs.expected_commit === "" && dispatches.at(-1).body.inputs.note === "", "a maintainer's submission is approved and sent to the publish job directly");
-must((await (await call("/mine?ok=direct", { cookies: owner })).text()).includes("being published now"), "and says so");
+must(r.headers.get("Location") === "/profile?ok=direct" && row.status === "approved" && row.decided_by === "ratul" && row.final_kind === "skill" && row.publish_state === "dispatched" && dispatches.length === before + 1 && dispatches.at(-1).body.inputs.decided_by === "ratul" && dispatches.at(-1).body.inputs.expected_commit === "" && dispatches.at(-1).body.inputs.note === "", "a maintainer's submission is approved and sent to the publish job directly");
+must((await (await call("/profile?ok=direct", { cookies: owner })).text()).includes("being published now"), "and says so");
 const held = [["a stale sign-in", await sessionWithAge(31), "https://github.com/alice/direct2"], ["no recognisable type", owner, "https://github.com/alice/unknown"], ["a failed quick check", owner, "https://github.com/alice/nolicence"]];
 for (const [label, who, url] of held) {
   const n = dispatches.length;
   r = await submit(who, url);
   const key = url.replace("https://github.com/", "");
-  must(r.headers.get("Location") === "/mine?ok=held" && byKey(key).status === "pending" && dispatches.length === n, `${label}: held for review, not published`);
+  must(r.headers.get("Location") === "/profile?ok=held" && byKey(key).status === "pending" && dispatches.length === n, `${label}: held for review, not published`);
 }
 {
   const n = dispatches.length;
@@ -302,7 +302,7 @@ for (const [label, who, url] of held) {
   await note(await call("/submit", { method: "POST", cookies: owner, origin: OK, form: { url: "https://github.com/alice/xss" }, e }));
   must(byKey("alice/xss").status === "pending" && dispatches.length === n, "without a dispatch token a maintainer's submission is held, not lost");
 }
-must(byKey("alice/direct") && (await submit(dave, "https://github.com/alice/second")).headers.get("Location") === "/mine?ok=1" && byKey("alice/second").status === "pending", "an ordinary submitter's submission is never published directly");
+must(byKey("alice/direct") && (await submit(dave, "https://github.com/alice/second")).headers.get("Location") === "/profile?ok=1" && byKey("alice/second").status === "pending", "an ordinary submitter's submission is never published directly");
 
 // ---- a retry keeps the pin; a direct publish stays clean-only
 {

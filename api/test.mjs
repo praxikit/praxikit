@@ -114,10 +114,11 @@ must(me.status === 200 && (await me.json()).role === "admin", "/api/me reports t
 
 const adminPageRes = await note(await call("/admin", { cookies: asSession(owner.session) }));
 const adminHtml = await adminPageRes.text();
-must(adminPageRes.status === 200 && adminHtml.includes("@ratul") && adminHtml.includes("an owner of praxikit") && adminHtml.includes("https://avatars.githubusercontent.com/u/111"), "the owner sees the admin page");
+must(adminPageRes.status === 200 && adminHtml.includes("an owner of praxikit"), "the owner sees the admin page");
 must(adminHtml.includes("#7") && adminHtml.includes("https://github.com/praxikit/praxikit/issues/7") && adminHtml.includes("checks-flagged") && !adminHtml.includes("#8"), "the queue lists open submissions, links to the issue, and leaves out pull requests");
 must(!adminHtml.includes("<img src=x") && adminHtml.includes("&lt;img src=x onerror=alert(1)&gt;"), "an issue title with markup is escaped");
-must(adminHtml.includes('action="/auth/logout"') && adminHtml.includes('method="post"'), "sign out is a POST form");
+must((await (await call("/api/me", { cookies: asSession(owner.session) })).json()).id === 111, "/api/me gives the header what it needs (login, id, role) and nothing more");
+must((await call("/auth/logout", { cookies: asSession(owner.session) })).status !== 302, "signing out is not a link: a GET does not do it");
 
 const team = await signIn("good-team");
 const teamHtml = await (await note(await call("/admin", { cookies: asSession(team.session) }))).text();

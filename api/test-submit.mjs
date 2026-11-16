@@ -152,7 +152,7 @@ for (const sample of ["Planning, model routing; SEO", "a, <script>alert(1)</scri
 // ---- signed out
 must((await note(await call("/submit"))).status === 200 && (await (await call("/submit")).text()).includes('href="/auth/login?mode=user"'), "signed out, /submit offers the submitter sign-in");
 must((await call("/submit", { method: "POST", origin: OK, form: { url: "https://github.com/alice/good" } })).status === 401 && rows().length === 0, "posting without signing in is refused and stores nothing");
-must((await call("/mine")).status === 200 && (await (await call("/mine")).text()).includes("Sign in"), "/mine needs a sign-in");
+must((await call("/profile")).status === 200 && (await (await call("/profile")).text()).includes("Sign in"), "/profile needs a sign-in");
 
 // ---- a link typed on the website form is carried through the sign-in
 {
@@ -175,23 +175,23 @@ must((await call("/mine")).status === 200 && (await (await call("/mine")).text()
   const form = await (await note(await call("/submit?url=" + encodeURIComponent(good), { cookies: { "__Host-praxikit-session": cookieValue(cb, "__Host-praxikit-session") } }))).text();
   must(form.includes('value="' + good + '"'), "the signed-in form is prefilled");
   const tamper = await note(await call("/auth/callback?code=u-carol&state=" + encodeURIComponent(loc.searchParams.get("state")), { cookies: { "__Host-praxikit-state": cookieValue(login, "__Host-praxikit-state"), "__Host-praxikit-next": "https://evil.example/o/r" } }));
-  must(tamper.headers.get("Location") === "/submit", "a tampered next cookie is ignored");
+  must(tamper.headers.get("Location") === "/profile", "a tampered next cookie is ignored");
 }
 
 // ---- submitter sign-in asks only who you are
 calls.length = 0;
 const carol = await signIn("u-carol", "user");
 must(carol.loc.searchParams.get("scope") === "read:user", `submitter sign-in asks for read:user only, got ${carol.loc.searchParams.get("scope")}`);
-must(carol.cb.headers.get("Location") === "/submit" && !calls.some((c) => c.url.includes("/user/memberships") || c.url.includes("/user/teams")), "submitter sign-in never reads org membership or teams");
+must(carol.cb.headers.get("Location") === "/profile" && !calls.some((c) => c.url.includes("/user/memberships") || c.url.includes("/user/teams")), "submitter sign-in never reads org membership or teams");
 must((await verifyToken(carol.session["__Host-praxikit-session"], SECRET)).role === "user", "a submitter has the user role");
 must(carol.loc.searchParams.get("state").startsWith("user."), "the sign-in mode travels in the state");
 const formPage = await (await note(await call("/submit", { cookies: carol.session }))).text();
-must(formPage.includes('name="url"') && formPage.includes('maxlength="200"') && formPage.includes("@carol") && !formPage.includes("maintainer"), "a signed-in submitter sees the form, as a plain user");
+must(formPage.includes('name="url"') && formPage.includes('maxlength="200"') && !formPage.includes("maintainer"), "a signed-in submitter sees the form, as a plain user");
 
 // ---- submitting
 calls.length = 0;
 let r = await submit(carol.session, "https://github.com/alice/good", "Used it daily, it saves me an hour a week.");
-must(r.status === 303 && r.headers.get("Location") === "/mine?ok=1", `a good submission is accepted, got ${r.status}`);
+must(r.status === 303 && r.headers.get("Location") === "/profile?ok=1", `a good submission is accepted, got ${r.status}`);
 let row = rows()[0];
 must(row.source === "recommended" && row.owner === "alice" && row.submitted_by === "carol" && row.license === "MIT" && row.kind_guess === "plugin" && row.commit_sha === SHA, "someone else's repository is a recommendation, with owner, licence, kind and commit read from GitHub");
 must(row.readme_url === `https://github.com/alice/good/blob/${SHA}/README.md` && row.readme_excerpt.startsWith("A small tool that does things") && !/[<>@]/.test(row.readme_excerpt), "the README link is built by us and the excerpt is plain text");
@@ -251,9 +251,9 @@ for (let i = 1; i <= 5; i++) must((await submit(dave.session, `https://github.co
 
 // ---- my submissions: only my own
 {
-  const mine = await (await note(await call("/mine", { cookies: carol.session }))).text();
-  must(mine.includes(">good<") && mine.includes(">archived<") && !mine.includes(">other<") && !mine.includes(">r1<"), "/mine shows only the signed-in person's submissions");
-  must((await (await call("/mine?ok=1", { cookies: alice.session })).text()).includes("waiting for review"), "the thank-you note shows after submitting");
+  const mine = await (await note(await call("/profile", { cookies: carol.session }))).text();
+  must(mine.includes(">good<") && mine.includes(">archived<") && !mine.includes(">other<") && !mine.includes(">r1<"), "/profile shows only the signed-in person's submissions");
+  must((await (await call("/profile?ok=1", { cookies: alice.session })).text()).includes("waiting for review"), "the thank-you note shows after submitting");
 }
 
 // ---- the admin queue
@@ -277,7 +277,7 @@ must(owner.cb.headers.get("Location") === "/admin", "the maintainer sign-in is u
 // ---- no database yet: closed, not broken
 {
   const e = { ...baseEnv() };
-  must((await call("/submit", { cookies: carol.session, e })).status === 503 && (await call("/mine", { cookies: carol.session, e })).status === 503 && (await call("/submit", { method: "POST", cookies: carol.session, origin: OK, form: { url: "https://github.com/alice/good" }, e })).status === 503, "without a database, submitting is closed with a plain message");
+  must((await call("/submit", { cookies: carol.session, e })).status === 503 && (await call("/profile", { cookies: carol.session, e })).status === 503 && (await call("/submit", { method: "POST", cookies: carol.session, origin: OK, form: { url: "https://github.com/alice/good" }, e })).status === 503, "without a database, submitting is closed with a plain message");
   must((await call("/admin", { cookies: owner.session, e })).status === 200, "without a database, the admin page still works");
 }
 

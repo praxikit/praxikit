@@ -2,42 +2,66 @@
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 export const CSS = `
-:root{color-scheme:light dark;--bg:#fafaf7;--fg:#17201f;--muted:#58645f;--line:#dcdad1;--card:#fff;--accent:#0b6b63;--accent-fg:#fff;--warn:#8a4b0c;--warn-bg:#fbf0e0;--bad:#a3261f}
-@media (prefers-color-scheme:dark){:root{--bg:#0e1514;--fg:#e8f0ee;--muted:#9aaba8;--line:#25332f;--card:#121b1a;--accent:#4fc3b5;--accent-fg:#062320;--warn:#f0a45c;--warn-bg:#2b2114;--bad:#ff8a80}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.wrap{width:min(100% - 32px,960px);margin-inline:auto;padding-block:24px 56px}
-a{color:var(--accent)}h1{font-size:1.7rem;margin:.2rem 0 .8rem}h2{font-size:1.15rem;margin:2rem 0 .6rem}
-.top{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:20px}
-.who{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.who img{width:32px;height:32px;border-radius:50%}
-.muted{color:var(--muted);font-size:.93rem}.badge{font-size:.78rem;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--accent);color:var(--accent-fg)}
-.badge.warn{background:var(--warn-bg);color:var(--warn)}.badge.bad{background:var(--bad);color:#fff}
-.note{background:var(--warn-bg);border-left:3px solid var(--warn);padding:9px 13px;margin:1rem 0}
-.ok{background:var(--card);border-left:3px solid var(--accent);padding:9px 13px;margin:1rem 0}
-.btn,button{font:inherit;font-size:.95rem;padding:8px 16px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);text-decoration:none;cursor:pointer;display:inline-block}
-button.ghost,.btn.ghost{background:transparent;color:var(--accent)}
-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line)}th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);font-size:.93rem;vertical-align:top}th{color:var(--muted);font-weight:600}
-ul.links{padding-left:1.2rem}ul.links li{margin:.35rem 0}
-label{display:block;font-weight:600;margin:1rem 0 .3rem}input[type=text],input[type=url],textarea{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
-textarea{min-height:5rem;resize:vertical}select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}button[disabled]{opacity:.5;cursor:not-allowed}label.check{font-weight:400;display:flex;gap:8px;align-items:center}.hint{font-weight:400;color:var(--muted);font-size:.88rem}
-blockquote{margin:.5rem 0;padding:.4rem 1rem;border-left:3px solid var(--line);color:var(--muted)}
-dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:6px 18px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}
-ul.plain{list-style:none;padding:0;margin:0}.listing{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:10px 14px;margin:10px 0}.listing summary{cursor:pointer}.listing .danger{margin-top:18px;padding-top:6px;border-top:1px dashed var(--line)}
+.app{padding-block:36px 72px}
+.app h1{font-size:clamp(1.6rem,1rem + 1.6vw,2.2rem);margin:0 0 .8rem;max-width:none;letter-spacing:-.01em}
+.app h2{font-size:1.15rem;margin:2rem 0 .6rem}
+.app p{max-width:70ch}
+.app .muted{color:var(--muted);font-size:.93rem}
+.app .badge{font-size:.78rem;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--accent);color:var(--accent-fg)}
+.app .badge.warn{background:var(--warn-bg);color:var(--warn)}.app .badge.bad{background:var(--bad);color:#fff}
+.app .note{background:var(--warn-bg);border-left:3px solid var(--warn);padding:9px 13px;margin:1rem 0}
+.app .ok{background:var(--card);border-left:3px solid var(--accent);padding:9px 13px;margin:1rem 0}
+.app .btn,.app button{font:inherit;font-size:.95rem;padding:8px 16px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);text-decoration:none;cursor:pointer;display:inline-block}
+.app button.ghost,.app .btn.ghost{background:transparent;color:var(--accent)}
+.app button.ghost:hover,.app .btn.ghost:hover{background:var(--accent-bg);filter:none}
+.app button[disabled]{opacity:.5;cursor:not-allowed}
+.app .table-wrap{overflow-x:auto}
+.app table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line)}
+.app th,.app td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);font-size:.93rem;vertical-align:top}
+.app th{color:var(--muted);font-weight:600}
+.app ul.links{padding-left:1.2rem}.app ul.links li{margin:.35rem 0}
+.app label{display:block;font-weight:600;margin:1rem 0 .3rem}
+.app label.check{font-weight:400;display:flex;gap:8px;align-items:center}
+.app input[type=text],.app input[type=url],.app textarea{width:100%;max-width:640px;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
+.app textarea{min-height:5rem;resize:vertical}
+.app select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
+.app .hint{font-weight:400;color:var(--muted);font-size:.88rem}
+.app blockquote{margin:.5rem 0;padding:.4rem 1rem;border-left:3px solid var(--line);color:var(--muted)}
+.app dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:6px 18px}.app dt{color:var(--muted)}.app dd{margin:0;overflow-wrap:anywhere}
+.app ul.plain{list-style:none;padding:0;margin:0}
+.app .listing{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:10px 14px;margin:10px 0}
+.app .listing summary{cursor:pointer}.app .listing .danger{margin-top:18px;padding-top:6px;border-top:1px dashed var(--line)}
+.app .profile-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.app .profile-head img{width:72px;height:72px;border-radius:50%;border:1px solid var(--line)}
+.app .profile-head h1{margin:0}
+.app .cards{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));margin:12px 0}
+.app .cards a{display:block;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:12px 14px;text-decoration:none;color:var(--fg)}
+.app .cards a:hover{border-color:var(--accent)}
+.app .cards strong{display:block}
+.app .danger-zone{border:1px solid var(--bad);border-radius:8px;padding:6px 16px 14px;margin-top:2rem}
 `;
 
 // the stylesheet is cached for an hour, so its address changes whenever its content does
-const hash = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); };
+const hash = (t) => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) >>> 0; return h.toString(36); };
 export const CSS_V = hash(CSS);
 
-export const page = (title, body) => `<!doctype html>
+// The frame is the site's own page (app-shell.html, built by site/build.mjs): same header, account menu and footer.
+// If it cannot be read, a plain page is used so the app still works.
+let SHELL = "";
+export const setShell = (text) => { SHELL = typeof text === "string" && text.includes("<!--@@BODY@@-->") && text.includes("@@TITLE@@") ? text : ""; };
+const HEAD_EXTRA = `<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/app.css?v=${CSS_V}">`;
+export const page = (title, body) => SHELL
+  ? SHELL.split("@@TITLE@@").join(esc(title)).replace("<!--@@HEAD@@-->", () => HEAD_EXTRA).replace("<!--@@BODY@@-->", () => `<div class="wrap app">${body}</div>`)
+  : `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>${esc(title)}</title><link rel="stylesheet" href="/assets/admin.css?v=${CSS_V}"></head>
-<body><div class="wrap">${body}</div></body></html>`;
+<title>${esc(title)}</title>${HEAD_EXTRA}<link rel="stylesheet" href="/style.css"></head>
+<body><main class="wrap app"><p><a href="/">Praxikit</a></p>${body}</main></body></html>`;
 
-const logoutForm = '<form method="post" action="/auth/logout"><button class="ghost" type="submit">Sign out</button></form>';
-export const nav = (s) => `<div class="top"><strong>Praxikit</strong><div class="who">${s ? `<img src="https://avatars.githubusercontent.com/u/${Number(s.id)}?s=64" alt="" width="32" height="32"><span>@${esc(s.sub)}${s.role === "admin" ? ' <span class="badge">maintainer</span>' : ""}</span>${logoutForm}` : ""}</div></div>`;
+// the site header already shows who is signed in, so pages no longer draw their own bar
+export const nav = () => "";
 
 export const signInPage = (note = "", opts = {}) => page("Sign in — Praxikit", `
-<div class="top"><strong>Praxikit</strong></div>
+
 <h1>${opts.what === "collection" ? "Sign in to keep a collection" : opts.submit ? "Sign in to submit a kit" : "Sign in"}</h1>
 ${opts.submit
     ? `<p>${opts.what === "collection" ? "Sign in with GitHub to save kits to a private collection and submit your own." : "Sign in with GitHub, then paste the link to a public repository."} We ask GitHub only who you are (your username); nothing else is read or kept. <a href="/privacy">Privacy</a>.</p>
@@ -47,7 +71,7 @@ ${note ? `<p class="note">${esc(note)}</p>` : ""}<p><a class="btn" href="/auth/l
 ${note ? `<p class="note">${esc(note)}</p>` : ""}<p><a class="btn" href="/auth/login">Sign in with GitHub</a></p>
 <p class="muted">The app asks GitHub who you are and which organisation and teams you belong to. It does not keep your GitHub token. To submit a kit, <a href="/submit">go here</a>.</p>`}`);
 
-export const messagePage = (title, text, withHome = true) => page(title, `<div class="top"><strong>Praxikit</strong></div><h1>${esc(title)}</h1><p>${esc(text)}</p>${withHome ? '<p><a class="btn ghost" href="/admin">Back</a></p>' : ""}`);
+export const messagePage = (title, text, withHome = true, link = null) => page(title, `<h1>${esc(title)}</h1><p>${esc(text)}</p>${link ? `<p><a class="btn" href="${esc(link.href)}">${esc(link.text)}</a></p>` : ""}${withHome ? '<p><a class="btn ghost" href="/admin">Back</a></p>' : ""}`);
 
 const REPO_LINK = (repo, path) => `https://github.com/${repo}${path}`;
 const SRC = { community: "Community (by its author)", recommended: "Recommended (by someone else)" };
@@ -125,10 +149,11 @@ const PUBLISH = {
 };
 const mineStatus = (r) => (r.status === "pending" ? "Waiting for review" : r.status === "rejected" ? `Not listed${r.decision_note ? `: ${r.decision_note}` : ""}` : r.status === "approved" ? (r.publish_state === "listed" ? "Listed" : r.publish_state === "blocked" ? "Approved, but the automatic scan or publish step stopped it. A maintainer will look." : "Approved, being published") : r.status);
 
-export function minePage({ session, rows, flash }) {
-  const body = rows.length
+export const mineTable = (rows) => rows.length
     ? `<table><thead><tr><th>Repository</th><th>As</th><th>Status</th><th>Submitted</th></tr></thead><tbody>${rows.map((r) => `<tr><td><a href="${esc(r.repo_url)}" rel="noopener noreferrer">${esc(r.name)}</a></td><td>${esc(r.source)}</td><td>${esc(mineStatus(r))}</td><td>${esc(String(r.created_at).slice(0, 10))}</td></tr>`).join("")}</tbody></table>`
     : '<p class="muted">You have not submitted anything yet.</p>';
+export function minePage({ session, rows, flash }) {
+  const body = mineTable(rows);
   return page("My submissions — Praxikit", `${nav(session)}<h1>My submissions</h1>${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${body}<p><a class="btn" href="/submit">Submit another</a></p>`);
 }
 

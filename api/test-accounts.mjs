@@ -75,8 +75,8 @@ must(cleanLabel("  Work & <b>Plans</b>  ") === "Work & b Plans b" && cleanLabel(
 const so = await note(await call("/collection"));
 must(so.status === 200 && (await so.clone().text()).includes("Sign in with GitHub"), "signed out, My collection asks to sign in");
 must((await call("/collection/save", { method: "POST", origin: OK, form: { item: "k/keel/" } })).status === 401, "saving needs a sign-in");
-const priv = await (await note(await call("/privacy"))).text();
-must(priv.includes("read:user") && priv.includes("/account/export") && priv.includes("delete"), "the privacy page is public and says what is kept");
+const priv = await note(await call("/privacy"));
+must(priv.status === 301 && loc(priv) === "/privacy/", "the privacy text lives on the site; the app only points to it");
 
 // ---- the Save link: sign in, land on the confirmation, then save
 const link = await (await note(await call("/collection/save?item=" + encodeURIComponent("k/keel/")))).text();
@@ -90,7 +90,7 @@ must(!JSON.stringify(rows("SELECT * FROM users")).includes(TOKEN) && !JSON.strin
 const tamper = await signIn("u-dave", "");
 const tamperCb = await note(await call("/auth/callback?code=u-dave&state=x", { cookies: { "__Host-praxikit-save": encodeURIComponent("https://evil.example/o/r") } }));
 must(tamperCb.status === 400, "a callback without a matching state is refused");
-must(loc(tamper.cb) === "/submit", "without a kit to save, sign-in goes to the submit page as before");
+must(loc(tamper.cb) === "/profile", "without a kit to save, sign-in goes to the profile");
 const conf = await (await note(await call("/collection/save?item=" + encodeURIComponent("k/keel/"), { cookies: carol.session }))).text();
 must(conf.includes("keel") && conf.includes('action="/collection/save"') && conf.includes("Private") === false && conf.includes("private"), "the confirmation shows the kit and saves with a form post, never a link");
 
@@ -106,7 +106,11 @@ siteDown = true; must(loc(await save(carol.session, "k/keel/")).endsWith("m=down
 
 // ---- the collection page
 const page = await (await note(await call("/collection", { cookies: carol.session }))).text();
-must(page.includes("Playwright MCP") && page.includes("Work") && page.includes("keel") && page.includes("Download my data") && page.includes("Delete my account"), "the collection page lists saved kits by group with the account controls");
+must(page.includes("Playwright MCP") && page.includes("Work") && page.includes("keel") && page.includes("/settings") && !page.includes("Delete my account"), "the collection page lists saved kits by group and links to settings");
+const settings = await (await note(await call("/settings", { cookies: carol.session }))).text();
+must(settings.includes("Download my data") && settings.includes("Delete my account") && settings.includes('action="/auth/logout"'), "settings has the data download, sign-out and account deletion");
+const profile = await (await note(await call("/profile", { cookies: carol.session }))).text();
+must(profile.includes("@carol") && profile.includes("My collection") && profile.includes("My submissions") && !profile.includes("/admin"), "the profile shows the person, their collection and submissions, and no admin link for a member");
 await save(carol.session, "https://github.com/o/evil", "<b>x</b>");
 const evil = await (await note(await call("/collection", { cookies: carol.session }))).text();
 must(!evil.includes("<script>alert(1)") && evil.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "hostile catalogue text is shown escaped");

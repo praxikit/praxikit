@@ -24,9 +24,15 @@ const ROOT = arg("--root", join(here, ".."));
 const OUT = arg("--out", join(ROOT, "site", "dist"));
 const REPO = "https://github.com/praxikit/praxikit";
 // site/config.json: { "app": "https://..." } is the address of the admin app that takes submissions
-const CONFIG = (() => { try { return JSON.parse(readFileSync(join(ROOT, "site", "config.json"), "utf8")); } catch { return {}; } })();
+const CONFIG = (() => { try { return JSON.parse(readFileSync(arg("--config", join(ROOT, "site", "config.json")), "utf8")); } catch { return {}; } })();
 const APP = typeof CONFIG.app === "string" && /^https:\/\/[A-Za-z0-9.-]+(:\d+)?$/.test(CONFIG.app.replace(/\/+$/, "")) ? CONFIG.app.replace(/\/+$/, "") : "";
-const HOME_URL = "https://praxikit.github.io/praxikit/";
+// site/config.json "site" is the public address of the site (with the app on the same address, accounts live there too)
+const SITE_OK = typeof CONFIG.site === "string" && /^https:\/\/[A-Za-z0-9.-]+(:\d+)?\/?$/.test(CONFIG.site) ? CONFIG.site.replace(/\/+$/, "") + "/" : "";
+const HOME_URL = SITE_OK || "https://praxikit.github.io/praxikit/";
+// --mirror <address>: every page becomes a redirect to the same page there. Used for the old github.io address, which keeps
+// serving versions.json and the feed because installed kits check those.
+const MIRROR = arg("--mirror", "");
+const hashStr = (t) => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) >>> 0; return h.toString(36); };
 
 const KIND_LABEL = { plugin: "Plugin", skill: "Skill", agent: "Agent", hook: "Hook", mcp: "MCP config", template: "Template", adapter: "Adapter" };
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -264,6 +270,30 @@ const SITE_JS = `
       }
     } catch (e) {}
   });
+  // ---- account: only where the site and the app share one address; the page works the same without it
+  var appOrigin = document.body.getAttribute("data-app") || "";
+  var slot = document.getElementById("acct");
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text) n.textContent = text; return n; }
+  function link(href, text) { var a = el("a", "", text); a.href = href; return a; }
+  if (slot && appOrigin && location.origin === appOrigin) {
+    fetch("/api/me", { credentials: "same-origin", headers: { Accept: "application/json" } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (me) {
+      if (!me || typeof me.login !== "string") return;
+      var nav = document.querySelector("header nav"), admin = me.role === "admin";
+      if (admin && nav) { var a = link("/admin", "Admin"); a.className = "admin-tab"; if (location.pathname.indexOf("/admin") === 0) a.setAttribute("aria-current", "page"); nav.insertBefore(a, nav.firstChild); }
+      var d = el("details", "menu"), sum = el("summary");
+      if (Number.isInteger(me.id)) { var img = el("img"); img.src = "https://avatars.githubusercontent.com/u/" + me.id + "?s=64"; img.alt = ""; img.width = 28; img.height = 28; sum.appendChild(img); }
+      sum.appendChild(el("span", "", me.login)); sum.setAttribute("aria-label", "Account menu for " + me.login);
+      var list = el("div", "menu-list");
+      list.appendChild(link("/profile", "Profile")); list.appendChild(link("/collection", "My collection")); list.appendChild(link("/settings", "Settings"));
+      if (admin) list.appendChild(link("/admin", "Admin"));
+      var f = el("form"); f.method = "post"; f.action = "/auth/logout"; var b = el("button", "", "Sign out"); b.type = "submit"; f.appendChild(b); list.appendChild(f);
+      d.appendChild(sum); d.appendChild(list);
+      slot.textContent = ""; slot.appendChild(d);
+      document.addEventListener("click", function (e) { if (!d.contains(e.target)) d.removeAttribute("open"); });
+      document.addEventListener("keydown", function (e) { if (e.key === "Escape") d.removeAttribute("open"); });
+    }).catch(function () {});
+  }
+
   var tgl = document.getElementById("theme");
   if (tgl) tgl.addEventListener("click", function () {
     var cur = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
@@ -386,9 +416,9 @@ const SITE_JS = `
 })();
 `;
 
-const page = ({ title, depth, body, description, canonical, home = false, current = "", head = "" }) => {
+const page = ({ title, depth, body, description, canonical, home = false, current = "", head = "", abs = false }) => {
   const cur = (id) => (id === current ? ' aria-current="page"' : "");
-  const up = depth ? "../".repeat(depth) : "./";
+  const up = abs ? "/" : depth ? "../".repeat(depth) : "./";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -406,21 +436,22 @@ ${canonical ? `<link rel="canonical" href="${esc(canonical)}">\n` : ""}<link rel
 ${head}
 <link rel="icon" href="${FAVICON}">
 <link rel="stylesheet" href="${up}style.css">
-<script data-site>${THEME_BOOT}</script>
+<script src="${up}boot.js?v=${hashStr(THEME_BOOT)}" data-site></script>
 </head>
-<body${home ? " data-home" : ""} data-root="${up}">
+<body${home ? " data-home" : ""} data-root="${up}" data-app="${esc(APP)}">
 <a class="skip" href="#main">Skip to content</a>
 <header class="top"><div class="wrap bar">
 <a class="brand" href="${up}" aria-label="Praxikit home">${LOGO}<span>Praxikit</span></a>
 <form class="site-search" role="search" action="${up}search/" method="get"><label class="vh" for="site-q">Search the catalogue</label><input id="site-q" name="q" type="search" placeholder="Search  ( / )" autocomplete="off" spellcheck="false" maxlength="100"></form>
-<nav aria-label="Main"><a href="${up}kits/"${cur("kits")}>Kits</a><a href="${up}updates/"${cur("updates")}>Updates</a><a href="${up}picks/"${cur("picks")}>Picks</a><a href="${up}submit/"${cur("submit")}>Submit</a>${APP ? `<a href="${esc(APP)}/collection" rel="noopener">My collection</a>` : ""}<a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
+<nav aria-label="Main"><a href="${up}kits/"${cur("kits")}>Kits</a><a href="${up}updates/"${cur("updates")}>Updates</a><a href="${up}picks/"${cur("picks")}>Picks</a><a href="${up}submit/"${cur("submit")}>Submit</a><a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
 <button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg></button></nav>
+<div class="acct" id="acct">${APP ? `<a class="signin" href="${esc(APP)}/auth/login?mode=user">Sign in</a>` : ""}</div>
 </div></header>
 <main id="main">
 ${body}
 </main>
 <footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>Kits for AI coding agents. MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a></div></div></footer>
-<script data-site>${SITE_JS}</script>
+<script src="${up}site.js?v=${hashStr(SITE_JS)}" data-site></script>
 </body>
 </html>
 `;
@@ -728,7 +759,9 @@ function privacyPage() {
 <p>It is a static site on GitHub Pages. It sets no cookies, runs no analytics and loads nothing from other sites. GitHub, which hosts it, keeps its own server logs.</p>
 <h2 class="sub">If you sign in</h2>
 <p>Signing in happens in a separate app. It asks GitHub for your username only (the <code>read:user</code> permission), does not keep your GitHub access token, and stores your username, your numeric GitHub id, the dates you signed in, your saved kits and group names, and your submissions. It uses one sign-in cookie that lasts a few hours. Nothing is sold or shared, and no page shows your collection to anyone else.</p>
-<p>You can download your data and delete your account at any time from <em>My collection</em>. Deleting removes your collection, waiting submissions and account record; decided submissions stay in the catalogue's history without your name. The app's own <a href="${APP ? esc(APP) + "/privacy" : "#"}">privacy page</a> has the full list.</p>
+<p>You can download your data and delete your account at any time from <em>My collection</em>. Deleting removes your collection, waiting submissions and account record; decided submissions stay in the catalogue's history without your name. Nothing in the app shows your collection to anyone else. Maintainers see your submissions and your username next to them. The person who runs the app can technically read the database, because that is how a database works; they do not look through collections.</p>
+<h2 class="sub">What exactly is kept</h2>
+<ul><li>Your GitHub username and numeric id, the date you first signed in and the date you last did.</li><li>The kits you saved and the group names you typed (up to 300 items; up to 40 can be added an hour).</li><li>Your submissions: the repository link, what GitHub says about it, the checks and the maintainers' decision.</li><li>One sign-in cookie that lasts a few hours. No advertising or analytics cookies; nothing is sold or shared.</li></ul>
 <h2 class="sub">Questions</h2>
 <p>Open an issue in the <a href="${esc(REPO)}/issues" rel="noopener noreferrer">repository</a>.</p></div>`;
   return page({ title: "Privacy — Praxikit", depth: 1, body, canonical: `${HOME_URL}privacy/`, description: "What Praxikit keeps about you: nothing on the website; a GitHub username and your collection if you sign in." });
@@ -823,7 +856,13 @@ function buildSearchIndex(kits, listings, tagMap) {
 }
 
 // ---------- write ----------
-const write = (rel, text) => { const p = join(OUT, rel); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, text); };
+const stub = (rel) => {
+  const path = rel === "404.html" ? "" : rel.replace(/index\.html$/, "");
+  const to = MIRROR.replace(/\/+$/, "") + "/" + path;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Praxikit has moved</title><meta name="robots" content="noindex"><link rel="canonical" href="${esc(to)}"><meta http-equiv="refresh" content="0; url=${esc(to)}"></head><body><p>Praxikit has moved to <a href="${esc(to)}">${esc(to)}</a>.</p></body></html>\n`;
+};
+const pages = []; // every public page, for the sitemap
+const write = (rel, text) => { const p = join(OUT, rel); mkdirSync(dirname(p), { recursive: true }); if (rel.endsWith(".html")) pages.push(rel); writeFileSync(p, MIRROR && rel.endsWith(".html") ? stub(rel) : text); };
 
 const kits = loadKits();
 const listings = loadListings();
@@ -854,5 +893,15 @@ for (const c of new Set(kits.flatMap((k) => k.collections))) write(`c/${slug(c)}
 for (const k of kits) write(`k/${k.name}/index.html`, kitPage(k));
 write("logo.svg", LOGO_SVG);
 write("versions.json", JSON.stringify(Object.fromEntries(kits.map((k) => [k.name, { version: k.version, kind: k.kind }])), null, 2) + "\n");
+write("boot.js", THEME_BOOT);
+write("site.js", SITE_JS);
+// the frame the app puts its own pages in, so a signed-in page has the same header and footer as the rest of the site
+if (!MIRROR) write("app-shell.html", page({ title: "@@TITLE@@", depth: 0, abs: true, body: "<!--@@BODY@@-->", head: "<!--@@HEAD@@-->", description: "Praxikit account" }));
+if (!MIRROR && SITE_OK) {
+  const skip = new Set(["404.html", "app-shell.html", "recommended/index.html", "search/index.html"]);
+  const urls = pages.filter((p) => !skip.has(p)).map((p) => HOME_URL + p.replace(/index\.html$/, "")).sort();
+  write("sitemap.xml", ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">', ...urls.map((u) => `<url><loc>${esc(u)}</loc></url>`), "</urlset>", ""].join("\n"));
+  write("robots.txt", ["User-agent: *", "Allow: /", "Disallow: /admin", "Disallow: /auth/", "Disallow: /api/", "Disallow: /collection", "Disallow: /account/", "Disallow: /profile", "Disallow: /settings", "Disallow: /app-shell.html", `Sitemap: ${HOME_URL}sitemap.xml`, ""].join("\n"));
+}
 write(".nojekyll", "");
 console.log(`built ${kits.length} kit(s), ${listings.length} listing(s) (${picks.length} picks) -> ${OUT}`);

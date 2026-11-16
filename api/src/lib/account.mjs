@@ -2,7 +2,7 @@
  * Accounts and private collections: what can be saved, how a label is cleaned, and the pages.
  * What can be saved is decided by the live public catalogue (the site's search-index.json), never by the form.
  */
-import { esc, page, nav } from "./html.mjs";
+import { esc, page, nav, mineTable } from "./html.mjs";
 import { parseRepo } from "./repo.mjs";
 
 export const LIMITS = { total: 300, perHour: 40, label: 24 };
@@ -58,7 +58,7 @@ ${error ? `<p class="note">${esc(error)}</p>` : ""}
 <form method="post" action="/collection/save"><input type="hidden" name="item" value="${esc(item)}">
 <label for="label">Group <span class="hint">(optional, your own name for a set, such as "planning" or "work"; up to 24 characters)</span></label><input id="label" type="text" name="label" maxlength="24" value="${esc(label)}">
 <p><button type="submit">${saved ? "Update" : "Save"}</button> <a class="btn ghost" href="/collection">My collection</a></p></form>
-<p class="muted">Your collection is private: no page shows it to anyone else. <a href="/privacy">What we keep about you</a>.</p>`);
+<p class="muted">Your collection is private: no page shows it to anyone else. <a href="/privacy/">What we keep about you</a>.</p>`);
 }
 
 export function collectionPage({ session, env, rows, catalogue, flash, user }) {
@@ -77,31 +77,31 @@ ${info ? `<p>${esc(info.desc)}</p>` : ""}
 ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
 ${catalogue ? "" : '<p class="note">The catalogue could not be read just now, so names are not shown.</p>'}
 ${rows.length ? order.map((g) => `<h2>${g ? esc(g) : "Ungrouped"}</h2><ul class="plain">${groups.get(g).map(row).join("")}</ul>`).join("") : '<p class="muted">Nothing saved yet.</p>'}
-<h2>Your account</h2>
-<p class="muted">Signed in as @${esc(session.sub)}${user ? `, since ${esc(String(user.created_at).slice(0, 10))}` : ""}. <a href="/privacy">What we keep about you</a>.</p>
-<p><a class="btn ghost" href="/account/export">Download my data</a></p>
-<form method="post" action="/account/delete" class="listing danger"><strong>Delete my account</strong>
+<p class="muted"><a href="/settings">Account settings</a> · <a href="/privacy/">Privacy</a></p>`);
+}
+
+export function profilePage({ session, rows, count, user, flash }) {
+  const admin = session.role === "admin";
+  return page("Profile — Praxikit", `<div class="profile-head"><img src="https://avatars.githubusercontent.com/u/${Number(session.id)}?s=144" alt="" width="72" height="72"><div><h1>@${esc(session.sub)}</h1>
+<p class="muted">${admin ? '<span class="badge">maintainer</span> ' : ""}Signed in with GitHub${user ? `, member since ${esc(String(user.created_at).slice(0, 10))}` : ""}</p></div></div>
+${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
+<div class="cards"><a href="/collection"><strong>My collection</strong><span class="muted">${count} saved</span></a><a href="/submit"><strong>Submit a kit</strong><span class="muted">Free, reviewed by a person</span></a><a href="/settings"><strong>Settings</strong><span class="muted">Your data and account</span></a>${admin ? '<a href="/admin"><strong>Admin</strong><span class="muted">Review and manage the catalogue</span></a>' : ""}</div>
+<h2>My submissions</h2><div class="table-wrap">${mineTable(rows)}</div>`);
+}
+
+export function settingsPage({ session, user, flash }) {
+  return page("Settings — Praxikit", `<h1>Settings</h1>
+${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
+<h2>Account</h2>
+<dl><dt>GitHub username</dt><dd>@${esc(session.sub)}</dd><dt>GitHub id</dt><dd>${Number(session.id)}</dd><dt>Signed in with</dt><dd>GitHub (username only; no token is kept)</dd><dt>Role</dt><dd>${session.role === "admin" ? "Maintainer" : "Member"}</dd>${user ? `<dt>Member since</dt><dd>${esc(String(user.created_at).slice(0, 10))}</dd><dt>Last sign-in</dt><dd>${esc(String(user.last_seen).slice(0, 10))}</dd>` : ""}</dl>
+<p class="muted">Your name and photo come from your GitHub profile. To change them, change them on GitHub; they update here the next time you sign in.</p>
+<h2>Your data</h2>
+<p>Download everything the app holds about you: your account record, your collection and your submissions.</p>
+<p><a class="btn ghost" href="/account/export">Download my data</a> <a href="/privacy/">What we keep and why</a></p>
+<h2>Session</h2>
+<form method="post" action="/auth/logout"><button class="ghost" type="submit">Sign out on this device</button></form>
+<form method="post" action="/account/delete" class="danger-zone"><h2>Delete my account</h2>
 <p class="muted">This removes your collection, your waiting submissions and your account record. Submissions that were already decided stay in the catalogue's history without your name. It cannot be undone.</p>
 <label for="confirm">Type your GitHub username (<code>${esc(session.sub)}</code>) to confirm</label><input id="confirm" type="text" name="confirm" autocomplete="off" maxlength="60">
 <p><button type="submit" class="ghost">Delete my account and everything in it</button></p></form>`);
 }
-
-export const privacyPage = (session) => page("Privacy — Praxikit", `${session ? nav(session) : '<div class="top"><strong>Praxikit</strong></div>'}
-<h1>Privacy</h1>
-<p>Praxikit is a small catalogue. You do not need an account to read it. An account is only for submitting a kit or keeping a private collection.</p>
-<h2>What we keep</h2>
-<ul>
-<li><strong>Your GitHub username and numeric id</strong>, the date you first signed in and the date you last did. That is all GitHub tells us: we ask for the <code>read:user</code> permission only, and we do not keep your GitHub access token.</li>
-<li><strong>Your collection:</strong> the kits you saved and the group names you typed.</li>
-<li><strong>Your submissions:</strong> the repository link, what GitHub says about it, the checks, and the maintainers' decision.</li>
-<li><strong>One sign-in cookie</strong>, so you stay signed in for a few hours. There are no advertising or analytics cookies and nothing is sold or shared.</li>
-</ul>
-<h2>Who can see it</h2>
-<p>Nothing in the app shows your collection to anyone else. Maintainers see your submissions and your username next to them. The person who runs the app can technically read the database, because that is how a database works; they do not look through collections.</p>
-<h2>Your controls</h2>
-<ul><li>Download everything we hold about you: <a href="/account/export">/account/export</a> (when signed in).</li>
-<li>Delete your account from the bottom of <a href="/collection">My collection</a>. Your collection, waiting submissions and account record are deleted. Decided submissions stay as the catalogue's record, with your name removed.</li></ul>
-<h2>Limits</h2>
-<p>To keep this fair and cheap to run, a collection holds up to 300 items and up to 40 can be added in an hour.</p>
-<h2>Questions</h2>
-<p>Open an issue in the <a href="https://github.com/praxikit/praxikit/issues" rel="noopener noreferrer">praxikit repository</a>.</p>`);

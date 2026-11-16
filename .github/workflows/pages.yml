@@ -21,7 +21,17 @@ jobs:
         with:
           node-version: 22
       - run: node site/test.mjs
-      - run: node site/build.mjs
+      # Until the repository variable MIRROR_TO is set, this address serves the full site. Once it is set (to the new address,
+      # for example https://praxikit.com), every page here redirects there; versions.json and the feed stay real for installed kits.
+      - name: Build
+        env:
+          MIRROR_TO: ${{ vars.MIRROR_TO }}
+        run: |
+          if [ -n "$MIRROR_TO" ]; then
+            node site/build.mjs --config site/config.worker.json --mirror "$MIRROR_TO"
+          else
+            node site/build.mjs
+          fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

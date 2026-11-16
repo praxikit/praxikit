@@ -149,3 +149,10 @@
 - Download my data, delete my account (needs the username typed), privacy pages on the site and in the app.
 - Needs the owner: migration `api/migrations/0006_accounts.sql`, then `npx wrangler deploy`.
 - Not built, on purpose: public or shareable collections, Google sign-in, an admin view of other people's collections.
+
+## 2026-11-16 — One site, one address (praxikit.com)
+- The Worker now serves the website (Workers static assets, built from `site/` with `site/config.worker.json`) and the account app on one origin. Its pages sit inside the site's own frame (`app-shell.html`), so header, footer and styling are shared.
+- Header: Sign in, or an account menu (Profile, My collection, Settings, Admin for maintainers, Sign out); maintainers also get an **Admin** tab first in the nav. Driven by `/api/me` from `site.js`; scripts are external, so the CSP has no `unsafe-inline`.
+- New pages: `/profile`, `/settings` (data download, sign-out, account deletion). The privacy text lives on the site only. `/mine` redirects to `/profile`; `www` redirects to the main address.
+- Pages mirror: with the repository variable `MIRROR_TO` set, github.io pages redirect to the new address; `versions.json` and the feed stay real. Sitemap and robots.txt are generated from the site address.
+- Go-live steps: `docs/go-live.md`. Not done by me: buying/attaching the domain (done by the owner), OAuth callback change, deploy.

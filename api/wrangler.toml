@@ -1,23 +1,39 @@
-# Praxikit admin API. Deploy from this folder with:  npx wrangler deploy
+# Praxikit: the website and the account app, served from one Worker on one address.
+# Deploy from this folder with:  npx wrangler deploy      (it builds the site first; see [build])
 # Secrets are NOT stored here. Set them with:        npx wrangler secret put GITHUB_CLIENT_SECRET
 #                                                    npx wrangler secret put SESSION_SECRET
 name = "praxikit-admin"
 main = "src/index.mjs"
 compatibility_date = "2026-11-01"
+# The old workers.dev address keeps answering, but sign-in only works on the main address. Switch this off once praxikit.com is verified.
 workers_dev = true
 
+# The main address and its www form (www is redirected to the main one by the Worker). Deploying attaches these and creates the DNS records.
+routes = [
+  { pattern = "praxikit.com", custom_domain = true },
+  { pattern = "www.praxikit.com", custom_domain = true },
+]
+
+# The website: built into ../site/dist-app before every deploy and served as static files; the Worker answers the account and admin pages.
+[build]
+command = "node ../site/build.mjs --config ../site/config.worker.json --out ../site/dist-app"
+
+[assets]
+directory = "../site/dist-app"
+binding = "ASSETS"
+run_worker_first = true
+not_found_handling = "404-page"
+
 [vars]
-# Edit these two after you create the GitHub OAuth App (see README.md). Values starting with REPLACE are treated as unset.
-BASE_URL = "https://praxikit-admin.ratul-arya-roy.workers.dev"
+BASE_URL = "https://praxikit.com"
+SITE_URL = "https://praxikit.com/"
 GITHUB_CLIENT_ID = "Ov23liNkhHqThp3GPNfh"
 # These are the defaults for the Praxikit organisation.
 ORG = "praxikit"
 TEAM = "maintainers"
 REPO = "praxikit/praxikit"
-# The public site, where the app reads the list of kits that can be saved to a collection.
-SITE_URL = "https://praxikit.github.io/praxikit/"
 
-# Phase 2: the submissions database (created with `npx wrangler d1 create praxikit-admin`). The binding must be named DB.
+# The submissions and accounts database (created with `npx wrangler d1 create praxikit-admin`). The binding must be named DB.
 [[d1_databases]]
 binding = "DB"
 database_name = "praxikit-admin"

@@ -19,8 +19,8 @@ import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, fetchListings, prech
 import { storeFor } from "./lib/store.mjs";
 import { parseTags } from "./lib/tags.mjs";
 import { dispatchApprove, dispatchEdit, dispatchRemove, dispatchScan, syncPublishing, syncScans, publishingConfigured } from "./lib/publish.mjs";
-import { cleanItem, cleanLabel, fetchCatalogue, LIMITS, FLASH_ACCOUNT, savePage, collectionPage, privacyPage } from "./lib/account.mjs";
-import { CSS, signInPage, messagePage, listingsPage, adminPage, submitPage, minePage, detailPage, FLASH } from "./lib/html.mjs";
+import { cleanItem, cleanLabel, fetchCatalogue, LIMITS, FLASH_ACCOUNT, savePage, collectionPage, profilePage, settingsPage } from "./lib/account.mjs";
+import { CSS, setShell, signInPage, messagePage, listingsPage, adminPage, submitPage, minePage, detailPage, FLASH } from "./lib/html.mjs";
 
 const SESSION_COOKIE = "__Host-praxikit-session";
 const STATE_COOKIE = "__Host-praxikit-state";
@@ -33,6 +33,36 @@ const STATE_SECONDS = 10 * 60;
 const SUBMISSIONS_PER_DAY = 5, SUBMISSIONS_PER_DAY_MAINTAINER = 30;
 const FRESH_MS = 30 * 60 * 1000; // approving, rejecting and publishing need a sign-in from the last 30 minutes
 const KINDS = ["plugin", "skill", "mcp", "template", "adapter", "agent", "hook"];
+
+// Headers for the static site pages (the app's own pages use HEADERS below). Scripts and styles only from this address.
+const SITE_HEADERS = {
+  "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: https://avatars.githubusercontent.com; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Strict-Transport-Security": "max-age=63072000; includeSubDomains",
+  "Permissions-Policy": "geolocation=(), camera=(), microphone=()",
+};
+// What the app answers itself. Everything else is a page of the site.
+const APP_EXACT = new Set(["/healthz", "/submit", "/mine", "/privacy", "/collection", "/profile", "/settings", "/admin", "/api/me"]);
+const APP_PREFIX = ["/auth/", "/admin/", "/collection/", "/account/", "/assets/"];
+const isAppPath = (p) => APP_EXACT.has(p) || APP_PREFIX.some((x) => p.startsWith(x));
+
+let shellAt = 0;
+/** Reads the site's frame (app-shell.html) so the app's pages look like the rest of the site. Cached for a few minutes. */
+async function loadShell(env, request) {
+  if (!env.ASSETS || Date.now() - shellAt < 5 * 60 * 1000) return;
+  try {
+    const r = await env.ASSETS.fetch(new Request(new URL("/app-shell.html", request.url)));
+    if (r.ok) { setShell(await r.text()); shellAt = Date.now(); }
+  } catch { /* the plain frame is used */ }
+}
+
+async function serveSite(request, env) {
+  const r = await env.ASSETS.fetch(request);
+  const h = new Headers(r.headers);
+  for (const [k, v] of Object.entries(SITE_HEADERS)) h.set(k, v);
+  return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
+}
 
 const HEADERS = {
   "Content-Security-Policy": "default-src 'none'; style-src 'self'; img-src https://avatars.githubusercontent.com; form-action 'self' https://github.com; base-uri 'none'; frame-ancestors 'none'",
@@ -138,11 +168,11 @@ async function submit(request, env, session) {
     const text = oneLine(source === "recommended" && values.why ? values.why : info.excerpt || `${info.name} by ${info.owner}`, 400);
     if (fresh(session) && info.kind && pre.status !== "fail" && publishingConfigured(env) && (await store.approve(newId, { by: session.sub, name: oneLine(info.name, 80), kind: info.kind, text, at: new Date().toISOString(), tags: info.topics.join(",") }))) {
       await startPublish(env, store, { final_tags: info.topics.join(","), id: newId, repo_url: repo.url, source, owner: info.owner, final_name: oneLine(info.name, 80), final_kind: info.kind, final_text: text, decided_by: session.sub });
-      return send("", { status: 303, location: "/mine?ok=direct" });
+      return send("", { status: 303, location: "/profile?ok=direct" });
     }
-    return send("", { status: 303, location: "/mine?ok=held" });
+    return send("", { status: 303, location: "/profile?ok=held" });
   }
-  return send("", { status: 303, location: "/mine?ok=1" });
+  return send("", { status: 303, location: "/profile?ok=1" });
 }
 
 const REMOVE_REASONS = ["malicious", "secret", "licence", "misleading", "unmaintained", "owner-request", "other"];
@@ -191,6 +221,14 @@ async function accountRoutes(request, env, url, path, method) {
     let catalogue = null; try { catalogue = await fetchCatalogue(env); } catch { /* names are not shown; the list still is */ }
     return send(collectionPage({ session: g.s, env, rows: await g.store.collectionOf(g.s.id), catalogue, flash: flashAccount(url), user: await g.store.getUser(g.s.id) }));
   }
+  if (path === "/profile" && method === "GET") {
+    const g = await personGate(request, env, method, { forPage: true }); if (g instanceof Response) return g;
+    return send(profilePage({ session: g.s, rows: await g.store.byUser(g.s.id), count: await g.store.collectionCount(g.s.id), user: await g.store.getUser(g.s.id), flash: { 1: "Thanks. Your submission is waiting for review.", direct: FLASH.direct, held: FLASH.held }[url.searchParams.get("ok")] ?? flashAccount(url) }));
+  }
+  if (path === "/settings" && method === "GET") {
+    const g = await personGate(request, env, method, { forPage: true }); if (g instanceof Response) return g;
+    return send(settingsPage({ session: g.s, user: await g.store.getUser(g.s.id), flash: flashAccount(url) }));
+  }
   if (path === "/collection/save" && method === "GET") {
     const g = await personGate(request, env, method, { forPage: true, item }); if (g instanceof Response) return g;
     if (!item) return send(messagePage("Nothing to save", "That link does not name a kit.", false), { status: 400 });
@@ -235,7 +273,7 @@ async function accountRoutes(request, env, url, path, method) {
   if (path === "/account/delete" && isPost) {
     const g = await personGate(request, env, method); if (g instanceof Response) return g;
     let f; try { f = await request.formData(); } catch { return back("/collection", "bad"); }
-    if (String(f.get("confirm") ?? "").trim().toLowerCase() !== g.s.sub.toLowerCase()) return back("/collection", "confirm");
+    if (String(f.get("confirm") ?? "").trim().toLowerCase() !== g.s.sub.toLowerCase()) return back("/settings", "confirm");
     await g.store.deleteAccount(g.s.id);
     return send(messagePage("Account deleted", "Your collection, your waiting submissions and your account record are gone. Decided submissions stay in the catalogue's history without your name. You are signed out.", false), { cookies: [cookie(SESSION_COOKIE, "", { maxAge: 0 })] });
   }
@@ -309,13 +347,20 @@ async function route(request, env) {
   const path = url.pathname;
   const method = request.method;
 
+  // www goes to the main address, so cookies and links never split between two names
+  if (url.hostname.startsWith("www.") && env.BASE_URL) return send("", { status: 301, location: new URL(url.pathname + url.search, env.BASE_URL).href });
+  if (env.ASSETS && !isAppPath(path)) return serveSite(request, env);
+  await loadShell(env, request);
+  if (path === "/privacy") return send("", { status: 301, location: "/privacy/" });
+  if (path === "/mine") return send("", { status: 302, location: "/profile" + url.search });
+
   if (path === "/healthz") return send("ok", { type: "text/plain; charset=utf-8" });
-  if (path === "/assets/admin.css") return send(CSS, { type: "text/css; charset=utf-8", cache: "public, max-age=3600" });
+  if (path === "/assets/app.css" || path === "/assets/admin.css") return send(CSS, { type: "text/css; charset=utf-8", cache: "public, max-age=3600" });
 
   const problem = configProblem(env);
   if (problem) return send(messagePage("Not configured", "This admin app is missing configuration. The owner needs to finish the setup.", false), { status: 503 });
 
-  if (path === "/") return send("", { status: 302, location: "/admin" });
+  if (path === "/" && !env.ASSETS) return send("", { status: 302, location: "/admin" });
 
   if (path === "/auth/login" && method === "GET") {
     // "user" asks GitHub only who you are; the default, "admin", also reads org and team membership
@@ -346,19 +391,19 @@ async function route(request, env) {
     const savedItem = mode === "user" ? cleanItem(safeDecode(parseCookies(request.headers.get("Cookie"))[SAVE_COOKIE])) : "";
     const store0 = storeFor(env);
     if (store0) { try { await store0.touchUser(user.id, user.login, new Date().toISOString()); } catch { /* the account record is a convenience; signing in still works */ } }
-    const where = mode === "user" ? (savedItem ? `/collection/save?item=${encodeURIComponent(savedItem)}` : carried ? `/submit?url=${encodeURIComponent(carried)}` : "/submit") : "/admin";
+    const where = mode === "user" ? (savedItem ? `/collection/save?item=${encodeURIComponent(savedItem)}` : carried ? `/submit?url=${encodeURIComponent(carried)}` : "/profile") : "/admin";
     return send("", { status: 302, location: where, cookies: [clearState, cookie(NEXT_COOKIE, "", { maxAge: 0 }), cookie(SAVE_COOKIE, "", { maxAge: 0 }), cookie(SESSION_COOKIE, session, { maxAge: SESSION_SECONDS })] });
   }
 
   if (path === "/auth/logout" && method === "POST") {
     if (!sameOrigin(request, env)) return send(messagePage("Refused", "That request did not come from this site."), { status: 403 });
-    return send("", { status: 302, location: "/admin", cookies: [cookie(SESSION_COOKIE, "", { maxAge: 0 })] });
+    return send("", { status: 302, location: "/", cookies: [cookie(SESSION_COOKIE, "", { maxAge: 0 })] });
   }
 
   if (path === "/api/me" && method === "GET") {
     const s = await sessionOf(request, env);
     if (!s) return send(JSON.stringify({ error: "not signed in" }), { status: 401, type: "application/json" });
-    return send(JSON.stringify({ login: s.sub, role: s.role }), { type: "application/json" });
+    return send(JSON.stringify({ login: s.sub, id: s.id, role: s.role }), { type: "application/json" });
   }
 
   if (path === "/submit") {
@@ -372,24 +417,16 @@ async function route(request, env) {
     if (method === "POST") return s ? submit(request, env, s) : send(signInPage("Sign in first, then submit again.", { submit: true }), { status: 401 });
   }
 
-  if (path === "/privacy" && method === "GET") return send(privacyPage(await sessionOf(request, env)));
 
-  if (path === "/collection" || path === "/collection/save" || path === "/collection/remove" || path === "/account/export" || path === "/account/delete") {
+  if (path === "/collection" || path === "/profile" || path === "/settings" || path === "/collection/save" || path === "/collection/remove" || path === "/account/export" || path === "/account/delete") {
     return accountRoutes(request, env, url, path, method);
   }
 
-  if (path === "/mine" && method === "GET") {
-    const s = await sessionOf(request, env);
-    if (!s) return send(signInPage("", { submit: true }));
-    const store = storeFor(env);
-    if (!store) return send(messagePage("Submissions are not open yet", "This app has no database connected yet.", false), { status: 503 });
-    return send(minePage({ session: s, rows: await store.byUser(s.id), flash: { 1: "Thanks. Your submission is waiting for review.", direct: FLASH.direct, held: FLASH.held }[url.searchParams.get("ok")] ?? "" }));
-  }
 
   if (path === "/admin" && method === "GET") {
     const s = await sessionOf(request, env);
     if (!s) return send(signInPage());
-    if (s.role !== "admin") return send(messagePage("No access", `You are signed in as @${s.sub}, but only owners of ${env.ORG} and members of ${env.ORG}/${env.TEAM} can maintain the catalogue. Ask an owner to add you to the team, then sign in again.`, false).replace("</div></body>", '<form method="post" action="/auth/logout"><button class="ghost" type="submit">Sign out</button></form></div></body>'), { status: 403 });
+    if (s.role !== "admin") return send(messagePage("No access", `You are signed in as @${s.sub}, but only owners of ${env.ORG} and members of ${env.ORG}/${env.TEAM} can maintain the catalogue. If you are one of them, sign in again with organisation access. Ask an owner to add you to the team, then sign in again.`, false).replace("</div></body>", '<form method="post" action="/auth/logout"><button class="ghost" type="submit">Sign out</button></form></div></body>'), { status: 403 });
     let queue = [], queueError = "", subs = null;
     try { queue = await listPending(env); } catch { queueError = "The waiting list could not be loaded from GitHub just now. Reload in a minute."; }
     const store = storeFor(env);

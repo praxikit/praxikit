@@ -37,11 +37,11 @@ const must = (cond, msg) => { if (!cond) failures.push(msg); };
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
-must(htmlFiles.length === 22, `expected home, 404, kits, 4 type pages, updates, picks, old recommended redirect, submit, policy, 2 collections, 4 kit pages, tags index, 1 tag page, search, privacy = 22 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 23, `expected home, 404, kits, 4 type pages, updates, picks, old recommended redirect, submit, policy, 2 collections, 4 kit pages, tags index, 1 tag page, search, privacy, app frame = 23 html files, got ${htmlFiles.length}`);
 for (const f of htmlFiles) {
   const h = readFileSync(f, "utf8");
   // drop only our own inline scripts (marked data-site); any other <script> is a failure
-  const stripped = h.replace(/<script data-site>[\s\S]*?<\/script>/g, "");
+  const stripped = h.replace(/<script src="[^"]*" data-site><\/script>/g, "");
   must(!/<script/i.test(stripped), `unexpected <script> in ${f}`);
   must(!/<img src=x/.test(h), `raw <img> payload in ${f}`);
   const noValues = stripped.replace(/="[^"]*"/g, '=""'); // attribute values are inert text; look at attribute names only
@@ -76,7 +76,7 @@ const sub = readFileSync(join(out, "submit/index.html"), "utf8");
 must(sub.includes("template=suggest-kit.yml") && sub.includes("template=recommend.yml"), "submit page should open the issue forms");
 // routes: the home page shows a few kits and links on to pages instead of holding everything
 must(idx.includes('href="kits/"') && idx.includes('href="kits/plugins/"') && idx.includes('href="kits/skills/"') && idx.includes('href="kits/mcp/"') && idx.includes('href="kits/other/"'), "home must link to the kits page and each type page");
-must(idx.includes('href="updates/"') && idx.includes('href="picks/"') && idx.includes('href="submit/"') && idx.includes("<body data-home data-root=\"./\">"), "home must link to updates, picks and submit");
+must(idx.includes('href="updates/"') && idx.includes('href="picks/"') && idx.includes('href="submit/"') && idx.includes("<body data-home data-root=\"./\" data-app=\"\">"), "home must link to updates, picks and submit");
 must((idx.match(/<li class="card[ "]/g) ?? []).length <= 3 + 3, "home should show at most three kits (and three picks)");
 const pol = readFileSync(join(out, "policy/index.html"), "utf8");
 must(pol.includes("security/advisories/new") && pol.includes("template=report-listing.yml") && pol.includes("docs/removals.md") && pol.includes("not a safety guarantee") && pol.includes("one maintainer"), "policy page needs the private channel, the report form, the removal log and honest limits");
@@ -121,7 +121,7 @@ must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes("Vi
   must(readFileSync(join(out, "kits", "index.html"), "utf8").includes("Browse by tag"), "the kits page offers tags");
   const index = JSON.parse(readFileSync(join(out, "search-index.json"), "utf8"));
   must(Array.isArray(index) && index.length > 0 && index.every((e) => typeof e.t === "string" && typeof e.u === "string" && (!/^[a-z]+:/.test(e.u) || e.u.startsWith("https://github.com/"))), "the search index has only relative or github.com links");
-  const js = readFileSync(join(out, "index.html"), "utf8");
+  const js = readFileSync(join(out, "site.js"), "utf8");
   const a = js.indexOf("/*search-start*/"), b = js.indexOf("/*search-end*/");
   must(a > 0 && b > a, "searchIndex markers are present");
   const searchIndex = new Function(js.slice(a, b) + "; return searchIndex;")();
@@ -141,7 +141,7 @@ must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes("Vi
   execFileSync("node", [join(here, "build.mjs"), "--root", root, "--out", out3], { stdio: "pipe" });
   const kitsHtml = readFileSync(join(out3, "kits", "index.html"), "utf8");
   must(kitsHtml.includes('href="https://app.example.dev/collection/save?item=k%2Fa%2F"') && kitsHtml.includes('href="https://app.example.dev/collection/save?item=https%3A%2F%2Fgithub.com%2Fo%2Frec"'), "each card has a Save link to the app, with the item encoded");
-  must(kitsHtml.includes('href="https://app.example.dev/collection"') && readFileSync(join(out3, "privacy", "index.html"), "utf8").includes("https://app.example.dev/privacy"), "the nav links to My collection and the privacy page to the app's");
+  must(kitsHtml.includes('data-app="https://app.example.dev"') && kitsHtml.includes('id="acct"') && kitsHtml.includes('href="https://app.example.dev/auth/login?mode=user"'), "the header has a sign-in link to the app and the account slot the script fills");
   must(!kitsHtml.split('href="https://app.example.dev').slice(1).some((x) => /^[^"]*[<>' ]/.test(x)), "no app link contains markup");
   put("site/config.json", JSON.stringify({ app: "javascript:alert(1)" }));
   const out4 = join(root, "out4");
