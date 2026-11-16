@@ -37,7 +37,7 @@ const must = (cond, msg) => { if (!cond) failures.push(msg); };
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
-must(htmlFiles.length === 23, `expected home, 404, kits, 4 type pages, updates, picks, submit, policy, 2 collections, 4 kit pages, tags index, 1 tag page, search, privacy, about, app frame = 23 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 25, `expected the 23 earlier pages plus a page for each of the 2 listings = 25 html files, got ${htmlFiles.length}`);
 for (const f of htmlFiles) {
   const h = readFileSync(f, "utf8");
   // drop only our own inline scripts (marked data-site); any other <script> is a failure
@@ -51,15 +51,17 @@ for (const f of htmlFiles) {
 }
 const idx = readFileSync(join(out, "index.html"), "utf8");
 must(idx.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "payload not shown escaped on index");
-must(/href="https:\/\/github\.com\/o\/rec" rel="noopener noreferrer"/.test(idx), "a pick shown on the home page is missing rel=noopener noreferrer");
+must(idx.includes('href="./l/o-rec/"') && !idx.includes('href="https://github.com/o/rec"'), "a pick on the home page links to its own page, not straight to GitHub");
 const skillsPage = readFileSync(join(out, "kits/skills/index.html"), "utf8");
-must(/href="https:\/\/github\.com\/o\/comm" rel="noopener noreferrer"/.test(skillsPage) && skillsPage.includes("Listed") && skillsPage.includes("Submitted by its author") && !skillsPage.includes(`class="kind pick"`) && skillsPage.includes("not built by Praxikit") && skillsPage.includes("Reviewed at <code>aaaaaaa</code>"), "a community listing shows on its type page as someone else's work, with the reviewed commit");
+const commHtml = readFileSync(join(out, "l/o-comm/index.html"), "utf8"), recHtml = readFileSync(join(out, "l/o-rec/index.html"), "utf8");
+must(skillsPage.includes('href="../../l/o-comm/"') && skillsPage.includes("Listed") && !skillsPage.includes(`class="kind pick"`) && skillsPage.includes("by someone"), "a community listing shows on its type page as a listed kit, linking to its own page");
+must(/href="https:\/\/github\.com\/o\/comm" rel="noopener noreferrer"/.test(commHtml) && commHtml.includes("Submitted by its author") && commHtml.includes("not built by Praxikit") && commHtml.includes("<code>aaaaaaa</code>") && commHtml.includes("Review receipt"), "its page links to GitHub safely and carries the review receipt with the reviewed commit");
 const mcpPage = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
-must(mcpPage.includes("My pick") && mcpPage.includes("How I use it:") && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("o/rec") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
-must(idx.includes("Changed since review") && idx.includes('href="https://github.com/o/rec/compare/' + SHA + '...HEAD"'), "a listing whose repository moved on says so and links to the comparison");
+must(mcpPage.includes("My pick") && mcpPage.includes("How I use it") && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("l/o-rec/") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
+must(idx.includes("Changed since review") && recHtml.includes('href="https://github.com/o/rec/compare/' + SHA + '...HEAD"'), "a listing whose repository moved on says so, and its page links to the comparison");
 must(skillsPage.includes("Repository not reachable") && !skillsPage.includes("Changed since review"), "an unreachable listing says so, and a 'same' or unknown status adds nothing");
 const picksHtml = readFileSync(join(out, "picks/index.html"), "utf8");
-must(picksHtml.includes("o/rec") && !picksHtml.includes("o/comm") && picksHtml.includes("My pick") && picksHtml.includes("How I use it:"), "the Picks page shows picks only, with the owner's note");
+must(picksHtml.includes("l/o-rec/") && !picksHtml.includes("l/o-comm/") && picksHtml.includes("My pick") && picksHtml.includes("How I use it"), "the Picks page shows picks only, with the owner's note");
 must(!idx.includes(">Recommended<") && idx.includes(">Picks<") && idx.includes("My picks"), "the word Recommended is gone from the navigation and the home page");
 must(!/href="https:\/\/github\.com[^"]*"(?![^>]*rel=)/.test(idx), "external GitHub link without rel");
 must(existsSync(join(out, "k/evil/index.html")) && existsSync(join(out, "c/planning/index.html")) && existsSync(join(out, "c/design-and-3d/index.html")), "kit or collection pages missing");
@@ -80,7 +82,7 @@ must((idx.match(/<li class="card[ "]/g) ?? []).length <= 3 + 3, "home should sho
 const pol = readFileSync(join(out, "policy/index.html"), "utf8");
 must(pol.includes("security/advisories/new") && pol.includes("template=report-listing.yml") && pol.includes("docs/removals.md") && pol.includes("not a safety guarantee") && pol.includes("one maintainer"), "policy page needs the private channel, the report form, the removal log and honest limits");
 must(pol.includes("The reviewed commit is not what you install"), "the policy must say that installs follow the author's latest version, not the reviewed commit");
-must(skillsPage.includes("Installs follow the author's latest version"), "every outside listing card must say installs can differ from the reviewed commit");
+must(skillsPage.includes("Installs follow the author&#39;s latest version") && commHtml.includes("Installs follow the author's latest version"), "every outside listing says installs can differ from the reviewed commit, on the card and on its page");
 must(!/href="\//.test(pol) && idx.includes('href="./policy/"') && sub.includes('href="../policy/"'), "policy is linked from the footer and the submit page, with relative links");
 const kitsAll = readFileSync(join(out, "kits/index.html"), "utf8");
 must(kitsAll.includes('id="q"') && kitsAll.includes('aria-current="page"') && kitsAll.includes('class="typenav"'), "kits page needs search (4+ kits) and the type navigation");
@@ -107,7 +109,7 @@ execFileSync("node", [join(here, "build.mjs"), "--root", root2, "--out", join(ro
 const few = readFileSync(join(root2, "out", "index.html"), "utf8");
 must(few.includes('class="card"') && !few.includes('id="q"'), "few kits show cards and no search box");
 must(!/<img src=x/.test(few) && few.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "card is not escaped");
-must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes("View details") && !readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('id="q"'), "with one kit the kits page shows a card with View details and no search");
+must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('class="details"') && !readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('id="q"'), "with one kit the kits page shows a card with a Details link and no search");
 
 // tags, search and the submit form
 {

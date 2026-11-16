@@ -115,7 +115,6 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .85; }
 .hero + .sec, .page-head { border-top: 0; }
 .sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; }
 .sec-head h2, .sec-head h1 { margin-bottom: .6rem; }
-.toolbar { display: flex; flex-direction: column; gap: 12px; margin: 8px 0 22px; }
 .search input { width: 100%; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { border-radius: 99px; padding: 6px 14px; }
@@ -174,7 +173,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .85; }
 
 /* tags: at most two rows on a card */
 .taglist { list-style: none; padding: 0; margin: 0 0 .9rem; display: flex; flex-wrap: wrap; gap: 6px; max-height: calc(2 * 1.7rem + 6px); overflow: hidden; }
-.tag { display: inline-block; font-size: .78rem; line-height: 1.5; padding: 2px 10px; border-radius: 99px; background: var(--code-bg); color: var(--muted); text-decoration: none; border: 1px solid transparent; position: relative; z-index: 2; }
+.tag { display: inline-flex; align-items: center; height: 1.7rem; font-size: .78rem; line-height: 1; padding: 0 11px; border-radius: 99px; background: var(--code-bg); color: var(--muted); text-decoration: none; border: 1px solid transparent; position: relative; z-index: 2; }
 a.tag:hover { border-color: var(--accent); color: var(--fg); }
 .tag.more { cursor: help; }
 .tag .count { opacity: .7; }
@@ -335,6 +334,54 @@ main { flex: 1 0 auto; width: 100%; }
 .foot-links { display: flex; gap: 8px 22px; flex-wrap: wrap; align-items: flex-start; }
 .foot-links a { color: var(--muted); }
 .foot-links a:hover { color: var(--accent); }
+
+/* icons, receipts, bylines */
+.ic { width: 1.1em; height: 1.1em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vertical-align: -.17em; }
+.byline { margin: -.15rem 0 .6rem; font-size: .88rem; color: var(--muted); }
+.receipt { display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; color: var(--muted); cursor: help; }
+.receipt .ic { color: var(--accent); }
+.receipt code { font-size: .92em; }
+.receipt.warn, .receipt.warn .ic { color: var(--warn); }
+.pick-note strong { display: block; font-size: .72rem; letter-spacing: .07em; text-transform: uppercase; color: var(--accent); margin-bottom: 2px; }
+.pick-note.big { font-size: 1.1rem; padding: 16px 20px; max-width: 62ch; }
+.icon-act { width: 40px; height: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; background: transparent; color: var(--muted); border-radius: 10px; position: relative; z-index: 2; }
+.icon-act:hover { background: var(--accent-bg); color: var(--accent); border-color: transparent; }
+.icon-act .ic { width: 20px; height: 20px; }
+.cards.few-3 { grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+
+/* home: eyebrow, stats, pills, trust */
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 1rem; padding: 5px 14px 5px 10px; border: 1px solid var(--line); border-radius: 99px; background: var(--card); color: var(--muted); font-size: .86rem; font-weight: 550; }
+.eyebrow .ic { color: var(--accent); }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 1.6rem 0 0; padding: 0; color: var(--muted); font-size: .92rem; }
+.stats strong { color: var(--fg); font-size: 1.15rem; font-variant-numeric: tabular-nums; margin-right: 3px; }
+.pillrow { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+.pill { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 18px; border: 1px solid var(--line); border-radius: 99px; background: var(--card); color: var(--fg); text-decoration: none; font-weight: 600; box-shadow: var(--shadow-sm); transition: border-color .15s, transform .15s; }
+.pill:hover { border-color: var(--accent); color: var(--accent); }
+.pill .count { font-size: .8rem; font-weight: 650; color: var(--muted); background: var(--code-bg); padding: 0 8px; border-radius: 99px; }
+.pill.ghost { background: transparent; box-shadow: none; color: var(--accent); }
+.trust { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.trust li { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow-sm); }
+.trust .ic { display: block; width: 28px; height: 28px; color: var(--accent); margin-bottom: 10px; }
+.trust strong { display: block; font-size: 1.05rem; margin-bottom: 4px; }
+.trust p { margin: 0; color: var(--muted); font-size: .95rem; }
+
+/* the review receipt */
+.panel dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px 16px; margin: 0 0 1rem; }
+.panel dt { color: var(--muted); font-size: .88rem; padding-top: .1rem; }
+.panel dd { margin: 0; overflow-wrap: anywhere; }
+.listing-two .side { order: 0; }
+@media (max-width: 899px) { .listing-two { gap: 20px; } }
+
+/* kits list: filter, show, sort */
+.toolbar { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px; margin: 8px 0 22px; }
+.toolbar .search { flex: 1 1 260px; min-width: 0; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg2); }
+.seg button { border: 0; background: transparent; border-radius: 8px; padding: 7px 14px; min-height: 36px; font-weight: 600; color: var(--muted); }
+.seg button:hover { color: var(--fg); background: transparent; }
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--fg); box-shadow: var(--shadow-sm); }
+.seg .count { margin-left: 4px; font-size: .78rem; opacity: .75; }
+.sort select { min-height: 46px; }
+.page-head .actions { align-items: center; }
 
 /* tablets and phones: the menu moves behind a button, the search joins it (the full navigation needs about 1040px) */
 @media (max-width: 1040px) {

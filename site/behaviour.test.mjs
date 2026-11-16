@@ -24,7 +24,7 @@ class El {
   getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
   hasAttribute(k) { return k in this.attrs; }
   removeAttribute(k) { delete this.attrs[k]; }
-  appendChild(c) { c.parentNode = this; this.children.push(c); return c; }
+  appendChild(c) { if (c.parentNode) { const i = c.parentNode.children.indexOf(c); if (i > -1) c.parentNode.children.splice(i, 1); } c.parentNode = this; this.children.push(c); return c; }
   insertBefore(c, ref) { c.parentNode = this; const i = ref ? this.children.indexOf(ref) : -1; if (i < 0) this.children.push(c); else this.children.splice(i, 0, c); return c; }
   addEventListener(t, f) { (this.listeners[t] ??= []).push(f); }
   contains(n) { return n === this || this.children.some((c) => c.contains?.(n)); }
@@ -36,7 +36,7 @@ class El {
 }
 
 /** One fake page. `hint` says whether the sign-in hint cookie is present; `me` is what /api/me answers (null = 401). */
-async function run({ hint = false, me = null, saved = [], dark = false }) {
+async function run({ hint = false, me = null, saved = [], dark = false, kits = false, search = "" }) {
   const calls = [], docListeners = {}, ids = {};
   const root = new El("html"), body = new El("body");
   body.attrs = { "data-root": "/", "data-app": "https://praxikit.com" };
@@ -47,11 +47,20 @@ async function run({ hint = false, me = null, saved = [], dark = false }) {
   const btn = new El("a"); btn.attrs = { "data-save": "k/keel/", "data-name": "keel", "aria-pressed": "false" };
   const label = new El("span"); btn.querySelector = (s) => (s === "span" ? label : null);
   const store = {};
+  const list = {};
+  if (kits) {
+    const mk = (name, src, date, text) => { const c = new El("li"); c.attrs = { "data-card": "", "data-src": src, "data-name": name, "data-date": date, "data-text": text }; return c; };
+    const ul = new El("ul");
+    for (const c of [mk("keel", "built", "2026-11-16", "keel planning"), mk("pitch-panel", "built", "2026-11-15", "pitch startup"), mk("playwright mcp", "pick", "2026-11-14", "playwright browser"), mk("marketingskills", "listed", "2026-11-13", "marketing")]) ul.appendChild(c);
+    const grid = new El("div"); grid.appendChild(ul); grid.querySelectorAll = (s) => (s === "[data-card]" ? ul.children.slice() : []);
+    ids.q = Object.assign(new El("input"), { value: "" }); ids.kits = grid; ids.count = new El("p"); ids.none = Object.assign(new El("div"), { hidden: true }); ids.clear = new El("button"); ids.sort = Object.assign(new El("select"), { value: "featured" });
+    list.ul = ul; list.segs = ["all", "built", "pick", "listed"].map((s) => { const b = new El("button"); b.attrs = { "data-show": s, "aria-pressed": String(s === "all") }; return b; });
+  }
   const doc = {
     documentElement: root, body, cookie: hint ? "praxikit-in=1" : "",
     getElementById: (id) => ids[id] ?? null,
     querySelector: (s) => (s === "header nav" ? nav : s === "header.top" ? header : null),
-    querySelectorAll: (s) => (s === "[data-save]" ? [btn] : []),
+    querySelectorAll: (s) => (s === "[data-save]" ? [btn] : s === "[data-show]" ? (list.segs ?? []) : []),
     createElement: (t) => new El(t),
     addEventListener: (t, f) => (docListeners[t] ??= []).push(f),
   };
@@ -63,7 +72,7 @@ async function run({ hint = false, me = null, saved = [], dark = false }) {
     return { ok: false, json: async () => [] };
   };
   const ctx = vm.createContext({
-    document: doc, location: { origin: "https://praxikit.com", pathname: "/", search: "", href: "https://praxikit.com/" },
+    document: doc, location: { origin: "https://praxikit.com", pathname: "/kits/", search, href: "https://praxikit.com/" },
     matchMedia: () => ({ matches: dark }), localStorage: { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = v; } },
     fetch: fetchStub, URLSearchParams, Promise, setTimeout, clearTimeout, console, String, Array, Object, Number, JSON, encodeURIComponent, decodeURIComponent, Math, Date, RegExp, Error,
     navigator: { clipboard: { writeText: async () => {} } }, history: { replaceState() {} },
@@ -71,7 +80,7 @@ async function run({ hint = false, me = null, saved = [], dark = false }) {
   let threw = null;
   try { vm.runInContext(code, ctx); } catch (e) { threw = e; }
   await new Promise((r) => setTimeout(r, 30));
-  return { threw, calls, root, body, header, nav, ids, btn, label, store, doc, docListeners, click: (el) => { const ev = {}; for (const f of docListeners.click ?? []) f({ target: el, preventDefault() { ev.prevented = true; } }); return ev; } };
+  return { threw, list, calls, root, body, header, nav, ids, btn, label, store, doc, docListeners, click: (el) => { const ev = {}; for (const f of docListeners.click ?? []) f({ target: el, preventDefault() { ev.prevented = true; } }); return ev; } };
 }
 
 // ---- the theme button
@@ -129,6 +138,35 @@ async function run({ hint = false, me = null, saved = [], dark = false }) {
 {
   const p = await run({ hint: true, me: { login: "carol", id: 3, role: "user" }, saved: [] });
   must(!p.nav.children.some((c) => c.textContent === "Admin") && p.nav.children.some((c) => c.textContent === "My collection"), "a member has My collection but no Admin tab");
+}
+
+// ---- the kits list: filter, show, sort, clear
+{
+  const p = await run({ kits: true });
+  const names = () => p.list.ul.children.filter((c) => !c.hidden).map((c) => c.attrs["data-name"]);
+  const all = () => p.list.ul.children.map((c) => c.attrs["data-name"]);
+  must(!p.threw && names().length === 4 && p.ids.count.textContent === "4 kits", "the list starts with every kit and says how many");
+  p.list.segs[2].fire("click");
+  must(names().join() === "playwright mcp" && p.ids.count.textContent === "1 kit" && p.list.segs[2].getAttribute("aria-pressed") === "true", "Show: My picks keeps only the picks");
+  p.list.segs[1].fire("click");
+  must(names().join() === "keel,pitch-panel", "Show: Built here keeps only what is built here");
+  p.list.segs[0].fire("click");
+  p.ids.q.value = "keel"; p.ids.q.fire("input");
+  must(names().join() === "keel" && p.ids.none.hidden === true, "typing filters by text");
+  p.ids.q.value = "zzz"; p.ids.q.fire("input");
+  must(names().length === 0 && p.ids.none.hidden === false && p.ids.count.textContent === "0 kits", "no match says so");
+  p.ids.clear.fire("click");
+  must(names().length === 4 && p.ids.q.value === "" && p.ids.none.hidden === true, "Clear filters brings everything back");
+  p.ids.sort.value = "az"; p.ids.sort.fire("change");
+  must(all().join() === "keel,marketingskills,pitch-panel,playwright mcp", "Sort: A to Z orders by name: " + all().join());
+  p.ids.sort.value = "new"; p.ids.sort.fire("change");
+  must(all().join() === "keel,pitch-panel,playwright mcp,marketingskills", "Sort: Newest orders by date: " + all().join());
+  p.ids.sort.value = "featured"; p.ids.sort.fire("change");
+  must(all().join() === "keel,pitch-panel,playwright mcp,marketingskills", "Sort: Featured restores the original order");
+  const u = await run({ kits: true, search: "?q=browser&show=pick&sort=az" });
+  must(u.ids.q.value === "browser" && u.ids.sort.value === "az" && u.list.segs[2].getAttribute("aria-pressed") === "true" && u.list.ul.children.filter((c) => !c.hidden).length === 1, "the address restores a shared view of the list");
+  const bad = await run({ kits: true, search: "?show=<script>&sort=evil&q=" + "x".repeat(300) });
+  must(!bad.threw && bad.ids.q.value.length === 100 && bad.ids.sort.value === "featured", "a hostile address is ignored or cut down");
 }
 
 if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }
