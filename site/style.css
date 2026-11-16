@@ -365,6 +365,16 @@ main { flex: 1 0 auto; width: 100%; }
 .trust strong { display: block; font-size: 1.05rem; margin-bottom: 4px; }
 .trust p { margin: 0; color: var(--muted); font-size: .95rem; }
 
+/* card: icons in the top corner, tags never cut in half */
+.card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin: -6px -8px 0 0; }
+.card-head .meta-line { padding-top: 6px; min-width: 0; }
+.card-tools { display: flex; gap: 0; flex: none; }
+a.icon-act { text-decoration: none; }
+.card-foot { border-top: 1px solid var(--line); }
+.card-foot .receipt { min-height: 28px; }
+.taglist li { margin: 0; padding: 0; display: flex; line-height: 1; max-width: none; }
+.taglist { align-content: flex-start; }
+
 /* the review receipt */
 .panel dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px 16px; margin: 0 0 1rem; }
 .panel dt { color: var(--muted); font-size: .88rem; padding-top: .1rem; }
@@ -458,3 +468,4 @@ main { flex: 1 0 auto; width: 100%; }
 @media (max-width: 1040px) { .icon-label { display: inline; font-size: 1rem; } }
 
 @media (max-width: 640px) { .typenav { flex-wrap: nowrap; margin-inline: calc(-1 * var(--gutter)); padding-inline: var(--gutter); } .typenav a { padding: 12px 14px; } }
+.nowrap { white-space: nowrap; }

@@ -49,11 +49,11 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
   const store = {};
   const list = {};
   if (kits) {
-    const mk = (name, src, date, text) => { const c = new El("li"); c.attrs = { "data-card": "", "data-src": src, "data-name": name, "data-date": date, "data-text": text }; return c; };
+    const mk = (name, src, date, text) => { const c = new El("li"); c.attrs = { "data-card": "", "data-src": src, "data-name": name, "data-date": date, "data-text": text, "data-tags": text.split(" ").join(" ") }; return c; };
     const ul = new El("ul");
     for (const c of [mk("keel", "built", "2026-11-16", "keel planning"), mk("pitch-panel", "built", "2026-11-15", "pitch startup"), mk("playwright mcp", "pick", "2026-11-14", "playwright browser"), mk("marketingskills", "listed", "2026-11-13", "marketing")]) ul.appendChild(c);
     const grid = new El("div"); grid.appendChild(ul); grid.querySelectorAll = (s) => (s === "[data-card]" ? ul.children.slice() : []);
-    ids.q = Object.assign(new El("input"), { value: "" }); ids.kits = grid; ids.count = new El("p"); ids.none = Object.assign(new El("div"), { hidden: true }); ids.clear = new El("button"); ids.sort = Object.assign(new El("select"), { value: "featured" });
+    ids.q = Object.assign(new El("input"), { value: "" }); ids.kits = grid; ids.count = new El("p"); ids.none = Object.assign(new El("div"), { hidden: true }); ids.clear = new El("button"); ids.sort = Object.assign(new El("select"), { value: "featured" }); ids.tag = Object.assign(new El("select"), { value: "", options: ["", "planning", "marketing", "browser"].map((v) => ({ value: v })) });
     list.ul = ul; list.segs = ["all", "built", "pick", "listed"].map((s) => { const b = new El("button"); b.attrs = { "data-show": s, "aria-pressed": String(s === "all") }; return b; });
   }
   const stats = statKeys.map((k) => { const e = new El("p"); e.attrs = { "data-stat": k }; e.hidden = true; return e; });
@@ -164,8 +164,12 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
   must(names().join() === "keel" && p.ids.none.hidden === true, "typing filters by text");
   p.ids.q.value = "zzz"; p.ids.q.fire("input");
   must(names().length === 0 && p.ids.none.hidden === false && p.ids.count.textContent === "0 kits", "no match says so");
+  p.ids.q.value = ""; p.ids.tag.value = "planning"; p.ids.tag.fire("change");
+  must(names().join() === "keel", "the tag dropdown keeps only kits with that tag");
+  p.ids.tag.value = "marketing"; p.ids.tag.fire("change");
+  must(names().join() === "marketingskills", "and switches to another");
   p.ids.clear.fire("click");
-  must(names().length === 4 && p.ids.q.value === "" && p.ids.none.hidden === true, "Clear filters brings everything back");
+  must(p.ids.tag.value === "" && names().length === 4 && p.ids.q.value === "" && p.ids.none.hidden === true, "Clear filters brings everything back");
   p.ids.sort.value = "az"; p.ids.sort.fire("change");
   must(all().join() === "keel,marketingskills,pitch-panel,playwright mcp", "Sort: A to Z orders by name: " + all().join());
   p.ids.sort.value = "new"; p.ids.sort.fire("change");
@@ -174,6 +178,10 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
   must(all().join() === "keel,pitch-panel,playwright mcp,marketingskills", "Sort: Featured restores the original order");
   const u = await run({ kits: true, search: "?q=browser&show=pick&sort=az" });
   must(u.ids.q.value === "browser" && u.ids.sort.value === "az" && u.list.segs[2].getAttribute("aria-pressed") === "true" && u.list.ul.children.filter((c) => !c.hidden).length === 1, "the address restores a shared view of the list");
+  const t = await run({ kits: true, search: "?tag=browser" });
+  must(t.list.ul.children.filter((c) => !c.hidden).map((c) => c.attrs["data-name"]).join() === "playwright mcp" && t.ids.tag.value === "browser", "a shared address restores the tag");
+  const t2 = await run({ kits: true, search: "?tag=nonsense" });
+  must(t2.ids.tag.value === "" && t2.list.ul.children.filter((c) => !c.hidden).length === 4, "an unknown tag in the address is ignored");
   const bad = await run({ kits: true, search: "?show=<script>&sort=evil&q=" + "x".repeat(300) });
   must(!bad.threw && bad.ids.q.value.length === 100 && bad.ids.sort.value === "featured", "a hostile address is ignored or cut down");
 }

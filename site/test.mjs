@@ -51,7 +51,8 @@ for (const f of htmlFiles) {
 }
 const idx = readFileSync(join(out, "index.html"), "utf8");
 must(idx.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "payload not shown escaped on index");
-must(idx.includes('href="./l/o-rec/"') && !idx.includes('href="https://github.com/o/rec"'), "a pick on the home page links to its own page, not straight to GitHub");
+must(idx.includes('href="./l/o-rec/"') && /<a class="icon-act" href="https:\/\/github\.com\/o\/rec" rel="noopener noreferrer"/.test(idx), "a pick on the home page links to its own page, and a repository icon opens GitHub safely");
+must(!idx.includes('class="details"') && !idx.includes(">Details<") && !idx.includes("View details"), "cards have no action row: the whole card opens its page");
 const skillsPage = readFileSync(join(out, "kits/skills/index.html"), "utf8");
 const commHtml = readFileSync(join(out, "l/o-comm/index.html"), "utf8"), recHtml = readFileSync(join(out, "l/o-rec/index.html"), "utf8");
 must(skillsPage.includes('href="../../l/o-comm/"') && skillsPage.includes("Listed") && !skillsPage.includes(`class="kind pick"`) && skillsPage.includes("by someone"), "a community listing shows on its type page as a listed kit, linking to its own page");
@@ -109,7 +110,7 @@ execFileSync("node", [join(here, "build.mjs"), "--root", root2, "--out", join(ro
 const few = readFileSync(join(root2, "out", "index.html"), "utf8");
 must(few.includes('class="card"') && !few.includes('id="q"'), "few kits show cards and no search box");
 must(!/<img src=x/.test(few) && few.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "card is not escaped");
-must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('class="details"') && !readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('id="q"'), "with one kit the kits page shows a card with a Details link and no search");
+must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('class="name"') && !readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('id="q"'), "with one kit the kits page shows a card and no search");
 
 // tags, search and the submit form
 {
@@ -119,7 +120,7 @@ must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('cl
   must(!evilKit.includes("<script>alert(1)</script>") && !/<img src=x/.test(evilKit), "a hostile tag is not rendered as markup");
   const hostileTagLinks = walk(out).filter((f) => f.endsWith(".html")).some((f) => /href="[^"]*tags[/][^"]*[<>' ]/.test(readFileSync(f, "utf8")));
   must(!hostileTagLinks, "no page links to a tag page built from a hostile tag");
-  must(readFileSync(join(out, "kits", "index.html"), "utf8").includes("Browse by tag"), "the kits page offers tags");
+  must(readFileSync(join(out, "kits", "index.html"), "utf8").includes('id="tag"') && !readFileSync(join(out, "kits", "index.html"), "utf8").includes("Browse by tag"), "the kits page filters by tag from a dropdown, not a wall of buttons");
   const index = JSON.parse(readFileSync(join(out, "search-index.json"), "utf8"));
   must(Array.isArray(index) && index.length > 0 && index.every((e) => typeof e.t === "string" && typeof e.u === "string" && (!/^[a-z]+:/.test(e.u) || e.u.startsWith("https://github.com/"))), "the search index has only relative or github.com links");
   const js = readFileSync(join(out, "site.js"), "utf8");

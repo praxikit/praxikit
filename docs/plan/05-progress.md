@@ -189,3 +189,7 @@
 - "This helped me" (one per person per kit) and one short note per person per kit (10 to 240 characters, plain text, no links). First notes wait for a maintainer; later ones appear at once; two reports hide a note until a maintainer decides. Limits: 60 votes an hour, 5 notes a day. Cards show "N people found it useful" and, from three, "saved by N".
 - Needs the owner: migration `api/migrations/0007_community.sql`, once.
 - Tests: `api/test-community.mjs` and the community cases in `site/behaviour.test.mjs`. Also fixed: tag chips on kit pages were indented by a rule meant for long text.
+
+## 2026-11-17 — Card and filter tidy-up
+- Cards: repository and save icons in the top corner; the action row and "Details" are gone (the whole card opens its page); copy-install sits at the right of the footer line; at most three tags then "+N", and the chips can no longer be cut in half (list items inside the tag row had inherited margins).
+- Kits list: the wall of tag buttons is replaced by a Tag dropdown beside Sort, remembered in the address (?tag=). It scales to any number of tags.

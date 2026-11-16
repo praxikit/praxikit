@@ -491,14 +491,18 @@ const SITE_JS = `
   if (q && grid) {
     var cards = [].slice.call(grid.querySelectorAll("[data-card]")), ul = cards.length ? cards[0].parentNode : null;
     cards.forEach(function (c, i) { c.setAttribute("data-i", String(i)); });
-    var segs = [].slice.call(document.querySelectorAll("[data-show]")), sortSel = document.getElementById("sort");
+    var segs = [].slice.call(document.querySelectorAll("[data-show]")), sortSel = document.getElementById("sort"), tagSel = document.getElementById("tag");
     var count = document.getElementById("count"), none = document.getElementById("none"), show = "all";
     var params = new URLSearchParams(location.search), wanted = params.get("show");
     q.value = (params.get("q") || "").slice(0, 100);
     if (["all", "built", "pick", "listed"].indexOf(wanted) > -1 && segs.some(function (s) { return s.getAttribute("data-show") === wanted; })) show = wanted;
     if (sortSel && ["featured", "new", "az"].indexOf(params.get("sort")) > -1) sortSel.value = params.get("sort");
+    if (tagSel) {
+      var wantTag = params.get("tag") || "", tagOptions = tagSel.options ? [].slice.call(tagSel.options).map(function (o) { return o.value; }) : [];
+      if (wantTag && tagOptions.indexOf(wantTag) > -1) tagSel.value = wantTag;
+    }
     var apply = function () {
-      var term = q.value.trim().toLowerCase(), shown = 0, mode = sortSel ? sortSel.value : "featured";
+      var term = q.value.trim().toLowerCase(), shown = 0, mode = sortSel ? sortSel.value : "featured", wantedTag = tagSel ? tagSel.value : "";
       var order = cards.slice();
       if (mode === "new") order.sort(function (a, b) { return b.getAttribute("data-date").localeCompare(a.getAttribute("data-date")) || a.getAttribute("data-i") - b.getAttribute("data-i"); });
       else if (mode === "az") order.sort(function (a, b) { return a.getAttribute("data-name").localeCompare(b.getAttribute("data-name")); });
@@ -507,7 +511,8 @@ const SITE_JS = `
       cards.forEach(function (c) {
         var okShow = show === "all" || c.getAttribute("data-src") === show;
         var okText = !term || c.getAttribute("data-text").indexOf(term) > -1;
-        var on = okShow && okText; c.hidden = !on; if (on) shown++;
+        var okTag = !wantedTag || (" " + (c.getAttribute("data-tags") || "") + " ").indexOf(" " + wantedTag + " ") > -1;
+        var on = okShow && okText && okTag; c.hidden = !on; if (on) shown++;
       });
       segs.forEach(function (s) { s.setAttribute("aria-pressed", String(s.getAttribute("data-show") === show)); });
       count.textContent = shown + (shown === 1 ? " kit" : " kits");
@@ -516,14 +521,16 @@ const SITE_JS = `
       if (term) p.set("q", q.value.trim());
       if (show !== "all") p.set("show", show);
       if (mode !== "featured") p.set("sort", mode);
+      if (wantedTag) p.set("tag", wantedTag);
       var s = p.toString();
       try { history.replaceState(null, "", location.pathname + (s ? "?" + s : "")); } catch (e) {}
     };
     q.addEventListener("input", apply);
     if (sortSel) sortSel.addEventListener("change", apply);
+    if (tagSel) tagSel.addEventListener("change", apply);
     segs.forEach(function (s) { s.addEventListener("click", function () { show = s.getAttribute("data-show"); apply(); }); });
     var clear = document.getElementById("clear");
-    if (clear) clear.addEventListener("click", function () { q.value = ""; show = "all"; if (sortSel) sortSel.value = "featured"; apply(); });
+    if (clear) clear.addEventListener("click", function () { q.value = ""; show = "all"; if (sortSel) sortSel.value = "featured"; if (tagSel) tagSel.value = ""; apply(); });
     apply();
   }
 
@@ -700,11 +707,11 @@ const BOOKMARK = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
 const saveLink = (key, name = "", text = false) => (APP ? `<a class="save-btn${text ? " with-text" : ""}" href="${esc(APP)}/collection/save?item=${encodeURIComponent(key)}" data-save="${esc(key)}" data-name="${esc(name)}" aria-label="Save ${esc(name)} to your collection" title="Save to your collection" rel="noopener">${BOOKMARK}${text ? "<span>Save</span>" : ""}</a>` : "");
 /** "What people say": filled in by the site script from the app (counts, notes, the vote button). */
 const communityBlock = (key) => (APP ? `<section class="community" id="community" data-item="${esc(key)}"><h2>What people say</h2><div id="community-body"><p class="muted">Loading…</p></div><noscript><p class="muted">Votes and notes need JavaScript.</p></noscript></section>` : "");
-function tagChips(item, up) {
+function tagChips(item, up, max = MAX_CHIPS) {
   const all = tagsOf(item);
   if (!all.length) return "";
-  const shown = all.slice(0, MAX_CHIPS);
-  return `<ul class="taglist" aria-label="Tags">${shown.map((t) => `<li>${SLUG_OK.test(t) ? `<a class="tag" href="${up}tags/${esc(t)}/">${esc(t)}</a>` : `<span class="tag">${esc(t)}</span>`}</li>`).join("")}${all.length > shown.length ? `<li><span class="tag more" title="${esc(all.slice(MAX_CHIPS).join(", "))}">+${all.length - shown.length}</span></li>` : ""}</ul>`;
+  const shown = all.slice(0, max);
+  return `<ul class="taglist" aria-label="Tags">${shown.map((t) => `<li>${SLUG_OK.test(t) ? `<a class="tag" href="${up}tags/${esc(t)}/">${esc(t)}</a>` : `<span class="tag">${esc(t)}</span>`}</li>`).join("")}${all.length > shown.length ? `<li><span class="tag more" title="${esc(all.slice(max).join(", "))}">+${all.length - shown.length}</span></li>` : ""}</ul>`;
 }
 
 const SOURCE_LABEL = { community: "submitted by its author", recommended: "suggested by someone else" };
@@ -734,20 +741,24 @@ const driftOf = (l) => {
 const receiptText = (l) => `Read by a person at commit ${l.commit.slice(0, 7)}; ${CHECK_WORDS[l.checks] ?? l.checks}. Installs follow the author's latest version, which can differ.`;
 const sourceWord = (l) => { const w = SOURCE_LABEL[l.source] ?? ""; return w ? w[0].toUpperCase() + w.slice(1) : ""; };
 
+const REPOICON = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v14H7.5A2.5 2.5 0 0 0 5 19.5z"/><path d="M5 19.5A2.5 2.5 0 0 0 7.5 22H19v-5"/><path d="M9 7h6"/></svg>';
+/** An icon link out to the repository, for the top corner of a card. */
+const repoLink = (href, label) => `<a class="icon-act" href="${esc(href)}" rel="noopener noreferrer" aria-label="${esc(label)}" title="Open the repository on GitHub">${REPOICON}</a>`;
+
 function extCard(l, up) {
   const d = driftOf(l);
   const groups = [slug(KIND_LABEL[l.kind] ?? l.kind), l.pick ? "picks" : "listed"].join(" ");
   const text = [l.name, l.why, l.note ?? "", l.author, l.kind, l.source, ...tagsOf(l)].join(" ").toLowerCase();
   const page = `${up}${lpath(l)}`;
-  return `<li class="card" data-card data-src="${l.pick ? "pick" : "listed"}" data-name="${esc(l.name.toLowerCase())}" data-date="${esc(l.added)}" data-groups="${esc(groups)}" data-text="${esc(text)}">
-<div class="meta-line">${l.pick ? '<span class="kind pick">My pick</span>' : '<span class="kind ext">Listed</span>'}<span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span>${d.badge}</div>
+  return `<li class="card" data-card data-src="${l.pick ? "pick" : "listed"}" data-name="${esc(l.name.toLowerCase())}" data-date="${esc(l.added)}" data-tags="${esc(tagsOf(l).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
+<div class="card-head"><div class="meta-line">${l.pick ? '<span class="kind pick">My pick</span>' : '<span class="kind ext">Listed</span>'}<span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span>${d.badge}</div><div class="card-tools">${repoLink(l.url, `Open ${l.name} on GitHub`)}${saveLink(l.url, l.name)}</div></div>
 <h3><a class="name" href="${esc(page)}">${esc(l.name)}</a></h3>
 <p class="byline">by ${esc(l.author)}</p>
 <p class="promise">${esc(l.why)}</p>
-${tagChips(l, up)}
+${tagChips(l, up, 3)}
 ${APP ? `<p class="stat" data-stat="${esc(l.url)}" hidden></p>` : ""}
 ${l.pick ? `<p class="pick-note"><strong>How I use it</strong>${esc(l.note)}</p>` : ""}
-<div class="card-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>${d.warn ? esc(d.short) : "Reviewed"} <code>${esc(l.commit.slice(0, 7))}</code></span></span><span class="card-actions">${saveLink(l.url, l.name)}<a class="details" href="${esc(page)}">Details</a></span></div>
+<div class="card-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>${d.warn ? esc(d.short) : "Reviewed"} <code>${esc(l.commit.slice(0, 7))}</code></span></span></div>
 </li>`;
 }
 
@@ -760,13 +771,13 @@ function card(k, up) {
   const text = [k.name, k.promise, ...(k.tags ?? []), ...k.collections, kindOf(k)].join(" ").toLowerCase();
   const cmd = Array.isArray(k.install) && k.install.length ? k.install[k.install.length - 1] : "";
   const copy = cmd ? `<button class="icon-act" type="button" data-copy-text="${esc(cmd)}" aria-label="Copy the install command for ${esc(k.name)}" title="Copy install command">${COPYICON}</button>` : "";
-  return `<li class="card" data-card data-src="built" data-name="${esc(k.name.toLowerCase())}" data-date="${esc(latest || "")}" data-groups="${esc(groups)}" data-text="${esc(text)}">
-<div class="meta-line">${badge(k)}</div>
+  return `<li class="card" data-card data-src="built" data-name="${esc(k.name.toLowerCase())}" data-date="${esc(latest || "")}" data-tags="${esc(tagsOf(k).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
+<div class="card-head"><div class="meta-line">${badge(k)}</div><div class="card-tools">${repoLink(`${REPO}/tree/main/kits/${k.name}`, `Open ${k.name} on GitHub`)}${saveLink(`k/${k.name}/`, k.name)}</div></div>
 <h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
 <p class="promise">${esc(k.promise)}</p>
-${tagChips(k, up)}
+${tagChips(k, up, 3)}
 ${APP ? `<p class="stat" data-stat="k/${esc(k.name)}/" hidden></p>` : ""}
-<div class="card-foot"><span class="muted">${esc(bits)}${bits && latest ? " · " : ""}${latest ? `updated ${esc(latest)}` : ""}</span><span class="card-actions">${copy}${saveLink(`k/${k.name}/`, k.name)}<a class="details" href="${up}k/${esc(k.name)}/">Details</a></span></div>
+<div class="card-foot"><span class="muted">${esc(bits)}${bits && latest ? " · " : ""}${latest ? `<span class="nowrap">updated ${esc(latest)}</span>` : ""}</span>${copy}</div>
 </li>`;
 }
 
@@ -903,9 +914,12 @@ function kitsPage(kits, group) {
   const title = group ? group.label : "All kits";
   const n = { built: list.filter((k) => !k.ext).length, pick: list.filter((k) => k.ext && k.pick).length, listed: list.filter((k) => k.ext && !k.pick).length };
   const seg = (id, label, count) => (id === "all" || count ? `<button type="button" data-show="${id}" aria-pressed="${id === "all"}">${label} <span class="count">${count ?? list.length}</span></button>` : "");
+  const tagOpts = sortedTags(collectTags(list));
+  const tagSel = tagOpts.length ? `<label class="sort"><span class="vh">Tag</span><select id="tag"><option value="">All tags</option>${tagOpts.map(([t, l]) => `<option value="${esc(t)}">${esc(t)} (${l.length})</option>`).join("")}</select></label>` : "";
   const search = list.length >= 3 ? `<div class="toolbar">
 <label class="search"><span class="vh">Search kits</span><input id="q" type="search" aria-label="Filter these kits" placeholder="Filter these kits" autocomplete="off" spellcheck="false"></label>
 <div class="seg" role="group" aria-label="Show">${seg("all", "All")}${seg("built", "Built here", n.built)}${seg("pick", "My picks", n.pick)}${seg("listed", "Listed", n.listed)}</div>
+${tagSel}
 <label class="sort"><span class="vh">Sort by</span><select id="sort"><option value="featured">Featured first</option><option value="new">Newest</option><option value="az">A to Z</option></select></label>
 </div>` : "";
   const empty = group && !list.length ? `<div class="empty"><p><strong>No ${esc(group.noun)} yet.</strong> <a href="${up}submit/">Submit one</a> or <a href="${up}kits/">see all kits</a>.</p></div>` : "";
@@ -913,7 +927,6 @@ function kitsPage(kits, group) {
 <div class="sec-head"><h1>${esc(title)}</h1><p class="muted" id="count" aria-live="polite">${plural(list.length, "kit")}</p></div>
 ${group ? `<p class="lead">${esc(group.blurb)}</p>` : '<p class="lead">Kits built by Praxikit, plus kits by other people that were submitted and reviewed, each marked as such. Praxikit kits have their own page with what they add, what they read and send, and their changelog.</p>'}
 ${typeNav(kits, up, group ? group.id : "all")}
-${tagCloud(collectTags(kits), up)}
 ${search}
 <div id="kits">${list.length ? listHtml(list, up) : ""}</div>
 ${empty}
