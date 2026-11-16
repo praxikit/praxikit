@@ -1,0 +1,44 @@
+name: migrate
+# Applies one database migration to the live database (Cloudflare D1), using the repository secrets that the deploy workflow uses.
+# Only migrations that are safe to run more than once are offered (every statement is IF NOT EXISTS). Run it from the Actions tab,
+# or:  gh workflow run migrate.yml -f file=0007_community.sql
+on:
+  workflow_dispatch:
+    inputs:
+      file:
+        description: Migration file in api/migrations
+        required: true
+        type: choice
+        options:
+          - 0006_accounts.sql
+          - 0007_community.sql
+permissions:
+  contents: read
+concurrency:
+  group: migrate
+  cancel-in-progress: false
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      MIGRATION: ${{ inputs.file }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply
+        working-directory: api
+        run: |
+          case "$MIGRATION" in
+            0006_accounts.sql|0007_community.sql) ;;
+            *) echo "::error::That migration is not offered here."; exit 1 ;;
+          esac
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Set the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID first."
+            exit 1
+          fi
+          npx --yes wrangler@4.162.0 d1 execute praxikit-admin --remote --file="migrations/$MIGRATION"
