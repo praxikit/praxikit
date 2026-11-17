@@ -166,6 +166,8 @@ must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('cl
   const home = readFileSync(join(out, "index.html"), "utf8"), evil = readFileSync(join(out, "k", "evil", "index.html"), "utf8");
   const png = readFileSync(join(out, "og.png"));
   must(png.subarray(1, 4).toString() === "PNG" && png.readUInt32BE(16) === 1200 && png.readUInt32BE(20) === 630, "the share image is a 1200x630 PNG");
+  const ico = readFileSync(join(out, "favicon.ico")), touch = readFileSync(join(out, "apple-touch-icon.png"));
+  must(ico.readUInt16LE(2) === 1 && ico[6] === 48 && ico.subarray(22, 26).toString("latin1").includes("PNG") && touch.readUInt32BE(16) === 180 && home.includes("favicon.ico") && !home.includes('rel="icon" href="data:'), "the icon is a real file (favicon.ico, svg, touch icon) that search engines can fetch, not a data address");
   must(home.includes('property="og:image"') && home.includes('name="twitter:card" content="summary_large_image"') && home.includes('name="theme-color"'), "pages carry a share image and theme colours");
   const blocks = [...home.matchAll(/<script type="application\/ld\+json">([^<]*)<\/script>/g)].map((x) => JSON.parse(x[1]));
   must(blocks.length === 1 && blocks[0]["@graph"].some((n) => n["@type"] === "WebSite") && blocks[0]["@graph"].some((n) => n["@type"] === "Organization"), "the home page describes the site and its organisation in structured data");

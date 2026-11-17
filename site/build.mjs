@@ -148,17 +148,46 @@ const SPARK = [16, 8];
 const mark = (fill, spark) => BLOCKS.map(([x, y]) => `<rect x="${x}" y="${y}" width="6" height="6" rx="1.4" fill="${fill}"/>`).join("") + `<rect x="${SPARK[0]}" y="${SPARK[1]}" width="6" height="6" rx="1.4" fill="${spark}"/>`;
 const LOGO = `<svg class="logo" viewBox="0 0 22 30" width="22" height="30" aria-hidden="true" focusable="false">${mark("var(--accent)", "var(--spark)")}</svg>`;
 const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1 30 32" width="240" height="256">${mark("#0f8a7e", "#d97a14")}</svg>`;
-const FAVICON = "data:image/svg+xml," + encodeURIComponent(LOGO_SVG.replace(' width="240" height="256"', ""));
 const ISSUE = (t) => `${REPO}/issues/new?template=${t}`;
 
 /** Structured data for search engines. "<" is escaped so no text from a kit can end the script block. */
 const jsonLd = (obj) => JSON.stringify(obj).split("<").join(String.fromCharCode(92) + "u003c");
 
+const crcT = new Uint32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+const crc = (buf) => { let c = 0xffffffff; for (const b of buf) c = crcT[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([len, td, c]); };
+
+/** The mark as a transparent PNG, square, for the favicon files search engines and phones ask for. */
+function markPng(size) {
+  const pad = 0.08, sc = (size * (1 - 2 * pad)) / 30, ox = size * pad - 0 * sc, oy = size * pad + 0 * sc;
+  const rects = [...BLOCKS.map(([x, y]) => [x, y, [15, 138, 126]]), [SPARK[0], SPARK[1], [217, 122, 20]]].map(([x, y, col]) => ({ x: ox + (x + 4) * sc, y: oy + y * sc, w: 6 * sc, r: 1.4 * sc, col }));
+  const rows = [];
+  for (let y = 0; y < size; y++) {
+    const row = Buffer.alloc(1 + size * 4);
+    for (let x = 0; x < size; x++) {
+      let r = 0, g = 0, b = 0, al = 0;
+      for (const q of rects) {
+        const cx = q.x + q.w / 2, cy = q.y + q.w / 2, hx = q.w / 2 - q.r;
+        const dx = Math.max(Math.abs(x + 0.5 - cx) - hx, 0), dy = Math.max(Math.abs(y + 0.5 - cy) - hx, 0);
+        const a = Math.min(1, Math.max(0, q.r - Math.hypot(dx, dy) + 0.5));
+        if (a > 0) { r = q.col[0]; g = q.col[1]; b = q.col[2]; al = Math.max(al, a); }
+      }
+      row[1 + x * 4] = r; row[2 + x * 4] = g; row[3 + x * 4] = b; row[4 + x * 4] = Math.round(al * 255);
+    }
+    rows.push(row);
+  }
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(size, 0); ihdr.writeUInt32BE(size, 4); ihdr[8] = 8; ihdr[9] = 6;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("IDAT", deflateSync(Buffer.concat(rows), { level: 9 })), chunk("IEND", Buffer.alloc(0))]);
+}
+/** A one-image .ico that wraps a PNG (what /favicon.ico has to be). */
+function icoOf(png, size) {
+  const head = Buffer.alloc(22); head.writeUInt16LE(1, 2); head.writeUInt16LE(1, 4);
+  head[6] = size; head[7] = size; head.writeUInt16LE(1, 10); head.writeUInt16LE(32, 12); head.writeUInt32LE(png.length, 14); head.writeUInt32LE(22, 18);
+  return Buffer.concat([head, png]);
+}
+
 function ogPng() {
   const W = 1200, H = 630, rows = [];
-  const crcT = new Uint32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
-  const crc = (buf) => { let c = 0xffffffff; for (const b of buf) c = crcT[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
-  const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([len, td, c]); };
   const sc = 15, ox = 600 - (22 * sc) / 2, oy = 315 - (30 * sc) / 2; // the mark, centred
   const rects = [...BLOCKS.map(([x, y]) => [x, y, [15, 138, 126]]), [SPARK[0], SPARK[1], [217, 122, 20]]].map(([x, y, col]) => ({ x: ox + x * sc, y: oy + y * sc, w: 6 * sc, r: 1.4 * sc, col }));
   const cover = (px, py, q) => { // anti-aliased rounded square
@@ -677,7 +706,9 @@ ${canonical ? `<meta property="og:url" content="${esc(canonical)}">\n` : ""}<met
 ${ld ? `<script type="application/ld+json">${jsonLd(ld)}</script>\n` : ""}
 ${canonical ? `<link rel="canonical" href="${esc(canonical)}">\n` : ""}<link rel="alternate" type="application/atom+xml" title="Praxikit releases" href="${up}feed.xml">
 ${head}
-<link rel="icon" href="${FAVICON}">
+<link rel="icon" href="${up}favicon.ico" sizes="48x48">
+<link rel="icon" href="${up}favicon.svg" type="image/svg+xml" sizes="any">
+<link rel="apple-touch-icon" href="${up}apple-touch-icon.png">
 <link rel="stylesheet" href="${up}style.css">
 <script src="${up}boot.js?v=${hashStr(THEME_BOOT)}" data-site></script>
 </head>
@@ -1201,6 +1232,10 @@ write("policy/index.html", policyPage());
 write("privacy/index.html", privacyPage());
 write("about/index.html", aboutPage());
 writeFileSync(join(OUT, "og.png"), ogPng());
+writeFileSync(join(OUT, "favicon.svg"), LOGO_SVG.replace(' width="240" height="256"', ""));
+writeFileSync(join(OUT, "favicon.ico"), icoOf(markPng(48), 48));
+writeFileSync(join(OUT, "favicon-192.png"), markPng(192));
+writeFileSync(join(OUT, "apple-touch-icon.png"), markPng(180));
 const tagMap = collectTags(items);
 write("tags/index.html", tagsIndexPage(tagMap));
 for (const [t, l] of tagMap) write(`tags/${t}/index.html`, tagPage(t, l));
