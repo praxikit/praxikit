@@ -247,5 +247,53 @@
       "containers",
       "devops"
     ]
+  },
+  {
+    "name": "Context7",
+    "url": "https://github.com/upstash/context7",
+    "author": "upstash",
+    "why": "Fetches current, version-specific library documentation into the agent's context so it stops writing code against outdated APIs.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "27ef14ca41a57563891135cad663732d43203a8b",
+    "checks": "checks-failed",
+    "tags": [
+      "docs",
+      "libraries",
+      "coding"
+    ]
+  },
+  {
+    "name": "GitHub MCP Server",
+    "url": "https://github.com/github/github-mcp-server",
+    "author": "github",
+    "why": "GitHub's own MCP server: issues, pull requests, code search and repository actions from the agent.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "67d4dc489700ec955ad255d098396dd86c729523",
+    "checks": "checks-failed",
+    "tags": [
+      "github",
+      "code-review",
+      "workflow"
+    ]
+  },
+  {
+    "name": "Terraform MCP",
+    "url": "https://github.com/hashicorp/terraform-mcp-server",
+    "author": "hashicorp",
+    "why": "HashiCorp's MCP server: looks up providers and modules in the registry so infrastructure code uses real, current options.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "15f807d9fe19cf196064a6724fdbf8e9d64f0c75",
+    "checks": "checks-failed",
+    "tags": [
+      "terraform",
+      "infrastructure",
+      "devops"
+    ]
   }
 ]
