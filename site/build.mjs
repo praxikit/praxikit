@@ -727,6 +727,7 @@ ${head}
 <link rel="icon" href="${up}favicon.ico" sizes="48x48">
 <link rel="icon" href="${up}favicon.svg" type="image/svg+xml" sizes="any">
 <link rel="apple-touch-icon" href="${up}apple-touch-icon.png">
+<link rel="preload" href="${up}fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="${up}style.css">
 <script src="${up}boot.js?v=${hashStr(THEME_BOOT)}" data-site></script>
 </head>
@@ -788,6 +789,8 @@ function loadMetrics() {
 }
 const TODAY = /^\d{4}-\d{2}-\d{2}$/.test(process.env.PRAXIKIT_TODAY ?? "") ? process.env.PRAXIKIT_TODAY : new Date().toISOString().slice(0, 10);
 const STAR = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z"/></svg>';
+/** GitHub's licence codes in words a visitor can read. */
+const licenceWord = (id) => (id === "none" ? "No licence" : id === "NOASSERTION" ? "Custom licence" : id);
 const healthOf = (l) => healthScore(l, METRICS[l.url], DRIFT[l.url], TODAY);
 /** Stars and the health score, small, under the author line. Nothing is shown when the facts are not there yet. */
 function signals(l) {
@@ -855,7 +858,7 @@ ${signals(l)}<p class="promise">${esc(l.why)}</p>
 ${tagChips(l, up, 3)}
 ${APP ? `<p class="stat" data-stat="${esc(l.url)}" hidden></p>` : ""}
 ${l.pick ? `<p class="pick-note"><strong>How I use it</strong>${esc(l.note)}</p>` : ""}
-<div class="card-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>${d.warn ? esc(d.short) : "Reviewed"} <code>${esc(l.commit.slice(0, 7))}</code></span></span></div>
+<div class="card-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>${d.warn ? esc(d.short) : "Read at"} <code>${esc(l.commit.slice(0, 7))}</code></span></span></div>
 </li>`;
 }
 
@@ -968,43 +971,41 @@ const releaseList = (items, up) => items.map(({ k, e, date, v }) => `<li><div cl
 
 function homePage(kits, picks) {
   const featured = kits.slice(0, 3);
-  const rows = GROUPS.map((g) => { const n = inGroup(kits, g).length; return `<li><a class="type-row" data-kind="${g.kinds[0]}" href="kits/${g.id}/"><span><strong>${esc(g.label)}</strong><span class="muted">${esc(g.blurb)}</span></span><span class="count-line">${n ? plural(n, "kit") : "None yet"}</span></a></li>`; }).join("");
+  const rows = GROUPS.map((g) => { const n = inGroup(kits, g).length; return `<li><a class="type-row" href="kits/${g.id}/"><span><strong>${esc(g.label)}</strong><span class="muted">${esc(g.blurb)}</span></span><span class="count-line">${n ? plural(n, "kit") : "None yet"}</span></a></li>`; }).join("");
   const topTags = sortedTags(collectTags(kits)).slice(0, 10);
   const built = kits.filter((k) => !k.ext).length;
   const dates = kits.map((k) => (k.ext ? k.added : dateOf(k.changelog?.[0]?.head))).filter(Boolean).sort();
   const updated = dates[dates.length - 1] ?? "";
 
+  const recent = kits.filter((k) => k.ext).slice().sort((x, y) => String(y.added).localeCompare(String(x.added))).slice(0, 4);
+  const receiptRows = recent.map((l) => { const m = METRICS[l.url], h = healthOf(l); return `<li><a class="receipt-row" href="${lpath(l)}"><span class="rr-name">${esc(l.name)}</span><span class="rr-kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span><span class="rr-meta"><span>Read at <code>${esc(l.commit.slice(0, 7))}</code></span>${m ? `<span>${esc(licenceWord(m.licence))}</span>` : ""}${h ? `<span class="score ${h.level}">Health ${h.score}</span>` : ""}</span></a></li>`; }).join("");
+  const builtKits = kits.filter((k) => !k.ext);
   const body = `
 <section class="hero"><div class="wrap hero-in">
 <div class="hero-text">
-<p class="eyebrow">${SHIELD} Every kit is read by a person before it is listed</p>
-<h1>Kits for AI coding agents you can read before you trust.</h1>
-<p class="lead">Plugins, skills, MCP configs and templates, each with a version, a changelog and a plain list of what it reads, writes and sends.</p>
-<ol class="steps"><li><span class="label">1. Add the marketplace once, in Claude Code</span>${install(["/plugin marketplace add praxikit/praxikit"])}</li>
-<li><span class="label">2. Open a kit and copy its install line</span></li></ol>
-<p class="actions"><a class="btn" href="kits/">Browse all kits</a><a class="btn ghost" href="submit/">Submit a kit</a></p>
-<p class="stats"><span><strong>${kits.length}</strong> ${kits.length === 1 ? "kit" : "kits"}</span><span><strong>${built}</strong> built here</span><span><strong>${picks.length}</strong> ${picks.length === 1 ? "pick" : "picks"}</span>${updated ? `<span>updated <strong>${esc(updated)}</strong></span>` : ""}</p>
+<h1>Kits for AI coding agents, read before you trust.</h1>
+<p class="lead">Every kit here was scanned, then read by a person. Each page shows what it reads, writes and sends, and the exact commit that was read.</p>
+<div class="hero-install"><span class="label">Add the marketplace in Claude Code</span>${install(["/plugin marketplace add praxikit/praxikit"])}</div>
+<p class="actions"><a class="btn" href="kits/">Browse ${kits.length} kits</a><a class="btn ghost" href="submit/">Submit a kit</a></p>
 </div>
-<div class="hero-types"><h2 class="sub">Browse by type</h2><ul class="typelist">${rows}</ul></div>
+${receiptRows ? `<div class="hero-receipts"><h2 class="sub">Recently listed</h2><ul class="receipts">${receiptRows}</ul><p class="receipts-more"><a href="kits/">All kits</a></p></div>` : ""}
 </div></section>
 
-${topTags.length ? `<section class="wrap sec"><h2>Find a kit for…</h2><ul class="pillrow">${topTags.map(([t, l]) => `<li><a class="pill" href="tags/${esc(t)}/">${esc(t)} <span class="count">${l.length}</span></a></li>`).join("")}<li><a class="pill ghost" href="tags/">All tags</a></li></ul></section>` : ""}
+${builtKits.length ? `<section class="wrap sec"><div class="sec-head"><h2>Built here</h2><a class="viewall" href="kits/?show=built">All built kits</a></div>${listHtml(builtKits.slice(0, 3), "./")}</section>` : ""}
+
+${picks.length ? `<section class="wrap sec"><div class="sec-head"><h2>My picks</h2><a class="viewall" href="kits/?show=pick">All picks</a></div><ul class="cards">${picks.slice(0, 3).map((r) => recCard(r)).join("")}</ul></section>` : ""}
+
+<section class="wrap sec"><h2>Browse by type</h2><ul class="typelist">${rows}</ul></section>
+
+<section class="wrap sec"><h2>How a kit gets listed</h2>
+<ol class="plain-steps">
+<li>An automatic check reads the repository. It never runs or installs anything.</li>
+<li>A person reads the result and decides. Nothing is listed for payment.</li>
+<li>The listing records the commit that was read, and a daily check tells you if the repository changes.</li>
+</ol>
+<p class="muted"><a href="policy/">How listings, reports and removals work</a></p></section>
 
 ${APP ? `<section class="wrap sec" id="home-community"><div class="home-cols"><div><div class="sec-head"><h2>Top contributors</h2><a class="viewall" href="${esc(APP)}/contributors">Leaderboard</a></div><ol class="mini-board" id="home-board"><li class="muted">Loading…</li></ol></div><div><div class="sec-head"><h2>Most wanted</h2><a class="viewall" href="${esc(APP)}/requests">All requests</a></div><ul class="mini-req" id="home-reqs"><li class="muted">Loading…</li></ul><p class="muted">Missing a kit? <a href="${esc(APP)}/requests">Ask for it</a>.</p></div></div></section>` : ""}
-
-<section class="wrap sec"><div class="sec-head"><h2>Featured kits</h2><a class="viewall" href="kits/">View all ${plural(kits.length, "kit")}</a></div>
-${listHtml(featured, "./")}
-</section>
-
-<section class="wrap sec"><div class="sec-head"><h2>My picks</h2><a class="viewall" href="kits/?show=pick">${picks.length ? `View all ${picks.length}` : "About picks"}</a></div>
-${picks.length ? `<ul class="cards">${picks.slice(0, 3).map((r) => recCard(r)).join("")}</ul>` : `<p class="muted">Nothing here yet. Picks are kits made by other people that the owner has actually used, each with a note on how.</p>`}</section>
-
-<section class="wrap sec"><h2>Why you can trust what is here</h2>
-<ul class="trust">
-<li>${SHIELD}<strong>Read, never run</strong><p>The automatic check looks at a repository without running or installing anything. Then a person reads the report before anything is listed.</p></li>
-<li>${SHIELD}<strong>Pinned to a commit</strong><p>Every listing records the exact commit that was read, and a daily check tells you when the repository has moved on.</p></li>
-<li>${SHIELD}<strong>No pay to list</strong><p>Nothing is listed for payment. Each entry says who made it and who put it forward, and picks say how the owner uses them.</p></li>
-</ul></section>
 
 <section class="wrap sec"><div class="submit-band"><div><h2>Built a kit?</h2><p class="muted">Submit it for free. An automatic check reads the repository without running it, then a person reads it before anything is listed.</p></div><a class="btn" href="submit/">Submit a kit</a></div></section>
 
@@ -1034,7 +1035,7 @@ ${tagSel}
   const empty = group && !list.length ? `<div class="empty"><p><strong>No ${esc(group.noun)} yet.</strong> <a href="${up}submit/">Submit one</a> or <a href="${up}kits/">see all kits</a>.</p></div>` : "";
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="${up}">Home</a> / ${group ? `<a href="${up}kits/">Kits</a> / ${esc(group.label)}` : "Kits"}</p>
 <div class="sec-head"><h1>${esc(title)}</h1><p class="muted" id="count" aria-live="polite">${plural(list.length, "kit")}</p></div>
-${group ? `<p class="lead">${esc(group.blurb)}</p>` : '<p class="lead">Kits built by Praxikit, plus kits by other people that were submitted and reviewed, each marked as such. Praxikit kits have their own page with what they add, what they read and send, and their changelog.</p>'}
+${group ? `<p class="lead">${esc(group.blurb)}</p>` : '<p class="lead">Kits built here, and kits by other people that were scanned and read before they were listed. Each one is marked as such.</p>'}
 ${typeNav(kits, up, group ? group.id : "all")}
 ${search}
 <div id="kits">${list.length ? listHtml(list, up) : ""}</div>
@@ -1294,6 +1295,8 @@ const items = [...kits, ...listings.map((l) => ({ ...l, ext: true }))];
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 copyFileSync(join(here, "style.css"), join(OUT, "style.css"));
+mkdirSync(join(OUT, "fonts"), { recursive: true });
+for (const f of readdirSync(join(here, "fonts"))) copyFileSync(join(here, "fonts", f), join(OUT, "fonts", f));
 write("index.html", homePage(items, picks));
 write("kits/index.html", kitsPage(items, null));
 for (const g of GROUPS) write(`kits/${g.id}/index.html`, kitsPage(items, g));

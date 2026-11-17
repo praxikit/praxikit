@@ -51,6 +51,12 @@ const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
 must(htmlFiles.length === 24, `expected 23 earlier pages plus the removal log = 24 html files, got ${htmlFiles.length}`);
 {
+  const home0 = readFileSync(join(out, "index.html"), "utf8");
+  must(existsSync(join(out, "fonts", "bricolage-grotesque.woff2")) && existsSync(join(out, "fonts", "OFL.txt")) && home0.includes('rel="preload" href="./fonts/bricolage-grotesque.woff2"') && readFileSync(join(out, "style.css"), "utf8").includes("@font-face"), "the heading font ships with its licence, from this site, and is preloaded");
+  must(!home0.includes('class="eyebrow"') && !home0.includes('class="stats"') && !home0.includes('class="trust"') && home0.includes('class="receipts"') && home0.includes("Read at"), "the home page leads with real listings (what was read, at which commit) and has no eyebrow, stats row or icon cards");
+  must(!/border-(left|right):\s*[2-9]px solid var\(--(warn|spark|accent|bad)\)/.test(readFileSync(join(out, "style.css"), "utf8")), "no coloured stripe on the side of a callout or card");
+}
+{
   const log = readFileSync(join(out, "removals", "index.html"), "utf8");
   must(log.includes("2026-11-16") && log.includes("Malicious") && log.includes("&lt;script&gt;x&lt;/script&gt;") && !log.includes("<script>x</script>") && !log.includes("2026-13-45") && log.includes('href="https://github.com/o/gone"') && !log.includes("evil.example"), "the removal log page lists the rows of docs/removals.md, escaped, and skips rows that are not valid");
 }

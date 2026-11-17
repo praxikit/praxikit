@@ -54,6 +54,7 @@ let r = await call("/");
 let html = await r.text();
 must(r.status === 200 && html.includes("<title>") && html.includes('data-app="https://praxikit.com"') && html.includes('id="acct"'), "the home page is the built site, with the account slot");
 const csp = r.headers.get("Content-Security-Policy") ?? "";
+must(csp.includes("font-src 'self'") && !/font-src[^;]*(https?:|\*)/.test(csp) && (await call("/admin")).headers.get("Content-Security-Policy").includes("font-src 'self'"), "the heading font may come from this site only (static pages and app pages alike)");
 must(csp.includes("script-src 'self' https://static.cloudflareinsights.com;") && csp.includes("connect-src 'self' https://cloudflareinsights.com;") && !csp.includes("*"), `the policy allows Cloudflare's cookie-less analytics and no other outside host: ${csp}`);
 must(csp.includes("script-src 'self'") && csp.includes("frame-ancestors 'none'") && !csp.includes("unsafe-inline") && !csp.includes("unsafe-eval") && r.headers.get("X-Content-Type-Options") === "nosniff" && (r.headers.get("Strict-Transport-Security") ?? "").includes("max-age"), `static pages carry strict headers: ${csp}`);
 must(!/<script(?![^>]*(?:\ssrc=|ld\+json))[^>]*>/i.test(html), "no inline script is left on any page");

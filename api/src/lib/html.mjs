@@ -9,8 +9,8 @@ export const CSS = `
 .app .muted{color:var(--muted);font-size: var(--fs-sm)}
 .app .badge{font-size: var(--fs-xs);font-weight:600;padding:2px 8px;border-radius:8px;background:var(--accent);color:var(--accent-fg)}
 .app .badge.warn{background:var(--warn-bg);color:var(--warn)}.app .badge.bad{background:var(--bad);color:#fff}
-.app .note{background:var(--warn-bg);border-left:3px solid var(--warn);padding:var(--s3) var(--s4);margin:var(--s4) 0;border-radius:0 var(--radius-sm) var(--radius-sm) 0}
-.app .ok{background:var(--card);border-left:3px solid var(--accent);padding:var(--s3) var(--s4);margin:var(--s4) 0;border-radius:0 var(--radius-sm) var(--radius-sm) 0}
+.app .note{background:var(--warn-bg);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);padding:var(--s3) var(--s4);margin:var(--s4) 0;border-radius:var(--radius-sm)}
+.app .ok{background:var(--card);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);padding:var(--s3) var(--s4);margin:var(--s4) 0;border-radius:var(--radius-sm)}
 .app .btn,.app button{font:inherit;font-size: var(--fs-sm);min-height:var(--control);padding:0 var(--s4);border-radius:var(--radius-sm);display:inline-flex;align-items:center;justify-content:center;font-weight:600;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);text-decoration:none;cursor:pointer}
 .app button.ghost,.app .btn.ghost{background:transparent;color:var(--accent)}
 .app button.ghost:hover,.app .btn.ghost:hover{background:var(--accent-bg);filter:none}
@@ -26,7 +26,7 @@ export const CSS = `
 .app textarea{min-height:6rem;padding:var(--s3) var(--s4);resize:vertical}
 .app select{font:inherit;min-height:var(--control);padding:0 var(--s3);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--card);color:var(--fg)}
 .app .hint{font-weight:400;color:var(--muted);font-size: var(--fs-sm)}
-.app blockquote{margin:.5rem 0;padding:.4rem 1rem;border-left:3px solid var(--line);color:var(--muted)}
+.app blockquote{margin:.5rem 0;padding:.4rem 1rem;border-left:1px solid var(--line);color:var(--muted)}
 .app dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:6px 18px}.app dt{color:var(--muted)}.app dd{margin:0;overflow-wrap:anywhere}
 .app ul.plain{list-style:none;padding:0;margin:0}
 .app .listing{border:1px solid var(--line);border-radius:var(--radius);background:var(--card);padding:var(--s4) var(--s5);margin:var(--s3) 0}
@@ -41,7 +41,7 @@ export const CSS = `
 .app .requests{list-style:none;padding:0;margin:0 0 1.5rem;display:grid;gap:12px}
 .app .request{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:var(--s4) var(--s5);box-shadow:none}
 .app .request h3{margin:0 0 .25rem;font-size: var(--fs-lg)}.app .request p{margin:.2rem 0}
-.app .request.solved{border-left:4px solid var(--accent)}
+.app .request.solved{border-color:var(--accent)}
 .app .req-main{min-width:0}
 .app .need-btn{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-weight:650;font-size: var(--fs-sm);text-decoration:none;cursor:pointer}
 .app .need-btn:hover{border-color:var(--accent);color:var(--accent)}

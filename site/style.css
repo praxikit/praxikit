@@ -148,11 +148,11 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .85; }
 .feature-main, .feature-side { min-width: 0; }
 .feature-side { background: var(--bg2); border-radius: 10px; padding: 16px 18px; }
 .feature-side .more { font-weight: 600; }
-.note { font-size: var(--fs-sm); background: var(--warn-bg); border-left: 3px solid var(--warn); padding: 10px 14px; margin: 0 0 1rem; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.note { font-size: var(--fs-sm); background: var(--warn-bg); border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent); padding: 10px 14px; margin: 0 0 1rem; border-radius: var(--radius-sm); }
 .empty { border: 1px dashed var(--line); border-radius: var(--radius); padding: 22px; color: var(--muted); background: color-mix(in srgb, var(--card) 60%, transparent); }
 .empty[hidden] { display: none; }
 .empty p { margin: 0; }
-.pick-note { margin: 0 0 .9rem; padding: 10px 14px; background: var(--accent-bg); border-left: 3px solid var(--spark); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font-size: var(--fs-sm); }
+.pick-note { margin: 0 0 .9rem; padding: 10px 14px; background: var(--accent-bg); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius: var(--radius-sm); font-size: var(--fs-sm); }
 .details { position: relative; z-index: 2; font-weight: 650; white-space: nowrap; text-decoration: none; padding: 8px 10px; border-radius: var(--radius-sm); }
 .details::after { content: " \2192"; }
 .details:hover { background: var(--accent-bg); }
@@ -620,54 +620,59 @@ table.plain-table th, table.plain-table td { text-align: left; padding: var(--s3
 table.plain-table thead th { color: var(--muted); font-size: var(--fs-xs); font-weight: 600; letter-spacing: .02em; }
 table.plain-table tbody tr:last-child td { border-bottom: 0; }
 
-/* ===== A new look: kit blocks =====
-   The logo is a set of blocks, so each kit type gets a block of its own colour and icon. Metadata reads like code (mono),
-   the hero sits on a faint grid, and surfaces stay quiet so the colour does the sorting. */
-:root {
-  --k-plugin: #0a6a61; --k-skill: #944f00; --k-mcp: #3f4bb8; --k-template: #a8324f; --k-agent: #7a3fb0; --k-hook: #475569; --k-adapter: #3b6b2a;
-}
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --k-plugin: #52c8ba; --k-skill: #f0a45c; --k-mcp: #9aa6ff; --k-template: #ff93ab; --k-agent: #c9a0ff; --k-hook: #aab6c8; --k-adapter: #9ad47c; } }
-:root[data-theme="dark"] { --k-plugin: #52c8ba; --k-skill: #f0a45c; --k-mcp: #9aa6ff; --k-template: #ff93ab; --k-agent: #c9a0ff; --k-hook: #aab6c8; --k-adapter: #9ad47c; }
-[data-kind="plugin"] { --kc: var(--k-plugin); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M10%203a2%202%200%200%201%204%200v2h4v4h-2a2%202%200%200%200%200%204h2v4h-4v-2a2%202%200%200%200-4%200v2H6v-4h2a2%202%200%200%200%200-4H6V5h4z'%2F%3E%3C%2Fsvg%3E"); }
-[data-kind="skill"] { --kc: var(--k-skill); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M12%203l2.2%205.8L20%2011l-5.8%202.2L12%2019l-2.2-5.8L4%2011l5.8-2.2z'%2F%3E%3C%2Fsvg%3E"); }
-[data-kind="mcp"] { --kc: var(--k-mcp); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M9%203v5M15%203v5M6%208h12v3a6%206%200%200%201-12%200zM12%2017v4'%2F%3E%3C%2Fsvg%3E"); }
-[data-kind="template"] { --kc: var(--k-template); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M4%205h16v14H4zM4%2010h16M10%2010v9'%2F%3E%3C%2Fsvg%3E"); }
-[data-kind="agent"] { --kc: var(--k-agent); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M12%203a4%204%200%201%201%200%208%204%204%200%200%201%200-8zM4%2021a8%208%200%200%201%2016%200'%2F%3E%3C%2Fsvg%3E"); }
-[data-kind="hook"] { --kc: var(--k-hook); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M6%203v12M6%2015a3%203%200%201%200%200%20.01M18%209a3%203%200%201%200%200-.01M18%2012a6%206%200%200%201-6%206H9'%2F%3E%3C%2Fsvg%3E"); }
-[data-kind="adapter"] { --kc: var(--k-adapter); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M7%207h12l-3-3M17%2017H5l3%203'%2F%3E%3C%2Fsvg%3E"); }
+/* ===== Makeover =====
+   Thesis: a catalogue of receipts. Each kit is shown with what was checked, at which commit, and how well it is looked after.
+   One accent (teal) and one spark (amber, only for "pick" and "new"). Type icons are drawn in one stroke and one colour.
+   Headings use a display face with some character; everything people read or operate stays on the system font. */
+@font-face { font-family: "Bricolage Grotesque"; src: url("fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 200 800; font-style: normal; font-display: swap; }
+:root { --display: "Bricolage Grotesque", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+h1, h2, .brand span { font-family: var(--display); }
+h1 { font-weight: 700; letter-spacing: -.035em; line-height: 1.04; }
+h2 { font-weight: 650; letter-spacing: -.025em; line-height: 1.15; }
+.brand span { font-weight: 700; letter-spacing: -.02em; }
+::selection { background: var(--accent); color: var(--accent-fg); }
+html { scrollbar-color: color-mix(in srgb, var(--fg) 30%, transparent) transparent; }
+a { text-underline-offset: .2em; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-/* the block: a tinted square with the type's icon, left of the chips */
-.card[data-kind] { --tint: color-mix(in srgb, var(--kc) 13%, var(--card)); box-shadow: inset 0 3px 0 var(--kc); }
-.card[data-kind] .card-head { position: relative; padding-left: 52px; min-height: 40px; }
-.card[data-kind] .card-head::before { content: ""; position: absolute; left: 0; top: 50%; width: 40px; height: 40px; margin-top: -20px; border-radius: 12px; background: var(--tint); }
-.card[data-kind] .card-head::after { content: ""; position: absolute; left: 10px; top: 50%; width: 20px; height: 20px; margin-top: -10px; background: var(--kc); -webkit-mask: var(--kmask) center / contain no-repeat; mask: var(--kmask) center / contain no-repeat; }
-.card[data-kind] .kind:not(.pick):not(.fresh):not(.ext):not(.warn) { background: var(--tint); color: var(--kc); }
-@media (hover: hover) { .card[data-kind]:hover { border-color: color-mix(in srgb, var(--kc) 55%, var(--line)); box-shadow: inset 0 3px 0 var(--kc), var(--shadow-md); } }
+/* callouts: tinted surface and a hairline, no coloured stripe */
+.note, .pick-note { border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent); border-radius: var(--radius-sm); }
+.pick-note { background: var(--accent-bg); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
 
-/* the home page's type list gets the same blocks */
-.type-row[data-kind] { position: relative; padding-left: 76px; }
-.type-row[data-kind]::before { content: ""; position: absolute; left: 20px; top: 50%; width: 40px; height: 40px; margin-top: -20px; border-radius: 12px; background: color-mix(in srgb, var(--kc) 13%, var(--card)); }
-.type-row[data-kind]::after { content: ""; position: absolute; left: 30px; top: 50%; width: 20px; height: 20px; margin-top: -10px; background: var(--kc); -webkit-mask: var(--kmask) center / contain no-repeat; mask: var(--kmask) center / contain no-repeat; }
-.type-row[data-kind] .count-line { color: var(--kc); }
-
-/* metadata reads like code */
-.byline, .ver, .receipt, .stat, .signals, .card-foot, .foot-in .muted, .crumb { font-family: var(--mono); font-size: var(--fs-xs); letter-spacing: -.01em; }
-.signals .stars, .score { font-family: var(--mono); }
-.card .byline { color: var(--muted); }
-
-/* the hero: a faint grid that fades out, so the page has a floor to stand on */
-.hero { position: relative; isolation: isolate; }
-.hero::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--fg) 16%, transparent) 1px, transparent 0); background-size: 24px 24px; -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 85%); mask-image: linear-gradient(to bottom, #000 0%, transparent 85%); }
-.hero h1 { letter-spacing: -.035em; }
-.eyebrow { font-family: var(--mono); letter-spacing: -.01em; }
-
-/* buttons: a little depth on the primary, a clear hover on the rest */
-.btn:not(.ghost), .app .btn:not(.ghost), .app button:not(.ghost) { box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 22%, transparent), 0 1px 2px rgba(0, 0, 0, .12); }
-.btn.ghost:hover, .app .btn.ghost:hover { border-color: var(--accent); }
-.top { border-bottom-color: color-mix(in srgb, var(--line) 80%, transparent); }
-
-/* the block stays at the top when the chips wrap onto more lines */
-.card[data-kind] .card-head { align-items: flex-start; }
-.card[data-kind] .card-head::before { top: 0; margin-top: 0; }
-.card[data-kind] .card-head::after { top: 10px; margin-top: 0; }
+/* cards: one icon in the accent, quiet surface */
+.card[data-kind] { box-shadow: none; }
+.card[data-kind] .card-head { position: relative; padding-left: 52px; min-height: 40px; align-items: flex-start; }
+.card[data-kind] .card-head::before { content: ""; position: absolute; left: 0; top: 0; width: 40px; height: 40px; border-radius: 12px; background: var(--accent-bg); }
+.card[data-kind] .card-head::after { content: ""; position: absolute; left: 10px; top: 10px; width: 20px; height: 20px; background: var(--accent); -webkit-mask: var(--kmask, none) center / contain no-repeat; mask: var(--kmask, none) center / contain no-repeat; }
 .card[data-kind] .card-head .meta-line { min-height: 40px; align-content: center; }
+.card[data-kind="plugin"] { --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M10%203a2%202%200%200%201%204%200v2h4v4h-2a2%202%200%200%200%200%204h2v4h-4v-2a2%202%200%200%200-4%200v2H6v-4h2a2%202%200%200%200%200-4H6V5h4z'%2F%3E%3C%2Fsvg%3E"); }
+.card[data-kind="skill"] { --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M12%203l2.2%205.8L20%2011l-5.8%202.2L12%2019l-2.2-5.8L4%2011l5.8-2.2z'%2F%3E%3C%2Fsvg%3E"); }
+.card[data-kind="mcp"] { --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M9%203v5M15%203v5M6%208h12v3a6%206%200%200%201-12%200zM12%2017v4'%2F%3E%3C%2Fsvg%3E"); }
+.card[data-kind="template"] { --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M4%205h16v14H4zM4%2010h16M10%2010v9'%2F%3E%3C%2Fsvg%3E"); }
+.card[data-kind="agent"] { --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M12%203a4%204%200%201%201%200%208%204%204%200%200%201%200-8zM4%2021a8%208%200%200%201%2016%200'%2F%3E%3C%2Fsvg%3E"); }
+.card[data-kind="hook"] { --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M6%203v12M6%2015a3%203%200%201%200%200%20.01M18%209a3%203%200%201%200%200-.01M18%2012a6%206%200%200%201-6%206H9'%2F%3E%3C%2Fsvg%3E"); }
+.card[data-kind="adapter"] { --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M7%207h12l-3-3M17%2017H5l3%203'%2F%3E%3C%2Fsvg%3E"); }
+@media (hover: hover) { .card[data-kind]:hover { box-shadow: var(--shadow-md); } }
+
+/* data is set in mono; names, bylines and prose are not */
+.ver, .signals .stars, .score { font-family: var(--mono); }
+
+/* home: the first viewport shows the work, a list of real listings with what was read and when */
+.hero-in { align-items: center; }
+.hero h1 { max-width: 14ch; font-size: clamp(2.5rem, 1.4rem + 4.2vw, 4.75rem); }
+.hero .lead { max-width: 46ch; }
+.hero-install { margin: 0 0 var(--s5); }
+.hero-install .label { margin-bottom: var(--s2); }
+.hero .actions { margin-top: 0; }
+.hero-receipts .sub { margin: 0 0 var(--s3); font-size: 1.25rem; }
+.receipts { list-style: none; margin: 0; padding: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.receipts li + li { border-top: 1px solid var(--line); }
+.receipt-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s1) var(--s4); padding: var(--s4) var(--s5); color: var(--fg); text-decoration: none; }
+.receipt-row:hover { background: var(--bg2); }
+.rr-name { font-weight: 650; overflow-wrap: anywhere; }
+.rr-kind { color: var(--muted); font-size: var(--fs-sm); }
+.rr-meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s4); color: var(--muted); font-size: var(--fs-sm); }
+.receipts-more { margin: var(--s3) 0 0; font-size: var(--fs-sm); }
+.plain-steps { margin: 0 0 var(--s4); padding-left: 1.4rem; max-width: 62ch; }
+.plain-steps li { margin: 0 0 var(--s2); padding-left: var(--s1); }
+.typelist .type-row { padding: var(--s4) var(--s5); }
