@@ -28,7 +28,7 @@ put("docs/removals.md", "# Removed listings\n\n| Date | Name | Repository | Reas
 put("site/drift.json", JSON.stringify({ "https://github.com/o/rec": "changed", "https://github.com/o/comm": "unreachable", "https://github.com/o/ignored": "bogus", "https://evil.example/x": "changed" }));
 put("site/metrics.json", JSON.stringify({ "https://github.com/o/rec": { stars: 64900, licence: "MIT", pushed: "2026-11-10", archived: false }, "https://github.com/o/comm": { stars: 3, licence: "<script>", pushed: "2026-11-10", archived: false } }));
 put("site/listings.json", JSON.stringify([
-  { name: XSS, url: "https://github.com/o/rec", author: XSS, why: XSS, kind: "mcp", source: "recommended", added: "2026-11-14", commit: SHA, checks: "no-flags-found", pick: true, note: XSS },
+  { name: XSS, url: "https://github.com/o/rec", author: XSS, why: XSS, kind: "mcp", source: "recommended", added: "2026-11-14", commit: SHA, checks: "no-flags-found", pick: true, note: XSS, found: { files: 42, checks: [{ id: "network", status: "flag", note: "3 lines & more" }, { id: "shape", status: "pass", note: "" }] } },
   { name: "Community " + XSS, url: "https://github.com/o/comm", author: "someone", why: XSS, kind: "skill", source: "community", added: "2026-11-14", commit: SHA, checks: "checks-flagged", issue: 5 },
 ]));
 
@@ -77,14 +77,16 @@ must(idx.includes('href="./l/o-rec/"') && /<a target="_blank" class="icon-act" h
 must(!idx.includes('class="details"') && !idx.includes(">Details<") && !idx.includes("View details"), "cards have no action row: the whole card opens its page");
 const skillsPage = readFileSync(join(out, "kits/skills/index.html"), "utf8");
 const commHtml = readFileSync(join(out, "l/o-comm/index.html"), "utf8"), recHtml = readFileSync(join(out, "l/o-rec/index.html"), "utf8");
+must(recHtml.includes("What the check found") && recHtml.includes("42 files read") && recHtml.includes("Look closer") && recHtml.includes("3 lines &amp; more") && recHtml.includes("does not mean the kit is unsafe"), "a listing page shows what the check found, escaped, with the plain meaning of the words");
+must(commHtml.includes("What the check found") && commHtml.includes("were not saved for this listing yet"), "a listing without the record says so instead of hiding the section");
 must(skillsPage.includes('href="../../l/o-comm/"') && skillsPage.includes("Listed") && !skillsPage.includes(`class="kind pick"`) && skillsPage.includes("by someone"), "a community listing shows on its type page as a listed kit, linking to its own page");
 must(/href="https:\/\/github\.com\/o\/comm" rel="noopener noreferrer"/.test(commHtml) && commHtml.includes("Submitted by its author") && commHtml.includes("not built by Praxikit") && commHtml.includes("<code>aaaaaaa</code>") && commHtml.includes("Review receipt"), "its page links to GitHub safely and carries the review receipt with the reviewed commit");
 const mcpPage = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
-must(mcpPage.includes("My pick") && mcpPage.includes("How I use it") && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("l/o-rec/") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
+must(mcpPage.includes("My pick") && mcpPage.includes("<b>I use it.</b>") && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("l/o-rec/") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
 must(idx.includes("Changed since review") && recHtml.includes('href="https://github.com/o/rec/compare/' + SHA + '...HEAD"'), "a listing whose repository moved on says so, and its page links to the comparison");
 must(skillsPage.includes("Repository not reachable") && !skillsPage.includes("Changed since review"), "an unreachable listing says so, and a 'same' or unknown status adds nothing");
 const picksHtml = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
-must(picksHtml.includes("l/o-rec/") && picksHtml.includes("My pick") && picksHtml.includes("How I use it") && !existsSync(join(out, "picks")) && !existsSync(join(out, "updates")), "picks live on the kits page with the owner's note, and there are no separate Picks or Updates pages");
+must(picksHtml.includes("l/o-rec/") && picksHtml.includes("My pick") && picksHtml.includes("<b>I use it.</b>") && !existsSync(join(out, "picks")) && !existsSync(join(out, "updates")), "picks live on the kits page with the owner's note, and there are no separate Picks or Updates pages");
 must(!idx.includes(">Recommended<") && !idx.includes(">Picks<") && idx.includes("My picks"), "the word Recommended is gone, and picks are a section on the home page, not a navigation tab");
 must(!/href="https:\/\/github\.com[^"]*"(?![^>]*rel=)/.test(idx), "external GitHub link without rel");
 must(existsSync(join(out, "k/evil/index.html")) && existsSync(join(out, "c/planning/index.html")) && existsSync(join(out, "c/design-and-3d/index.html")), "kit or collection pages missing");

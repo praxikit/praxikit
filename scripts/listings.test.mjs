@@ -222,6 +222,25 @@ must(readFileSync(join(out, "comment.md"), "utf8").includes("Not listed") && rea
   must(no.status === 4, "the edit command fails for an unlisted repository");
 }
 
+// ---- what the check found is kept with the listing, in a fixed shape
+{
+  const found = { files: 120, checks: [{ id: "shape", status: "pass", note: "" }, { id: "network", status: "flag", note: "3 line(s) in code that look like network access:" }, { id: "secrets", status: "pass", note: "" }] };
+  const withFound = { ...good, found };
+  must(validateListing(withFound).length === 0, "a listing may carry what the check found");
+  must(validateListing({ ...good, found: { files: 1, checks: [{ id: "shape", status: "pass", note: "<script>x</script>" }] } }).length > 0, "markup in a note is refused");
+  must(validateListing({ ...good, found: { files: 1, checks: [{ id: "weird", status: "pass", note: "" }] } }).length > 0, "only known checks are accepted");
+  must(validateListing({ ...good, found: { files: 1, checks: [{ id: "shape", status: "great", note: "" }] } }).length > 0, "only pass, flag and fail are results");
+  must(validateListing({ ...good, found: { files: 1, checks: [{ id: "shape", status: "pass", note: "" }, { id: "shape", status: "pass", note: "" }] } }).length > 0, "a check is listed once");
+  must(validateListing({ ...good, found: { files: 1, checks: [{ id: "shape", status: "pass", note: "x".repeat(200) }] } }).length > 0, "notes are short");
+  const viaDispatch = entryFromDispatch({ ...env, IN_URL: "https://github.com/o/r" }, { ...scanOk, found }, "2026-11-15");
+  must(viaDispatch.ok && viaDispatch.entry.found.checks.length === 3, "the entry made from a scan keeps what it found");
+  const without = entryFromDispatch({ ...env, IN_URL: "https://github.com/o/r" }, scanOk, "2026-11-15");
+  must(without.ok && !("found" in without.entry), "a scan with no detail adds none");
+  const edited = editListing([withFound], withFound.url, { name: "Renamed", why: "", tags: "", note: "" });
+  must(edited.after.found?.files === 120, "editing the wording keeps what the check found");
+  must(appendListing([withFound], { ...withFound, commit: "b".repeat(40) }, true)[0].commit === "b".repeat(40), "a re-review replaces the entry, record included");
+}
+
 // ---- approval by hand: only when the automatic scan refused to read the repository
 {
   const refusal = { refusal: { text: "repository is about 203 MB, over the 100 MB limit for automatic checks" }, text: "x" };

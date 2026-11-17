@@ -237,6 +237,8 @@ export function scanDir(root, declared = "") {
 
 // ---------- the comment ----------
 const WORD = { pass: "Pass", flag: "Look closer", fail: "Fail" };
+/** What each check found, kept with a listing so the page can show it: id, result and the first note (secret values are never in the notes). */
+export const foundOf = (result) => ({ files: Number(result.files) || 0, checks: result.checks.map((c) => ({ id: String(c.id), status: c.status, note: c.status === "pass" ? "" : safe(String(c.notes?.[0] ?? ""), 140) })) });
 // the label names say what was found, never "clean" or "safe"
 export function overall(checks) { return checks.some((c) => c.status === "fail") ? "checks-failed" : checks.some((c) => c.status === "flag") ? "checks-flagged" : "no-flags-found"; }
 
@@ -269,8 +271,9 @@ export function scanUrl(text, declared = "") {
   const tmp = mkdtempSync(join(tmpdir(), "praxikit-sub-"));
   try {
     const sha = cloneRepo(r.clone, join(tmp, "repo"));
-    const c = renderComment({ page: r.page, sha, result: scanDir(join(tmp, "repo"), declared), declared });
-    return { page: r.page, sha, label: c.label, text: c.text, owner: r.owner, repo: r.repo };
+    const result = scanDir(join(tmp, "repo"), declared);
+    const c = renderComment({ page: r.page, sha, result, declared });
+    return { page: r.page, sha, label: c.label, text: c.text, owner: r.owner, repo: r.repo, found: foundOf(result) };
   } catch (e) {
     return { refusal: { label: "checks-failed", text: [MARKER, "### Automated checks", "", `Could not fetch ${safe(r.page, 90)} (${safe(String(e.stderr ?? e.message).split("\n")[0], 100)}). Is the repository public? Edit the issue to run the checks again.`].join("\n") } };
   } finally { rmSync(tmp, { recursive: true, force: true }); }

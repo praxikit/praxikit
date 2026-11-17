@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, readFileSync, rmSyn
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseIssue, repoUrl, scanDir, renderComment, renderRefusal, overall, safe, MARKER } from "./check-submission.mjs";
+import { parseIssue, repoUrl, scanDir, renderComment, renderRefusal, overall, safe, foundOf, MARKER } from "./check-submission.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const failures = [];
@@ -48,6 +48,11 @@ must(status(rd, "secrets") === "fail" && status(rd, "licence") === "fail" && ove
 const cd = comment(dirty).text;
 must(!cd.includes(awsKey) && !cd.includes(ghTok) && !cd.includes("PRIVATE KEY"), "secret values and key headers are never echoed");
 must(cd.includes("src/config.js:1") && cd.includes("AWS access key id"), "secret findings name file, line and pattern");
+{
+  const fd = foundOf(rd), fc = foundOf(rc), blob = JSON.stringify(fd);
+  must(fd.checks.every((c) => ["pass", "flag", "fail"].includes(c.status) && c.note.length <= 140) && fd.checks.find((c) => c.id === "secrets").status === "fail" && fc.checks.every((c) => c.note === "" || c.status !== "pass"), "what the check found is kept as result and a short note per check");
+  must(!blob.includes(awsKey) && !blob.includes(ghTok) && !blob.includes("PRIVATE KEY") && Number.isInteger(fd.files), "the kept summary never holds a secret value");
+}
 
 // ---- flags for code that runs automatically, talks to the network or hides things
 const flagged = join(tmp, "flagged");

@@ -48,6 +48,7 @@ export function entryFromIssue(form, author, issue, scan, today) {
     added: today,
     commit: scan.sha ?? "",
     checks: scan.label ?? "needs-manual-review",
+    ...(scan.found ? { found: scan.found } : {}),
     ...(Number.isInteger(issue) && issue > 0 ? { issue } : {}),
   };
   return finish(entry, scan, false);
@@ -57,7 +58,7 @@ export function entryFromIssue(form, author, issue, scan, today) {
 export function entryFromDispatch(env, scan, today) {
   const entry = {
     name: clean(env.IN_NAME, 80), url: scan.page ?? "", author: clean(env.IN_AUTHOR || scan.owner, 80), why: clean(env.IN_WHY, 400),
-    kind: clean(env.IN_KIND, 20), source: clean(env.IN_SOURCE, 20), added: today, commit: scan.sha ?? "", checks: scan.label ?? "needs-manual-review",
+    kind: clean(env.IN_KIND, 20), source: clean(env.IN_SOURCE, 20), added: today, commit: scan.sha ?? "", checks: scan.label ?? "needs-manual-review", ...(scan.found ? { found: scan.found } : {}),
     // "I use this": the owner's pick, with a note on how
     ...(String(env.IN_PICK) === "true" ? { pick: true, note: clean(env.IN_NOTE, 200) } : {}),
     ...(parseTags(env.IN_TAGS).length ? { tags: parseTags(env.IN_TAGS) } : {}),
@@ -259,6 +260,28 @@ function main() {
     const next = computeMetrics(list, previous, run);
     writeFileSync(outFile, JSON.stringify(Object.fromEntries(Object.entries(next).sort(([a], [b]) => a.localeCompare(b))), null, 2) + String.fromCharCode(10));
     console.log(`facts for ${Object.keys(next).length} of ${list.length} listing(s)`);
+    return;
+  }
+
+  if (cmd === "found") {
+    // Fills in "what the check found" for listings made before it was kept. Only where the repository is still at the commit that was
+    // read, so the result describes exactly that commit; anything else is skipped and said so.
+    const listFile = arg("--file");
+    if (!listFile) { console.error("found needs --file"); process.exit(2); }
+    const list = JSON.parse(readFileSync(listFile, "utf8"));
+    let done = 0, skipped = 0;
+    for (const l of list) {
+      if (l.found) continue;
+      const scan = scanUrl(l.url, "");
+      if (scan.refusal || !scan.found || scan.sha !== l.commit) { console.log(`skipped ${l.url}: ${scan.refusal ? "it could not be scanned" : "the repository has moved on since it was read"}`); skipped++; continue; }
+      const next = { ...l, found: scan.found };
+      const problems = validateListing(next);
+      if (problems.length) { console.log(`skipped ${l.url}: ${problems.join("; ")}`); skipped++; continue; }
+      Object.assign(l, next); done++;
+      writeFileSync(listFile, JSON.stringify(list, null, 2) + "\n");
+      console.log(`recorded ${l.url}${scan.label !== l.checks ? ` (note: the scan now says ${scan.label}, the listing says ${l.checks})` : ""}`);
+    }
+    console.log(`done: ${done} recorded, ${skipped} skipped`);
     return;
   }
 

@@ -676,3 +676,10 @@ a { text-underline-offset: .2em; }
 .plain-steps { margin: 0 0 var(--s4); padding-left: 1.4rem; max-width: 62ch; }
 .plain-steps li { margin: 0 0 var(--s2); padding-left: var(--s1); }
 .typelist .type-row { padding: var(--s4) var(--s5); }
+
+/* check results: the word carries the meaning, the colour only helps */
+td.res { white-space: nowrap; font-weight: 600; }
+td.res-flag { color: var(--warn); }
+td.res-fail { color: var(--bad); }
+td.res-pass { color: var(--accent); }
+.pick-note b { color: var(--accent); }

@@ -21,7 +21,52 @@
     "source": "recommended",
     "added": "2026-11-15",
     "commit": "1f837447b20bb6f0e72d87b80ece1c221c362c7d",
-    "checks": "checks-flagged"
+    "checks": "checks-flagged",
+    "found": {
+      "files": 840,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "92 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "278 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "flag",
+          "note": "26 line s in skill, agent, command or rules files that tell an agent to use the network or run programs:"
+        },
+        {
+          "id": "odd",
+          "status": "flag",
+          "note": "1 compiled or binary file s : scripts/__pycache__/package_skills.cpython-312.pyc"
+        }
+      ]
+    }
   },
   {
     "name": "MCP reference servers",
@@ -38,7 +83,52 @@
       "memory",
       "web",
       "files"
-    ]
+    ],
+    "found": {
+      "files": 414,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "flag",
+          "note": "hook: SessionStart runs node CLAUDE_PROJECT_DIR/scripts/session-instructions-check.mjs"
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "292 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "108 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "flag",
+          "note": "6 line s in skill, agent, command or rules files that tell an agent to use the network or run programs:"
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Postgres MCP Pro",
@@ -54,7 +144,52 @@
       "database",
       "postgres",
       "sql"
-    ]
+    ],
+    "found": {
+      "files": 66,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "flag",
+          "note": "No plugin manifest, SKILL.md, .mcp.json or agent rules file found. A person needs to check what this is."
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "2 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Supabase MCP",
@@ -102,7 +237,52 @@
       "kubernetes",
       "devops",
       "cloud"
-    ]
+    ],
+    "found": {
+      "files": 157,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "6 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "21 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Figma Context MCP",
@@ -118,7 +298,52 @@
       "design",
       "figma",
       "frontend"
-    ]
+    ],
+    "found": {
+      "files": 105,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "flag",
+          "note": "No plugin manifest, SKILL.md, .mcp.json or agent rules file found. A person needs to check what this is."
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "9 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "3 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Mermaid MCP",
@@ -134,7 +359,52 @@
       "diagrams",
       "docs",
       "visual"
-    ]
+    ],
+    "found": {
+      "files": 31,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "flag",
+          "note": "No plugin manifest, SKILL.md, .mcp.json or agent rules file found. A person needs to check what this is."
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "flag",
+          "note": "postinstall: playwright install --with-deps chromium"
+        },
+        {
+          "id": "network",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "exec",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Brave Search MCP",
@@ -166,7 +436,52 @@
       "research",
       "papers",
       "citations"
-    ]
+    ],
+    "found": {
+      "files": 612,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "flag",
+          "note": "4 credential-looking string s in test or example files, values hidden. They are usually fakes a person should confirm:"
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "126 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "117 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "flag",
+          "note": "1 code line s over 2000 characters possible minified or obfuscated code : plugin/src/ui/fake-host.ts:16"
+        }
+      ]
+    }
   },
   {
     "name": "Obsidian MCP",
@@ -182,7 +497,52 @@
       "notes",
       "knowledge",
       "obsidian"
-    ]
+    ],
+    "found": {
+      "files": 26,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "flag",
+          "note": "No plugin manifest, SKILL.md, .mcp.json or agent rules file found. A person needs to check what this is."
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "15 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Notion MCP",
@@ -198,7 +558,52 @@
       "notion",
       "notes",
       "workspace"
-    ]
+    ],
+    "found": {
+      "files": 53,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "flag",
+          "note": "No plugin manifest, SKILL.md, .mcp.json or agent rules file found. A person needs to check what this is."
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "3 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "1 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Slack MCP",
@@ -214,7 +619,52 @@
       "slack",
       "team",
       "messaging"
-    ]
+    ],
+    "found": {
+      "files": 80,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "flag",
+          "note": "No plugin manifest, SKILL.md, .mcp.json or agent rules file found. A person needs to check what this is."
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "1 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Home Assistant MCP",
@@ -230,7 +680,52 @@
       "smart-home",
       "automation",
       "iot"
-    ]
+    ],
+    "found": {
+      "files": 32,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "flag",
+          "note": "No plugin manifest, SKILL.md, .mcp.json or agent rules file found. A person needs to check what this is."
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "55 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "17 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Docker MCP",
@@ -246,7 +741,52 @@
       "docker",
       "containers",
       "devops"
-    ]
+    ],
+    "found": {
+      "files": 16,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "flag",
+          "note": "No plugin manifest, SKILL.md, .mcp.json or agent rules file found. A person needs to check what this is."
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "exec",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Context7",
@@ -278,7 +818,52 @@
       "github",
       "code-review",
       "workflow"
-    ]
+    ],
+    "found": {
+      "files": 729,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "fail",
+          "note": "1 match es , values hidden:"
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "10 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "3 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Terraform MCP",
@@ -294,7 +879,52 @@
       "terraform",
       "infrastructure",
       "devops"
-    ]
+    ],
+    "found": {
+      "files": 441,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "flag",
+          "note": "No plugin manifest, SKILL.md, .mcp.json or agent rules file found. A person needs to check what this is."
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "fail",
+          "note": "1 match es , values hidden:"
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "7 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Superpowers",
@@ -310,7 +940,52 @@
       "workflow",
       "planning",
       "coding"
-    ]
+    ],
+    "found": {
+      "files": 236,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "flag",
+          "note": "4 credential-looking string s in test or example files, values hidden. They are usually fakes a person should confirm:"
+        },
+        {
+          "id": "autorun",
+          "status": "flag",
+          "note": "hook: SessionStart runs CLAUDE_PLUGIN_ROOT /hooks/run-hook.cmd session-start"
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "43 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "10 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "flag",
+          "note": "1 line s in skill, agent, command or rules files that tell an agent to use the network or run programs:"
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Agent Skills (Addy Osmani)",
@@ -326,7 +1001,52 @@
       "engineering",
       "quality",
       "coding"
-    ]
+    ],
+    "found": {
+      "files": 252,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "8 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "29 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "flag",
+          "note": "4 line s in skill, agent, command or rules files that tell an agent to use the network or run programs:"
+        },
+        {
+          "id": "odd",
+          "status": "flag",
+          "note": "3 instruction s in markdown that ask a model to act against the user: skills/source-driven-development/SKILL.md:110 tells the model to ignor"
+        }
+      ]
+    }
   },
   {
     "name": "Claude Code official plugins",
@@ -342,7 +1062,52 @@
       "plugins",
       "official",
       "directory"
-    ]
+    ],
+    "found": {
+      "files": 770,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "flag",
+          "note": "1 credential-looking string s in test or example files, values hidden. They are usually fakes a person should confirm:"
+        },
+        {
+          "id": "autorun",
+          "status": "flag",
+          "note": "hook: SessionStart runs bash CLAUDE_PLUGIN_ROOT /hooks/sg-python.sh CLAUDE_PLUGIN_ROOT /hooks/ensure_age"
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "95 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "337 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "flag",
+          "note": "20 line s in skill, agent, command or rules files that tell an agent to use the network or run programs:"
+        },
+        {
+          "id": "odd",
+          "status": "flag",
+          "note": "2 code line s over 2000 characters possible minified or obfuscated code : plugins/learning-output-style/hooks-handlers/session-start.s:10, p"
+        }
+      ]
+    }
   },
   {
     "name": "Planning with files",
@@ -358,7 +1123,52 @@
       "planning",
       "memory",
       "workflow"
-    ]
+    ],
+    "found": {
+      "files": 794,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "flag",
+          "note": "3 credential-looking string s in test or example files, values hidden. They are usually fakes a person should confirm:"
+        },
+        {
+          "id": "autorun",
+          "status": "flag",
+          "note": "hook: SessionStart runs sh CLAUDE_PLUGIN_ROOT /hooks/claude-hook.sh session-start"
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "1 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "455 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Obsidian skills",
@@ -374,7 +1184,52 @@
       "notes",
       "obsidian",
       "knowledge"
-    ]
+    ],
+    "found": {
+      "files": 28,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "exec",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   },
   {
     "name": "Cloudflare security audit",
@@ -390,7 +1245,52 @@
       "security",
       "audit",
       "review"
-    ]
+    ],
+    "found": {
+      "files": 22,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "12 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "flag",
+          "note": "1 line s in skill, agent, command or rules files that tell an agent to use the network or run programs:"
+        },
+        {
+          "id": "odd",
+          "status": "flag",
+          "note": "1 instruction s in markdown that ask a model to act against the user: skills/security-audit/ATTACK-CLASSES.md:76 mentions exfiltration"
+        }
+      ]
+    }
   },
   {
     "name": "Claude Code subagents collection",
@@ -406,7 +1306,52 @@
       "subagents",
       "roles",
       "coding"
-    ]
+    ],
+    "found": {
+      "files": 201,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "flag",
+          "note": "7 line s in code that look like network access:"
+        },
+        {
+          "id": "exec",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "flag",
+          "note": "2 instruction s in markdown that ask a model to act against the user: categories/04-quality-security/penetration-tester.md:54 mentions exfil"
+        }
+      ]
+    }
   },
   {
     "name": "Humanizer",
@@ -422,6 +1367,51 @@
       "writing",
       "editing",
       "text"
-    ]
+    ],
+    "found": {
+      "files": 15,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "exec",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "instructions",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "odd",
+          "status": "pass",
+          "note": ""
+        }
+      ]
+    }
   }
 ]

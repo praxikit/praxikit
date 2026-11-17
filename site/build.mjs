@@ -857,7 +857,7 @@ function extCard(l, up) {
 ${signals(l)}<p class="promise">${esc(l.why)}</p>
 ${tagChips(l, up, 3)}
 ${APP ? `<p class="stat" data-stat="${esc(l.url)}" hidden></p>` : ""}
-${l.pick ? `<p class="pick-note"><strong>How I use it</strong>${esc(l.note)}</p>` : ""}
+${l.pick ? `<p class="pick-note"><b>I use it.</b> ${esc(l.note)}</p>` : ""}
 <div class="card-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>${d.warn ? esc(d.short) : "Read at"} <code>${esc(l.commit.slice(0, 7))}</code></span></span></div>
 </li>`;
 }
@@ -876,16 +876,28 @@ function card(k, up) {
 <p class="promise">${esc(k.promise)}</p>
 ${tagChips(k, up, 3)}
 ${APP ? `<p class="stat" data-stat="k/${esc(k.name)}/" hidden></p>` : ""}
-<div class="card-foot"><span class="muted">${esc(bits)}${bits && latest ? " · " : ""}${latest ? `<span class="nowrap">updated ${esc(latest)}</span>` : ""}</span></div>
+<div class="card-foot"><span class="muted">${esc(bits)}${bits && latest ? " · " : ""}${latest ? `<span class="nowrap">updated ${esc(latest)}</span>` : ""}</span><span class="receipt" title="Built and read by the owner. No second person has reviewed it yet.">${SHIELD}<span>Built here, no second reviewer yet</span></span></div>
 </li>`;
+}
+
+const FOUND_TITLES = { shape: "Recognisable kit contents", licence: "Licence", secrets: "Secret-like strings", autorun: "Runs automatically", network: "Network access in code", exec: "Runs other programs or code", instructions: "Commands in agent instructions", odd: "Binaries, hidden instructions, obfuscation", size: "Size" };
+const FOUND_WORDS = { pass: "Pass", flag: "Look closer", fail: "Fail" };
+/** What each automatic check found at the commit that was read, with the plain meaning of the words used. */
+function foundSection(l) {
+  const f = l.found;
+  if (!f) return `<section id="found"><h2>What the check found</h2><p>An automatic check read this repository before it was listed, and a person read the result (${esc(CHECK_WORDS[l.checks] ?? l.checks)}). The detailed results were not saved for this listing yet.</p></section>`;
+  const rows = f.checks.map((c) => `<tr><th scope="row">${esc(FOUND_TITLES[c.id] ?? c.id)}</th><td class="res res-${esc(c.status)}">${esc(FOUND_WORDS[c.status] ?? c.status)}</td><td>${esc(c.note)}</td></tr>`).join("");
+  return `<section id="found"><h2>What the check found</h2>
+<p class="muted">${esc(String(f.files))} files read at commit <code>${esc(l.commit.slice(0, 7))}</code>, then read by a person before it was listed on ${esc(l.added)}. <strong>Look closer</strong> means a pattern turned up that a human has to judge, such as network calls in code. It does not mean the kit is unsafe, and <strong>Pass</strong> does not mean it is safe.</p>
+<div class="table-wrap"><table class="plain-table"><thead><tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">Detail</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
 }
 
 /** The health score and where every point came from, so the number can be checked. */
 function healthSection(l) {
   const h = healthOf(l), m = METRICS[l.url];
   if (!h || !m) return "";
-  return `<section id="health"><h2>Health score: ${h.score} of 100 <span class="score ${h.level}"><span>${esc(h.label)}</span></span></h2>
-<p class="muted">How well it is looked after, from four things anyone can check. It does not say how good the kit is, and stars are not part of it, so a careful new kit can score well.</p>
+  return `<section id="health"><h2>Health score: ${h.score} of 100</h2>
+<p class="muted"><strong>${esc(h.label)}.</strong> How well it is looked after, from four things anyone can check. It does not say how good the kit is, and stars are not part of it, so a careful new kit can score well.</p>
 <table class="health"><thead><tr><th scope="col">Part</th><th scope="col">Points</th><th scope="col">Why</th></tr></thead><tbody>${h.parts.map((p) => `<tr><th scope="row">${esc(p.name)}</th><td>${p.got} of ${p.max}</td><td>${esc(p.text)}</td></tr>`).join("")}</tbody></table>
 <p class="muted">GitHub facts as of the last daily check: ${esc(fmtStars(m.stars))} stars, last push in the week of ${esc(m.pushed)}.</p></section>`;
 }
@@ -903,6 +915,7 @@ ${signals(l)}${tagChips(l, "../../")}
 <div class="two listing-two">
 <div class="main-col">
 ${l.pick ? `<section><h2>How I use it</h2><p class="pick-note big">${esc(l.note)}</p><p class="muted">This is one of the owner's picks: a kit made by someone else that they use themselves.</p></section>` : `<section><h2>Why it is listed</h2><p>${esc(sourceWord(l))}. It was scanned automatically and read by a person before it was listed. Listing is not an endorsement.</p></section>`}
+${foundSection(l)}
 ${healthSection(l)}
 <section><h2>What the review covers</h2>
 <p>The automatic check reads the repository without running or installing anything and reports its licence, secret-like strings, code that runs automatically, network access, binaries and hidden instructions. A person then reads the report. It never says a kit is safe: read the code before you give it access to anything that matters. <a href="../../policy/">How listings work</a>.</p></section>
@@ -984,7 +997,7 @@ function homePage(kits, picks) {
 <section class="hero"><div class="wrap hero-in">
 <div class="hero-text">
 <h1>Kits for AI coding agents, read before you trust.</h1>
-<p class="lead">Every kit here was scanned, then read by a person. Each page shows what it reads, writes and sends, and the exact commit that was read.</p>
+<p class="lead">Kits are plugins, skills and MCP servers that give AI coding agents new abilities. Each one here was scanned, then read by a person. Its page shows the commit that was read and what the check found.</p>
 <div class="hero-install"><span class="label">Add the marketplace in Claude Code</span>${install(["/plugin marketplace add praxikit/praxikit"])}</div>
 <p class="actions"><a class="btn" href="kits/">Browse ${kits.length} kits</a><a class="btn ghost" href="submit/">Submit a kit</a></p>
 </div>

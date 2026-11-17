@@ -5,6 +5,7 @@
  */
 export const KINDS = ["plugin", "skill", "agent", "hook", "mcp", "template", "adapter"];
 export const SOURCES = ["community", "recommended"];
+export const FOUND_IDS = ["shape", "licence", "secrets", "autorun", "network", "exec", "instructions", "odd", "size"];
 export const CHECK_LABELS = ["no-flags-found", "checks-flagged", "checks-failed", "needs-manual-review"];
 
 const GITHUB = /^https:\/\/github\.com\/[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,98}[A-Za-z0-9_.-])?\/[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,98}[A-Za-z0-9_.-])?$/;
@@ -29,7 +30,12 @@ export function validateListing(l) {
   if (l.pick === true && !PLAIN(l.note, 200)) e.push("a pick needs a note of 1 to 200 plain characters on how it is used");
   if (l.pick !== true && l.note !== undefined) e.push("note is only for picks");
   if (l.tags !== undefined && !(Array.isArray(l.tags) && l.tags.length >= 1 && l.tags.length <= 12 && l.tags.every((t) => typeof t === "string" && TAG.test(t)) && new Set(l.tags).size === l.tags.length)) e.push("tags must be 1 to 12 different lowercase words (letters, digits, hyphens; 2 to 24 characters)");
-  const known = new Set(["name", "url", "author", "why", "kind", "source", "added", "commit", "checks", "issue", "pick", "note", "tags"]);
+  if (l.found !== undefined) {
+    const f = l.found;
+    const okRow = (c) => c && typeof c === "object" && FOUND_IDS.includes(c.id) && ["pass", "flag", "fail"].includes(c.status) && typeof c.note === "string" && c.note.length <= 160 && !/[\u0000-\u001f<>]/.test(c.note);
+    if (!(f && typeof f === "object" && Number.isInteger(f.files) && f.files >= 0 && f.files < 1e7 && Array.isArray(f.checks) && f.checks.length >= 1 && f.checks.length <= 12 && f.checks.every(okRow) && new Set(f.checks.map((c) => c.id)).size === f.checks.length)) e.push("found must list each check once, with its result and a short plain note");
+  }
+  const known = new Set(["name", "url", "author", "why", "kind", "source", "added", "commit", "checks", "issue", "pick", "note", "tags", "found"]);
   for (const k of Object.keys(l)) if (!known.has(k)) e.push(`unknown field ${String(k).slice(0, 30)}`);
   return e;
 }
