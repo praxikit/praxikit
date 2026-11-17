@@ -479,3 +479,17 @@ a.icon-act { text-decoration: none; }
 
 @media (max-width: 640px) { .typenav { flex-wrap: nowrap; margin-inline: calc(-1 * var(--gutter)); padding-inline: var(--gutter); } .typenav a { padding: 12px 14px; } }
 .nowrap { white-space: nowrap; }
+
+/* GitHub stars, the health score and the New tag */
+.kind.fresh { background: var(--spark); color: #1d1304; }
+.signals { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .7rem; margin: -.1rem 0 .6rem; font-size: .85rem; color: var(--muted); }
+.signals .stars { display: inline-flex; align-items: center; gap: .25rem; }
+.signals .stars .ic { width: 15px; height: 15px; fill: var(--spark); stroke: var(--spark); }
+.score { display: inline-block; font-size: .78rem; font-weight: 650; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--line); background: var(--bg2); color: var(--fg); white-space: nowrap; }
+.score.ok { background: var(--accent-bg); color: var(--accent); border-color: transparent; }
+.score.fair { background: var(--bg2); color: var(--fg); }
+.score.low { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+h2 .score { margin-left: .5rem; vertical-align: middle; }
+table.health { width: 100%; border-collapse: collapse; margin: .6rem 0; font-size: .92rem; }
+table.health th, table.health td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); }
+table.health thead th { color: var(--muted); font-weight: 600; font-size: .8rem; }

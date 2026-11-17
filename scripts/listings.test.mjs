@@ -7,8 +7,8 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseIssue } from "./check-submission.mjs";
-import { entryFromIssue, entryFromDispatch, appendListing, clean, computeDrift, editListing } from "./listings.mjs";
-import { validateListing } from "../site/listings.mjs";
+import { entryFromIssue, entryFromDispatch, appendListing, clean, computeDrift, editListing, computeMetrics, roundStars, weekOf } from "./listings.mjs";
+import { validateListing, healthScore, isNew, fmtStars, validMetric } from "../site/listings.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const failures = [];
@@ -220,6 +220,39 @@ must(readFileSync(join(out, "comment.md"), "utf8").includes("Not listed") && rea
   must(ok.status === 0 && after[0].name === "Via CLI" && after[0].tags[0] === "a-tag" && !after[0].pick && validateListing(after[0]).length === 0, "the edit command writes a valid file");
   const no = spawnSync("node", [join(here, "listings.mjs"), "edit", "--url", "https://github.com/x/y", "--name", "n", "--file", f], { encoding: "utf8" });
   must(no.status === 4, "the edit command fails for an unlisted repository");
+}
+
+// ---- GitHub facts, the New tag and the health score
+{
+  must(roundStars(842) === 842 && roundStars(64946) === 64900 && roundStars(196152) === 196000, "stars are rounded the way they are shown, so the file only changes when the shown number does");
+    must(fmtStars(64900) === "64.9k" && fmtStars(196000) === "196k" && fmtStars(1200000) === "1.2M", "large star counts read as 64.9k, 196k, 1.2M");
+    must(weekOf("2026-11-19T10:00:00Z") === weekOf("2026-11-25T23:00:00Z") && weekOf("2026-11-26T00:00:00Z") !== weekOf("2026-11-25T23:00:00Z"), "days in the same week snap to the same date, and the next week to a new one");
+  must(fmtStars(842) === "842" && fmtStars(1300) === "1.3k", "small star counts are shown as they are");
+  const L = [{ ...good, url: "https://github.com/o/a" }, { ...good, url: "https://github.com/o/b" }, { ...good, url: "https://github.com/o/c" }, { ...good, url: "https://evil.example/x/y" }];
+  const fake = (args) => {
+    const repo = args[1].split("/")[2];
+    if (repo === "a") return "64946\tMIT\t2026-11-16T08:00:00Z\tfalse\n";
+    if (repo === "b") throw new Error("net/http: TLS handshake timeout");
+    return "not-a-number\tMIT\tbad-date\tfalse\n";
+  };
+  const prev = { "https://github.com/o/b": { stars: 5, licence: "MIT", pushed: "2026-11-09", archived: false } };
+  const m = computeMetrics(L, prev, fake);
+  must(m["https://github.com/o/a"]?.stars === 64900 && m["https://github.com/o/a"].licence === "MIT" && m["https://github.com/o/a"].archived === false, "facts are read from the repository");
+  must(m["https://github.com/o/b"]?.stars === 5, "a network failure keeps the previous facts");
+  must(!("https://github.com/o/c" in m), "facts that do not look right are not stored");
+  must(!("https://evil.example/x/y" in m), "only github.com repositories are asked about");
+  must(isNew("2026-11-17", "2026-11-17") && isNew("2026-10-20", "2026-11-17") && !isNew("2026-10-17", "2026-11-17") && !isNew("2026-11-20", "2026-11-17") && !isNew("nope", "2026-11-17"), "a kit is New for its first 30 days");
+  const met = { stars: 10, licence: "MIT", pushed: "2026-11-10", archived: false };
+  const top = healthScore({ ...good, checks: "no-flags-found" }, met, "same", "2026-11-17");
+  must(top.score === 100 && top.level === "ok" && top.parts.length === 4, "a licensed, recently updated, clean, unchanged kit scores 100 even with 10 stars");
+  const few = healthScore({ ...good, checks: "no-flags-found" }, { ...met, stars: 0 }, "same", "2026-11-17");
+  must(few.score === top.score, "stars do not change the score");
+  must(healthScore({ ...good, checks: "checks-flagged" }, met, "same", "2026-11-17").score === 90, "flagged-then-read checks cost ten points");
+  must(healthScore({ ...good, checks: "no-flags-found" }, { ...met, pushed: "2025-01-01" }, "same", "2026-11-17").score === 70, "a repository not touched for over a year loses its upkeep points");
+  must(healthScore({ ...good, checks: "no-flags-found" }, { ...met, archived: true }, "same", "2026-11-17").score <= 20, "an archived repository is capped at 20");
+  must(healthScore({ ...good, checks: "no-flags-found" }, { ...met, licence: "none" }, "changed", "2026-11-17").score === 66 && healthScore({ ...good, checks: "no-flags-found" }, met, "unreachable", "2026-11-17").level === "ok", "no licence and a changed repository both lose points");
+  must(healthScore(good, null, "same", "2026-11-17") === null && healthScore(good, { stars: -1 }, "same", "2026-11-17") === null, "without valid facts there is no score");
+  must(!validMetric({ stars: 1, licence: "<script>", pushed: "2026-11-10", archived: false }) && !validMetric({ stars: 1.5, licence: "MIT", pushed: "2026-11-10", archived: false }), "facts with odd values are refused");
 }
 
 rmSync(tmp, { recursive: true, force: true });

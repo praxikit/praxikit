@@ -17,7 +17,7 @@ import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { deflateSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
-import { validateListing } from "./listings.mjs";
+import { validateListing, validMetric, healthScore, isNew, fmtStars } from "./listings.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const arg = (n, d) => { const i = process.argv.indexOf(n); return i > -1 ? process.argv[i + 1] : d; };
@@ -556,7 +556,7 @@ const SITE_JS = `
     var params = new URLSearchParams(location.search), wanted = params.get("show");
     q.value = (params.get("q") || "").slice(0, 100);
     if (["all", "built", "pick", "listed"].indexOf(wanted) > -1 && segs.some(function (s) { return s.getAttribute("data-show") === wanted; })) show = wanted;
-    if (sortSel && ["featured", "new", "az"].indexOf(params.get("sort")) > -1) sortSel.value = params.get("sort");
+    if (sortSel && ["featured", "new", "az", "stars", "health"].indexOf(params.get("sort")) > -1) sortSel.value = params.get("sort");
     if (tagSel) {
       var wantTag = params.get("tag") || "", tagOptions = tagSel.options ? [].slice.call(tagSel.options).map(function (o) { return o.value; }) : [];
       if (wantTag && tagOptions.indexOf(wantTag) > -1) tagSel.value = wantTag;
@@ -565,6 +565,7 @@ const SITE_JS = `
       var term = q.value.trim().toLowerCase(), shown = 0, mode = sortSel ? sortSel.value : "featured", wantedTag = tagSel ? tagSel.value : "";
       var order = cards.slice();
       if (mode === "new") order.sort(function (a, b) { return b.getAttribute("data-date").localeCompare(a.getAttribute("data-date")) || a.getAttribute("data-i") - b.getAttribute("data-i"); });
+      else if (mode === "stars" || mode === "health") { var key = "data-" + mode; order.sort(function (a, b) { return (Number(b.getAttribute(key)) - Number(a.getAttribute(key))) || a.getAttribute("data-i") - b.getAttribute("data-i"); }); }
       else if (mode === "az") order.sort(function (a, b) { return a.getAttribute("data-name").localeCompare(b.getAttribute("data-name")); });
       else order.sort(function (a, b) { return a.getAttribute("data-i") - b.getAttribute("data-i"); });
       if (ul) order.forEach(function (c) { ul.appendChild(c); });
@@ -761,6 +762,22 @@ function loadDrift() {
   if (!existsSync(f)) return {};
   try { return Object.fromEntries(Object.entries(readJson(f)).filter(([, v]) => ["same", "changed", "unreachable"].includes(v))); } catch { return {}; }
 }
+// Stars, licence and last push per repository, written daily by the listing-drift workflow; anything that does not validate is ignored.
+let METRICS = {};
+function loadMetrics() {
+  const f = join(ROOT, "site", "metrics.json");
+  if (!existsSync(f)) return {};
+  try { return Object.fromEntries(Object.entries(readJson(f)).filter(([, v]) => validMetric(v))); } catch { return {}; }
+}
+const TODAY = /^\d{4}-\d{2}-\d{2}$/.test(process.env.PRAXIKIT_TODAY ?? "") ? process.env.PRAXIKIT_TODAY : new Date().toISOString().slice(0, 10);
+const STAR = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9l-5.2 2.8 1-5.9L3.5 9.7l5.9-.8z"/></svg>';
+const healthOf = (l) => healthScore(l, METRICS[l.url], DRIFT[l.url], TODAY);
+/** Stars and the health score, small, under the author line. Nothing is shown when the facts are not there yet. */
+function signals(l) {
+  const m = METRICS[l.url], h = healthOf(l);
+  if (!m || !h) return "";
+  return `<p class="signals"><span class="stars" title="GitHub stars (not part of the health score)">${STAR}<span>${esc(fmtStars(m.stars))}</span></span><span class="score ${h.level}" title="Health score: how well it is looked after (licence, upkeep, checks, stability). It does not say how good it is."><span>Health ${h.score}</span></span></p>`;
+}
 // who put it forward: shown small, as context. It does not decide whether it is a pick.
 const SLUG_OK = /^[a-z0-9-]{1,40}$/;
 const tagsOf = (item) => (Array.isArray(item.tags) ? item.tags.map(String).filter(Boolean) : []);
@@ -809,15 +826,15 @@ const REPOICON = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusab
 const repoLink = (href, label) => `<a class="icon-act" href="${esc(href)}" rel="noopener noreferrer" aria-label="${esc(label)}" title="Open the repository on GitHub">${REPOICON}</a>`;
 
 function extCard(l, up) {
-  const d = driftOf(l);
+  const d = driftOf(l), m = METRICS[l.url], h = healthOf(l);
   const groups = [slug(KIND_LABEL[l.kind] ?? l.kind), l.pick ? "picks" : "listed"].join(" ");
   const text = [l.name, l.why, l.note ?? "", l.author, l.kind, l.source, ...tagsOf(l)].join(" ").toLowerCase();
   const page = `${up}${lpath(l)}`;
-  return `<li class="card" data-card data-src="${l.pick ? "pick" : "listed"}" data-name="${esc(l.name.toLowerCase())}" data-date="${esc(l.added)}" data-tags="${esc(tagsOf(l).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
-<div class="card-head"><div class="meta-line">${l.pick ? '<span class="kind pick">My pick</span>' : '<span class="kind ext">Listed</span>'}<span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span>${d.badge}</div><div class="card-tools">${repoLink(l.url, `Open ${l.name} on GitHub`)}${saveLink(l.url, l.name)}</div></div>
+  return `<li class="card" data-card data-src="${l.pick ? "pick" : "listed"}" data-name="${esc(l.name.toLowerCase())}" data-date="${esc(l.added)}" data-stars="${m ? m.stars : 0}" data-health="${h ? h.score : 0}" data-tags="${esc(tagsOf(l).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
+<div class="card-head"><div class="meta-line">${l.pick ? '<span class="kind pick">My pick</span>' : '<span class="kind ext">Listed</span>'}<span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span>${isNew(l.added, TODAY) ? '<span class="kind fresh">New</span>' : ""}${d.badge}</div><div class="card-tools">${repoLink(l.url, `Open ${l.name} on GitHub`)}${saveLink(l.url, l.name)}</div></div>
 <h3><a class="name" href="${esc(page)}">${esc(l.name)}</a></h3>
 <p class="byline">by ${esc(l.author)}</p>
-<p class="promise">${esc(l.why)}</p>
+${signals(l)}<p class="promise">${esc(l.why)}</p>
 ${tagChips(l, up, 3)}
 ${APP ? `<p class="stat" data-stat="${esc(l.url)}" hidden></p>` : ""}
 ${l.pick ? `<p class="pick-note"><strong>How I use it</strong>${esc(l.note)}</p>` : ""}
@@ -834,7 +851,7 @@ function card(k, up) {
   const text = [k.name, k.promise, ...(k.tags ?? []), ...k.collections, kindOf(k)].join(" ").toLowerCase();
   const cmd = Array.isArray(k.install) && k.install.length ? k.install[k.install.length - 1] : "";
   const copy = cmd ? `<button class="icon-act" type="button" data-copy-text="${esc(cmd)}" aria-label="Copy the install command for ${esc(k.name)}" title="Copy install command">${COPYICON}</button>` : "";
-  return `<li class="card" data-card data-src="built" data-name="${esc(k.name.toLowerCase())}" data-date="${esc(latest || "")}" data-tags="${esc(tagsOf(k).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
+  return `<li class="card" data-card data-src="built" data-stars="0" data-health="0" data-name="${esc(k.name.toLowerCase())}" data-date="${esc(latest || "")}" data-tags="${esc(tagsOf(k).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
 <div class="card-head"><div class="meta-line">${badge(k)}</div><div class="card-tools">${repoLink(`${REPO}/tree/main/kits/${k.name}`, `Open ${k.name} on GitHub`)}${saveLink(`k/${k.name}/`, k.name)}</div></div>
 <h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
 <p class="promise">${esc(k.promise)}</p>
@@ -844,19 +861,30 @@ ${APP ? `<p class="stat" data-stat="k/${esc(k.name)}/" hidden></p>` : ""}
 </li>`;
 }
 
+/** The health score and where every point came from, so the number can be checked. */
+function healthSection(l) {
+  const h = healthOf(l), m = METRICS[l.url];
+  if (!h || !m) return "";
+  return `<section id="health"><h2>Health score: ${h.score} of 100 <span class="score ${h.level}"><span>${esc(h.label)}</span></span></h2>
+<p class="muted">How well it is looked after, from four things anyone can check. It does not say how good the kit is, and stars are not part of it, so a careful new kit can score well.</p>
+<table class="health"><thead><tr><th scope="col">Part</th><th scope="col">Points</th><th scope="col">Why</th></tr></thead><tbody>${h.parts.map((p) => `<tr><th scope="row">${esc(p.name)}</th><td>${p.got} of ${p.max}</td><td>${esc(p.text)}</td></tr>`).join("")}</tbody></table>
+<p class="muted">GitHub facts as of the last daily check: ${esc(fmtStars(m.stars))} stars, last push in the week of ${esc(m.pushed)}.</p></section>`;
+}
+
 function listingPage(l, all) {
   const d = driftOf(l);
   const related = all.filter((x) => x.url !== l.url && tagsOf(x).some((t) => tagsOf(l).includes(t))).slice(0, 3);
   const commitUrl = `${l.url}/commit/${l.commit}`;
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../../">Home</a> / <a href="../../kits/">Kits</a> / ${esc(KIND_LABEL[l.kind] ?? l.kind)}</p>
 <h1>${esc(l.name)}</h1>
-<p class="meta-line">${l.pick ? '<span class="kind pick">My pick</span>' : '<span class="kind ext">Listed</span>'}<span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span>${d.badge}<span>by ${esc(l.author)}, not built by Praxikit</span></p>
+<p class="meta-line">${l.pick ? '<span class="kind pick">My pick</span>' : '<span class="kind ext">Listed</span>'}<span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span>${isNew(l.added, TODAY) ? '<span class="kind fresh">New</span>' : ""}${d.badge}<span>by ${esc(l.author)}, not built by Praxikit</span></p>
 <p class="lead">${esc(l.why)}</p>
-${tagChips(l, "../../")}
+${signals(l)}${tagChips(l, "../../")}
 <p class="actions"><a class="btn" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a>${APP ? saveLink(l.url, l.name, true) : ""}</p>
 <div class="two listing-two">
 <div class="main-col">
 ${l.pick ? `<section><h2>How I use it</h2><p class="pick-note big">${esc(l.note)}</p><p class="muted">This is one of the owner's picks: a kit made by someone else that they use themselves.</p></section>` : `<section><h2>Why it is listed</h2><p>${esc(sourceWord(l))}. It was scanned automatically and read by a person before it was listed. Listing is not an endorsement.</p></section>`}
+${healthSection(l)}
 <section><h2>What the review covers</h2>
 <p>The automatic check reads the repository without running or installing anything and reports its licence, secret-like strings, code that runs automatically, network access, binaries and hidden instructions. A person then reads the report. It never says a kit is safe: read the code before you give it access to anything that matters. <a href="../../policy/">How listings work</a>.</p></section>
 ${related.length ? `<section><h2>More like this</h2><ul class="cards few-3">${related.map((r) => card(r, "../../")).join("")}</ul></section>` : ""}
@@ -985,7 +1013,7 @@ function kitsPage(kits, group) {
 <label class="search"><span class="vh">Search kits</span><input id="q" type="search" aria-label="Filter these kits" placeholder="Filter these kits" autocomplete="off" spellcheck="false"></label>
 <div class="seg" role="group" aria-label="Show">${seg("all", "All")}${seg("built", "Built here", n.built)}${seg("pick", "My picks", n.pick)}${seg("listed", "Listed", n.listed)}</div>
 ${tagSel}
-<label class="sort"><span class="vh">Sort by</span><select id="sort"><option value="featured">Featured first</option><option value="new">Newest</option><option value="az">A to Z</option></select></label>
+<label class="sort"><span class="vh">Sort by</span><select id="sort"><option value="featured">Featured first</option><option value="new">Newest</option><option value="stars">Most stars</option><option value="health">Healthiest</option><option value="az">A to Z</option></select></label>
 </div>` : "";
   const empty = group && !list.length ? `<div class="empty"><p><strong>No ${esc(group.noun)} yet.</strong> <a href="${up}submit/">Submit one</a> or <a href="${up}kits/">see all kits</a>.</p></div>` : "";
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="${up}">Home</a> / ${group ? `<a href="${up}kits/">Kits</a> / ${esc(group.label)}` : "Kits"}</p>
@@ -1134,6 +1162,7 @@ function policyPage() {
 <li><strong>Listed</strong> kits and <strong>picks</strong> are other people's work. We link to the public repository. We do not host, copy or run it. A <em>pick</em> is a kit the owner has used, with a note on how; a <em>listed</em> kit was scanned and read by a person, and is not necessarily used.</li>
 <li>A listing means a person read the repository and the automatic result <strong>at one commit</strong>, which each listing shows. It is not an endorsement and not a safety guarantee. The automatic checks are pattern checks and cannot see everything.</li>
 <li><strong>The reviewed commit is not what you install.</strong> Installs come from the author's repository and follow its latest version, so the code you get can be newer than the code that was reviewed. A daily check marks a listing <strong>Changed since review</strong> when its repository has moved on, with a link to what changed. That tells you something changed, not whether it is safe; compare before you install.</li>
+<li><strong>Stars, New and Health.</strong> A listing shows its GitHub stars, a <em>New</em> tag for its first 30 days and a <strong>health score</strong> from 0 to 100. The score says how well a kit is looked after, not how good it is: licence (25), upkeep from its last push (30), the automatic checks (30) and whether it has changed since review (15). Stars are shown beside it and are not part of it. The listing page shows every point and why. The facts are read from GitHub once a day.</li>
 <li>Listing is free. Nothing is listed for payment, and payment never changes a check or a decision.</li>
 <li>A listing needs a licence that lets others use the work, and the submitter confirms they wrote it or have permission.</li>
 <li>We can decline or remove any listing. We try to say why.</li>
@@ -1218,6 +1247,7 @@ const kits = loadKits();
 const listings = loadListings();
 assignListingSlugs(listings);
 DRIFT = loadDrift();
+METRICS = loadMetrics();
 const picks = listings.filter((l) => l.pick);
 // everything that appears in the kit lists: kits built here first, then other people's listings
 const items = [...kits, ...listings.map((l) => ({ ...l, ext: true }))];

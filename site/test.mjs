@@ -25,17 +25,28 @@ put("kits/evil/plugin/skills/s/SKILL.md", `---\nname: ${XSS}\ndescription: ${XSS
 for (const n of ["a", "b", "c"]) put(`kits/${n}/kit.json`, JSON.stringify({ name: n, kind: "plugin", collections: ["Planning"], tags: [XSS], version: "0.0.1", promise: "p " + XSS, install: ["/plugin install " + n], limits: ["l"] }));
 const SHA = "a".repeat(40);
 put("site/drift.json", JSON.stringify({ "https://github.com/o/rec": "changed", "https://github.com/o/comm": "unreachable", "https://github.com/o/ignored": "bogus", "https://evil.example/x": "changed" }));
+put("site/metrics.json", JSON.stringify({ "https://github.com/o/rec": { stars: 64900, licence: "MIT", pushed: "2026-11-10", archived: false }, "https://github.com/o/comm": { stars: 3, licence: "<script>", pushed: "2026-11-10", archived: false } }));
 put("site/listings.json", JSON.stringify([
   { name: XSS, url: "https://github.com/o/rec", author: XSS, why: XSS, kind: "mcp", source: "recommended", added: "2026-11-14", commit: SHA, checks: "no-flags-found", pick: true, note: XSS },
   { name: "Community " + XSS, url: "https://github.com/o/comm", author: "someone", why: XSS, kind: "skill", source: "community", added: "2026-11-14", commit: SHA, checks: "checks-flagged", issue: 5 },
 ]));
 
-execFileSync("node", [join(here, "build.mjs"), "--root", root, "--out", out], { stdio: "inherit" });
+execFileSync("node", [join(here, "build.mjs"), "--root", root, "--out", out], { stdio: "inherit", env: { ...process.env, PRAXIKIT_TODAY: "2026-11-17" } });
 
 const failures = [];
 const must = (cond, msg) => { if (!cond) failures.push(msg); };
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(d, e.name)) : [join(d, e.name)]));
 const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
+
+{
+  const kitsHtml = readFileSync(join(out, "kits", "index.html"), "utf8");
+  must(kitsHtml.includes("64.9k") && kitsHtml.includes('data-stars="64900"') && /Health \d+/.test(kitsHtml), "a listed card shows its stars and health score");
+  must(!kitsHtml.includes("&lt;script&gt;") || !/data-stars="3"/.test(kitsHtml), "facts that do not validate are not shown");
+  must(kitsHtml.includes('class="kind fresh">New</span>') && kitsHtml.includes('<option value="stars">') && kitsHtml.includes('<option value="health">'), "new listings are tagged and the kits page can sort by stars and health");
+  const lp = walk(join(out, "l")).filter((f) => f.endsWith("index.html")).map((f) => readFileSync(f, "utf8")).find((h) => h.includes("Health score:"));
+  must(!!lp && lp.includes("<table class=\"health\">") && lp.includes("Licence: MIT") && lp.includes("stars are not part of it"), "a listing page shows the score and every point behind it");
+}
+
 
 must(htmlFiles.length === 23, `expected 25 earlier pages, minus the Updates and Picks pages = 23 html files, got ${htmlFiles.length}`);
 for (const f of htmlFiles) {

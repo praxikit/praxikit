@@ -18,7 +18,7 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseIssue, scanUrl, safe, MARKER } from "./check-submission.mjs";
-import { validateListing, sameRepo, parseTags } from "../site/listings.mjs";
+import { validateListing, sameRepo, parseTags, validMetric } from "../site/listings.mjs";
 
 export const KIND_BY_LABEL = { Plugin: "plugin", Skill: "skill", Agent: "agent", Hook: "hook", "MCP config": "mcp", Template: "template", Adapter: "adapter" };
 
@@ -105,6 +105,30 @@ export function computeDrift(list, previous, run) {
       const ahead = String(run(["api", `repos/${owner}/${repo}/compare/${l.commit}...${branch}`, "--jq", ".ahead_by"])).trim();
       if (/^\d+$/.test(ahead)) out[l.url] = ahead === "0" ? "same" : "changed"; else keep();
     } catch (e) { if (gone(e)) out[l.url] = "changed"; else keep(); } // the reviewed commit is no longer in its history
+  }
+  return out;
+}
+
+/** Rounds a star count the way it is shown, so the file only changes when the shown number does. */
+export const roundStars = (n) => (n < 1000 ? n : n < 100000 ? Math.round(n / 100) * 100 : Math.round(n / 1000) * 1000);
+/** Snaps a date to the start of its week (days since 1970 divided by 7), so a repository that is pushed to every day does not change the file every day. */
+export const weekOf = (iso) => { const d = Math.floor(Date.parse(iso) / 86400000); return new Date(Math.floor(d / 7) * 7 * 86400000).toISOString().slice(0, 10); };
+
+/**
+ * Facts about each listed repository (stars, licence, last push, archived) from the GitHub API, for the card and the health score.
+ * `run(args)` runs `gh` and returns stdout or throws. A failure keeps the previous answer.
+ */
+export function computeMetrics(list, previous, run) {
+  const out = {};
+  for (const l of list) {
+    const m = /^https:\/\/github\.com\/([^/]+)\/([^/]+)$/.exec(l.url);
+    if (!m) continue;
+    const keep = () => { if (previous && previous[l.url]) out[l.url] = previous[l.url]; };
+    try {
+      const [stars, licence, pushed, archived] = String(run(["api", `repos/${m[1]}/${m[2]}`, "--jq", '[.stargazers_count, (.license.spdx_id // "none"), .pushed_at, .archived] | @tsv'])).trim().split("\t");
+      const entry = { stars: roundStars(Number(stars)), licence: String(licence), pushed: /^\d{4}-\d{2}-\d{2}/.test(pushed) ? weekOf(pushed) : "", archived: archived === "true" };
+      if (validMetric(entry)) out[l.url] = entry; else keep();
+    } catch { keep(); }
   }
   return out;
 }
@@ -200,6 +224,19 @@ function main() {
     writeFileSync(outFile, JSON.stringify(sorted, null, 2) + "\n");
     const n = Object.values(sorted);
     console.log(`checked ${list.length} listing(s): ${n.filter((s) => s === "same").length} same, ${n.filter((s) => s === "changed").length} changed, ${n.filter((s) => s === "unreachable").length} unreachable`);
+    return;
+  }
+
+  if (cmd === "metrics") {
+    const listFile = arg("--file"), outFile = arg("--out");
+    if (!listFile || !outFile) { console.error("metrics needs --file and --out"); process.exit(2); }
+    const list = existsSync(listFile) ? JSON.parse(readFileSync(listFile, "utf8")) : [];
+    let previous = {};
+    try { previous = JSON.parse(readFileSync(outFile, "utf8")); } catch { /* first run */ }
+    const run = (args) => execFileSync("gh", args, { encoding: "utf8", timeout: 30_000, stdio: ["ignore", "pipe", "pipe"] });
+    const next = computeMetrics(list, previous, run);
+    writeFileSync(outFile, JSON.stringify(Object.fromEntries(Object.entries(next).sort(([a], [b]) => a.localeCompare(b))), null, 2) + String.fromCharCode(10));
+    console.log(`facts for ${Object.keys(next).length} of ${list.length} listing(s)`);
     return;
   }
 

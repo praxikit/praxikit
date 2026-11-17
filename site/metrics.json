@@ -1,0 +1,164 @@
+{
+  "https://github.com/54yyyu/zotero-mcp": {
+    "stars": 5900,
+    "licence": "MIT",
+    "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/addyosmani/agent-skills": {
+    "stars": 118000,
+    "licence": "MIT",
+    "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/anthropics/claude-plugins-official": {
+    "stars": 47500,
+    "licence": "Apache-2.0",
+    "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/blader/humanizer": {
+    "stars": 70000,
+    "licence": "MIT",
+    "pushed": "2026-11-05",
+    "archived": false
+  },
+  "https://github.com/brave/brave-search-mcp-server": {
+    "stars": 1600,
+    "licence": "MIT",
+    "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/ckreiling/mcp-server-docker": {
+    "stars": 758,
+    "licence": "GPL-3.0",
+    "pushed": "2026-08-06",
+    "archived": false
+  },
+  "https://github.com/cloudflare/mcp-server-cloudflare": {
+    "stars": 4500,
+    "licence": "Apache-2.0",
+    "pushed": "2026-10-22",
+    "archived": false
+  },
+  "https://github.com/cloudflare/security-audit-skill": {
+    "stars": 74100,
+    "licence": "MIT",
+    "pushed": "2026-09-10",
+    "archived": false
+  },
+  "https://github.com/coreyhaines31/marketingskills": {
+    "stars": 60900,
+    "licence": "MIT",
+    "pushed": "2026-11-05",
+    "archived": false
+  },
+  "https://github.com/crystaldba/postgres-mcp": {
+    "stars": 3500,
+    "licence": "MIT",
+    "pushed": "2026-08-13",
+    "archived": false
+  },
+  "https://github.com/Flux159/mcp-server-kubernetes": {
+    "stars": 1600,
+    "licence": "MIT",
+    "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/github/github-mcp-server": {
+    "stars": 34500,
+    "licence": "MIT",
+    "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/GLips/Figma-Context-MCP": {
+    "stars": 16200,
+    "licence": "MIT",
+    "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/hashicorp/terraform-mcp-server": {
+    "stars": 1600,
+    "licence": "MPL-2.0",
+    "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/hustcc/mcp-mermaid": {
+    "stars": 651,
+    "licence": "MIT",
+    "pushed": "2026-05-14",
+    "archived": false
+  },
+  "https://github.com/korotovsky/slack-mcp-server": {
+    "stars": 1900,
+    "licence": "MIT",
+    "pushed": "2026-07-16",
+    "archived": false
+  },
+  "https://github.com/makenotion/notion-mcp-server": {
+    "stars": 4700,
+    "licence": "MIT",
+    "pushed": "2026-10-29",
+    "archived": false
+  },
+  "https://github.com/MarkusPfundstein/mcp-obsidian": {
+    "stars": 4500,
+    "licence": "MIT",
+    "pushed": "2026-08-27",
+    "archived": false
+  },
+  "https://github.com/microsoft/playwright-mcp": {
+    "stars": 39800,
+    "licence": "Apache-2.0",
+    "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/modelcontextprotocol/servers": {
+    "stars": 92100,
+    "licence": "NOASSERTION",
+    "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/obra/superpowers": {
+    "stars": 319000,
+    "licence": "MIT",
+    "pushed": "2026-10-29",
+    "archived": false
+  },
+  "https://github.com/obsidianmd/obsidian-skills": {
+    "stars": 53000,
+    "licence": "MIT",
+    "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/OthmanAdi/planning-with-files": {
+    "stars": 28100,
+    "licence": "MIT",
+    "pushed": "2026-11-05",
+    "archived": false
+  },
+  "https://github.com/supabase/mcp": {
+    "stars": 3000,
+    "licence": "Apache-2.0",
+    "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/upstash/context7": {
+    "stars": 65000,
+    "licence": "MIT",
+    "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/VoltAgent/awesome-claude-code-subagents": {
+    "stars": 26600,
+    "licence": "MIT",
+    "pushed": "2026-10-29",
+    "archived": false
+  },
+  "https://github.com/voska/hass-mcp": {
+    "stars": 353,
+    "licence": "MIT",
+    "pushed": "2026-10-29",
+    "archived": false
+  }
+}
