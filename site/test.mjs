@@ -24,6 +24,7 @@ put("kits/evil/CHANGELOG.md", `# Changelog\n\n## 1.2.3 — 2026-01-01\n- ${XSS}\
 put("kits/evil/plugin/skills/s/SKILL.md", `---\nname: ${XSS}\ndescription: ${XSS}\n---\nbody\n`);
 for (const n of ["a", "b", "c"]) put(`kits/${n}/kit.json`, JSON.stringify({ name: n, kind: "plugin", collections: ["Planning"], tags: [XSS], version: "0.0.1", promise: "p " + XSS, install: ["/plugin install " + n], limits: ["l"] }));
 const SHA = "a".repeat(40);
+put("docs/removals.md", "# Removed listings\n\n| Date | Name | Repository | Reason | Note |\n|---|---|---|---|---|\n| 2026-11-16 | <script>x</script> | https://github.com/o/gone | malicious | a note |\n| 2026-13-45 | bad date | https://github.com/o/x | other | skipped |\n| 2026-11-10 | odd link | https://evil.example/x | other | no link |\n");
 put("site/drift.json", JSON.stringify({ "https://github.com/o/rec": "changed", "https://github.com/o/comm": "unreachable", "https://github.com/o/ignored": "bogus", "https://evil.example/x": "changed" }));
 put("site/metrics.json", JSON.stringify({ "https://github.com/o/rec": { stars: 64900, licence: "MIT", pushed: "2026-11-10", archived: false }, "https://github.com/o/comm": { stars: 3, licence: "<script>", pushed: "2026-11-10", archived: false } }));
 put("site/listings.json", JSON.stringify([
@@ -48,7 +49,11 @@ const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 }
 
 
-must(htmlFiles.length === 23, `expected 25 earlier pages, minus the Updates and Picks pages = 23 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 24, `expected 23 earlier pages plus the removal log = 24 html files, got ${htmlFiles.length}`);
+{
+  const log = readFileSync(join(out, "removals", "index.html"), "utf8");
+  must(log.includes("2026-11-16") && log.includes("Malicious") && log.includes("&lt;script&gt;x&lt;/script&gt;") && !log.includes("<script>x</script>") && !log.includes("2026-13-45") && log.includes('href="https://github.com/o/gone"') && !log.includes("evil.example"), "the removal log page lists the rows of docs/removals.md, escaped, and skips rows that are not valid");
+}
 for (const f of htmlFiles) {
   const h = readFileSync(f, "utf8");
   // drop only our own inline scripts (marked data-site); any other <script> is a failure
@@ -62,7 +67,7 @@ for (const f of htmlFiles) {
 }
 const idx = readFileSync(join(out, "index.html"), "utf8");
 must(idx.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "payload not shown escaped on index");
-must(idx.includes('href="./l/o-rec/"') && /<a class="icon-act" href="https:\/\/github\.com\/o\/rec" rel="noopener noreferrer"/.test(idx), "a pick on the home page links to its own page, and a repository icon opens GitHub safely");
+must(idx.includes('href="./l/o-rec/"') && /<a target="_blank" class="icon-act" href="https:\/\/github\.com\/o\/rec" rel="noopener noreferrer"/.test(idx), "a pick on the home page links to its own page, and a repository icon opens GitHub safely");
 must(!idx.includes('class="details"') && !idx.includes(">Details<") && !idx.includes("View details"), "cards have no action row: the whole card opens its page");
 const skillsPage = readFileSync(join(out, "kits/skills/index.html"), "utf8");
 const commHtml = readFileSync(join(out, "l/o-comm/index.html"), "utf8"), recHtml = readFileSync(join(out, "l/o-rec/index.html"), "utf8");
@@ -92,7 +97,7 @@ must(idx.includes('href="kits/"') && idx.includes('href="kits/plugins/"') && idx
 must(idx.includes('href="kits/"') && idx.includes('href="kits/?show=pick"') && idx.includes('href="submit/"') && !idx.includes('href="updates/"') && !idx.includes('href="picks/"') && idx.includes("<body data-home data-root=\"./\" data-app=\"\">"), "home links to kits, the picks filter and submit, and no longer to Updates or Picks pages");
 must((idx.match(/<li class="card[ "]/g) ?? []).length <= 3 + 3, "home should show at most three kits (and three picks)");
 const pol = readFileSync(join(out, "policy/index.html"), "utf8");
-must(pol.includes("security/advisories/new") && pol.includes("template=report-listing.yml") && pol.includes("docs/removals.md") && pol.includes("not a safety guarantee") && pol.includes("one maintainer"), "policy page needs the private channel, the report form, the removal log and honest limits");
+must(pol.includes("security/advisories/new") && pol.includes("template=report-listing.yml") && pol.includes('href="../removals/"') &&pol.includes("not a safety guarantee") && pol.includes("one maintainer"), "policy page needs the private channel, the report form, the removal log and honest limits");
 must(pol.includes("The reviewed commit is not what you install"), "the policy must say that installs follow the author's latest version, not the reviewed commit");
 must(skillsPage.includes("Installs follow the author&#39;s latest version") && commHtml.includes("Installs follow the author's latest version"), "every outside listing says installs can differ from the reviewed commit, on the card and on its page");
 must(!/href="\//.test(pol) && idx.includes('href="./policy/"') && sub.includes('href="../policy/"'), "policy is linked from the footer and the submit page, with relative links");

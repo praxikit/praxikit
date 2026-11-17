@@ -93,7 +93,8 @@ let SHELL = "";
 export const setShell = (text) => { SHELL = typeof text === "string" && text.includes("<!--@@BODY@@-->") && text.includes("@@TITLE@@") ? text : ""; };
 const HEAD_EXTRA = `<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/app.css?v=${CSS_V}">`;
 const wrapTables = (b) => b.split("<table>").join('<div class="table-wrap"><table>').split("</table>").join("</table></div>");
-export const page = (title, rawBody) => { const body = wrapTables(rawBody); return SHELL
+const newTab = (html) => html.replace(/<a\b[^>]*>/g, (tag) => (/href="https?:\/\//.test(tag) && /rel="noopener noreferrer"/.test(tag) && !/target=/.test(tag) ? tag.replace("<a", '<a target="_blank"') : tag));
+export const page = (title, rawBody) => { const body = newTab(wrapTables(rawBody)); return SHELL
   ? SHELL.split("@@TITLE@@").join(esc(title)).replace("<!--@@HEAD@@-->", () => HEAD_EXTRA).replace("<!--@@BODY@@-->", () => `<div class="wrap app">${body}</div>`)
   : `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -120,11 +121,15 @@ const SRC = { community: "Community (by its author)", recommended: "Recommended 
 const checks = (json) => { try { const a = JSON.parse(json); return Array.isArray(a) ? a.map((c) => ({ title: String(c?.title ?? ""), status: String(c?.status ?? ""), note: String(c?.note ?? "") })) : []; } catch { return []; } };
 const status = (s) => (s === "pass" ? "Pass" : s === "flag" ? "Look closer" : s === "fail" ? "Fail" : esc(s));
 
-export function submitPage({ session, flash, error, values = {}, isPublic = false }) {
+export function submitPage({ session, flash, error, values = {}, isPublic = false, relation = null }) {
+  // what GitHub says about the link, shown before anything is sent: owner or not decides how it is listed
+  const who = relation ? (relation.author
+    ? `<p class="ok"><strong>You own ${esc(relation.repo)}</strong> (or you are a public member of its organisation), so it will be listed as a community kit, by you.</p>`
+    : `<p class="note"><strong>You do not own ${esc(relation.repo)}</strong>, so it will be listed as your recommendation. Say in the note below why it is worth listing.</p>`) : "";
   return page("Submit a kit — Praxikit", `${nav(session)}
 <h1>Submit a kit</h1>
 <p>Paste the link to a public GitHub repository. We read its name, owner, licence and README from GitHub; you do not need to describe it. A person reviews every submission before anything is listed, and nothing is listed for payment.</p>
-${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${error ? `<p class="note">${esc(error)}</p>` : ""}
+${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${error ? `<p class="note">${esc(error)}</p>` : ""}${who}
 <form method="post" action="/submit">
 <label for="url">Repository link</label><input id="url" name="url" type="url" required maxlength="200" placeholder="https://github.com/owner/repo" value="${esc(values.url ?? "")}">
 <label for="why">Note <span class="hint">(optional, up to 200 characters; shown if you are recommending someone else's kit)</span></label><textarea id="why" name="why" maxlength="200">${esc(values.why ?? "")}</textarea>
@@ -178,7 +183,7 @@ export const FLASH = {
   scanfail: "GitHub would not start the check job. Try again.",
   reopened: "Back in review. Run the full checks and read them before approving.",
   edited: "Saved. The edit is being applied and the site redeploys; this page shows the change in a minute or two.",
-  removed: "Removal started. It is logged publicly in docs/removals.md and the site redeploys; this page updates in a minute or two.",
+  removed: "Removal started. It is logged publicly in the removal log and the site redeploys; this page updates in a minute or two.",
   badedit: "Check the fields: a name up to 80 characters, card text up to 400, and a note of up to 200 characters if it is a pick.",
   badremove: "Pick a reason from the list, tick the confirmation, and keep the note under 160 characters.",
   gone: "That repository is not in the live listings (it may have just been removed).",
@@ -220,7 +225,7 @@ ${subs ? "" : `<p class="note">${esc(queueError || "The submissions database is 
 <li><a href="${esc(REPO_LINK(env.REPO, "/actions/workflows/remove-listing.yml"))}" rel="noopener noreferrer">Remove a listing</a></li>
 <li><a href="${esc(REPO_LINK(env.REPO, "/actions/workflows/listing-drift.yml"))}" rel="noopener noreferrer">Re-check listings for changes</a></li>
 <li><a href="${esc(REPO_LINK(env.REPO, "/issues?q=is%3Aissue+is%3Aopen+label%3Areport"))}" rel="noopener noreferrer">Reports</a></li>
-<li><a href="${esc(REPO_LINK(env.REPO, "/blob/main/docs/removals.md"))}" rel="noopener noreferrer">Removal log</a></li>
+<li><a href="/removals/">Removal log</a> (public: every removal, with the date and the reason)</li>
 </ul>`);
 }
 
@@ -228,7 +233,7 @@ const SCAN_TEXT = {
   "no-flags-found": "The full checks found nothing to look at.",
   "checks-flagged": "The full checks found things to look at. Open the full report and read it before approving.",
   "checks-failed": "The full checks failed. This cannot be approved. Reject it with a reason, or ask the submitter to fix it and submit again.",
-  "needs-manual-review": "The checks could not read this repository automatically. It cannot be approved from here.",
+  "needs-manual-review": "The checks could not read this repository automatically (for example, it is over the 100 MB limit, so it is too large to scan). You can read it yourself and approve it by hand below. It will be listed as reviewed by hand, not scanned.",
 };
 const SCAN_OK = ["no-flags-found", "checks-flagged"];
 
@@ -246,12 +251,13 @@ ${s.scan_state === "running" ? '<p class="note">Running on GitHub. Reload this p
     : s.scan_state === "failed" ? `<p class="note">The check job did not complete.${s.scan_run_url ? ` <a href="${esc(s.scan_run_url)}" rel="noopener noreferrer">See the run</a>.` : ""} Run it again.</p>`
     : '<p class="muted">Not run yet. Run the full read-only checks, read the result, then decide. Approving is only possible after they have run.</p>'}
 ${s.scan_state === "running" ? "" : `<form method="post" action="/admin/submissions/${Number(s.id)}/scan"><p><button type="submit"${canPublish ? "" : " disabled"}>${s.scan_state ? "Run the full checks again" : "Run the full checks"}</button></p></form>`}`;
-  const approveOk = canPublish && scanned;
+  const byHand = s.scan_state === "done" && s.scan_label === "needs-manual-review" && /^[0-9a-f]{40}$/.test(String(s.commit_sha ?? ""));
+  const approveOk = canPublish && (scanned || byHand);
   const decide = s.status === "pending"
     ? `${scanPanel}
 <h2>Decide</h2>
 ${canPublish ? "" : '<p class="note">Publishing is not connected yet (the app has no token to start GitHub jobs), so checks and approving are switched off. You can still reject.</p>'}
-${scanned ? "" : '<p class="muted">Approving unlocks after the full checks have run and found nothing that blocks it.</p>'}
+${scanned || byHand ? "" : '<p class="muted">Approving unlocks after the full checks have run and found nothing that blocks it.</p>'}
 <form method="post" action="/admin/submissions/${Number(s.id)}/approve">
 <label for="name">Name on the card</label><input id="name" name="name" type="text" required maxlength="80" value="${esc(s.name)}">
 <label for="kind">Type</label>${kindSelect(s.kind_guess || "plugin")}${s.kind_guess ? "" : '<p class="hint">The file names did not show what this is; choose carefully.</p>'}
@@ -260,6 +266,7 @@ ${scanned ? "" : '<p class="muted">Approving unlocks after the full checks have 
 <label class="check"><input type="checkbox" name="pick" value="yes"> I use this kit (list it as one of my picks)</label>
 <label for="pick_note">How I use it <span class="hint">(one line, up to 200 characters; needed if you ticked the box above, and shown on the card)</span></label><input id="pick_note" name="pick_note" type="text" maxlength="200">
 ${flagged ? '<label class="check"><input type="checkbox" name="read" value="yes" required> I have opened and read the full report above</label>' : ""}
+${byHand ? `<input type="hidden" name="by_hand" value="yes"><label class="check"><input type="checkbox" name="hand_read" value="yes" required> I have read <a href="${esc(commitUrl)}" rel="noopener noreferrer">this repository at commit <code>${esc(String(s.commit_sha).slice(0, 12))}</code></a> myself. It was not scanned, and the listing will say so.</label>` : ""}
 <p><button type="submit"${approveOk ? "" : " disabled"}>Approve and publish</button> <span class="muted">It is listed at the commit that was checked. If the repository changes first, publishing stops and the checks must be run again.</span></p>
 </form>
 <form method="post" action="/admin/submissions/${Number(s.id)}/reject">

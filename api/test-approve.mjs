@@ -42,6 +42,8 @@ const REPOS = {
   "alice/unknown": { body: repoBody("alice", "unknown"), tree: ["notes.txt"], readme: "A repository whose files do not show what kind of kit it is at all." },
   "alice/nolicence": { body: repoBody("alice", "nolicence", { license: null }), tree: ["SKILL.md"], readme: "A repository with no licence, so the quick check fails for it." },
   "alice/xss": { body: repoBody("alice", "xss"), tree: ["SKILL.md"], readme: "A repository used to check that approved card text is shown escaped." },
+  "alice/handread": { body: repoBody("alice", "handread"), tree: ["SKILL.md"], readme: "A large repository that the automatic scan cannot read, approved by hand." },
+  "alice/handfail": { body: repoBody("alice", "handfail"), tree: ["SKILL.md"], readme: "A repository whose scan fails, which must never be approved by hand." },
   "alice/reject": { body: repoBody("alice", "reject"), tree: ["SKILL.md"], readme: "A repository that will be rejected with a reason the submitter sees." },
 };
 let LISTED = []; // repository urls in the fake live catalogue
@@ -344,6 +346,35 @@ must(byKey("alice/direct") && (await submit(dave, "https://github.com/alice/seco
   must(byKey("alice/xss").scan_state === "failed", "a result job name that is not exactly what we expect is not trusted");
   await runScan(id, { label: "no-flags-found" });
   must(byKey("alice/xss").scan_label === "no-flags-found" && !(await (await call(`/admin/submissions/${id}`, { cookies: owner })).text()).includes('name="read"'), "a clean result needs no read-it box");
+}
+
+// ---- a repository the checks could not read (too large) can be approved by hand; a failed scan never can
+{
+  await submit(dave, "https://github.com/alice/handread");
+  const hr = byKey("alice/handread");
+  must(!!hr && /^[0-9a-f]{40}$/.test(hr.commit_sha), "a submission records the commit the app read");
+  const id = hr.id;
+  await runScan(id, { label: "needs-manual-review", commit: "none" });
+  const page = await (await call(`/admin/submissions/${id}`, { cookies: owner })).text();
+  must(page.includes("over the 100 MB limit") && page.includes('name="by_hand"') && page.includes('name="hand_read"') && !/<button type="submit" disabled>Approve and publish/.test(page), "an unreadable repository offers approval by hand, with the reason and a read-it box");
+  const n = dispatches.length;
+  must((await act(owner, id, "approve", approveForm({ by_hand: "yes" }))).headers.get("Location").endsWith("?m=needread") && dispatches.length === n && byKey("alice/handread").status === "pending", "approving by hand without ticking that you read it is refused");
+  must((await act(owner, id, "approve", approveForm({ hand_read: "yes" }))).headers.get("Location").endsWith("?m=needscan") && dispatches.length === n, "the read-it box alone is not enough: the by-hand flag must come from the form for this case");
+  const ok = await act(owner, id, "approve", approveForm({ by_hand: "yes", hand_read: "yes", name: "Hand read" }));
+  const d = dispatches.at(-1)?.body.inputs;
+  must(ok.headers.get("Location").endsWith("?m=approved") && dispatches.length === n + 1 && d.expected_commit === "hand:" + hr.commit_sha.slice(0, 12) && !("by_hand" in d), "approved by hand: the publish job is told, and pinned to the commit the app read");
+  D1.raw.prepare("UPDATE submissions SET publish_state = 'blocked' WHERE id = ?").run(id);
+  await act(owner, id, "retry");
+  must(dispatches.at(-1).body.inputs.expected_commit === "hand:" + hr.commit_sha.slice(0, 12), "retrying a by-hand approval keeps it read-by-hand and pinned to the same commit");
+  // a scan that ran and failed can never be approved by hand
+  await submit(dave, "https://github.com/alice/handfail");
+  const f2 = byKey("alice/handfail");
+  await runScan(f2.id, { label: "checks-failed" });
+  const m = dispatches.length;
+  must((await act(owner, f2.id, "approve", approveForm({ by_hand: "yes", hand_read: "yes" }))).headers.get("Location").endsWith("?m=needscan") && dispatches.length === m && byKey("alice/handfail").status === "pending", "a failed scan cannot be approved by hand");
+  // and a flagged or clean scan does not use the by-hand path at all
+  await runScan(f2.id, { label: "no-flags-found" });
+  must((await act(owner, f2.id, "approve", approveForm({ by_hand: "yes", hand_read: "yes" }))).headers.get("Location").endsWith("?m=needscan") && dispatches.length === m, "the by-hand flag is refused when the scan could read the repository");
 }
 
 // ---- "I use this": a pick needs a note, and travels to the workflow

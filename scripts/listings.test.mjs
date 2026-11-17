@@ -7,7 +7,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseIssue } from "./check-submission.mjs";
-import { entryFromIssue, entryFromDispatch, appendListing, clean, computeDrift, editListing, computeMetrics, roundStars, weekOf } from "./listings.mjs";
+import { entryFromIssue, entryFromDispatch, appendListing, clean, computeDrift, editListing, computeMetrics, roundStars, weekOf, byHandScan } from "./listings.mjs";
 import { validateListing, healthScore, isNew, fmtStars, validMetric } from "../site/listings.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -220,6 +220,25 @@ must(readFileSync(join(out, "comment.md"), "utf8").includes("Not listed") && rea
   must(ok.status === 0 && after[0].name === "Via CLI" && after[0].tags[0] === "a-tag" && !after[0].pick && validateListing(after[0]).length === 0, "the edit command writes a valid file");
   const no = spawnSync("node", [join(here, "listings.mjs"), "edit", "--url", "https://github.com/x/y", "--name", "n", "--file", f], { encoding: "utf8" });
   must(no.status === 4, "the edit command fails for an unlisted repository");
+}
+
+// ---- approval by hand: only when the automatic scan refused to read the repository
+{
+  const refusal = { refusal: { text: "repository is about 203 MB, over the 100 MB limit for automatic checks" }, text: "x" };
+  const run = (args) => { if (args[1] === "repos/o/big") return "main\n"; if (args[1] === "repos/o/big/commits/main") return SHA + "\n"; throw new Error("not found"); };
+  const hand = byHandScan("https://github.com/o/big", refusal, SHA.slice(0, 12), run);
+  must(hand.label === "needs-manual-review" && hand.sha === SHA && !hand.refusal && /read it by hand/.test(hand.text), "a repository the scan refused can be pinned to its head commit and marked as read by hand");
+  const failed = { sha: SHA, label: "checks-failed", text: "failed" };
+  must(byHandScan("https://github.com/o/big", failed, SHA.slice(0, 12), run) === failed, "a scan that ran and failed is never replaced");
+  const flagged = { sha: SHA, label: "checks-flagged", text: "flagged" };
+  must(byHandScan("https://github.com/o/big", flagged, SHA.slice(0, 12), run) === flagged, "a scan that ran and flagged things is never replaced");
+  must(byHandScan("https://github.com/o/big", refusal, "", run) === refusal, "without the commit the maintainer was shown there is no by-hand listing");
+  must(byHandScan("https://evil.example/o/big", refusal, SHA.slice(0, 12), run) === refusal && byHandScan("https://github.com/o/big/tree/x", refusal, SHA.slice(0, 12), run) === refusal, "only a plain github.com repository link qualifies");
+  must(byHandScan("https://github.com/o/nowhere", refusal, SHA.slice(0, 12), run) === refusal, "if GitHub cannot be read the refusal stands");
+  const ok = entryFromDispatch({ ...env, IN_EXPECT_COMMIT: SHA.slice(0, 12), IN_URL: "https://github.com/o/big" }, hand, "2026-11-15");
+  must(ok.ok && ok.entry.checks === "needs-manual-review" && ok.entry.commit === SHA, "the entry says it was reviewed by hand and pins the commit");
+  const moved = entryFromDispatch({ ...env, IN_EXPECT_COMMIT: "b".repeat(12), IN_URL: "https://github.com/o/big" }, hand, "2026-11-15");
+  must(!moved.ok, "if the repository moved on from the commit the maintainer was shown, nothing is listed");
 }
 
 // ---- GitHub facts, the New tag and the health score

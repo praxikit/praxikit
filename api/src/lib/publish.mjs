@@ -23,7 +23,9 @@ export async function dispatchApprove(env, s) {
       body: JSON.stringify({ ref: "main", inputs: { submission_id: String(s.id), url: s.repo_url, name: s.final_name, kind: s.final_kind, source: s.source, why: s.final_text, decided_by: s.decided_by, note: s.final_pick ? String(s.final_note ?? "") : "", // a non-empty note means a pick
         tags: String(s.final_tags ?? ""),
         // a listing approved after reading the checks is pinned to the commit they ran on; with no commit (a direct publish, where nobody read them) the workflow requires a clean result
-        expected_commit: /^[0-9a-f]{12}$/.test(String(s.scan_commit ?? "")) ? s.scan_commit : "" } }),
+        // "hand:" plus the commit the maintainer was shown means: read by hand, because the automatic scan could not read the repository
+        // (a retry has no flag, but only an unreadable repository that a maintainer approved can be in this state)
+        expected_commit: (s.by_hand || (s.scan_state === "done" && s.scan_label === "needs-manual-review")) && /^[0-9a-f]{40}$/.test(String(s.commit_sha ?? "")) ? `hand:${String(s.commit_sha).slice(0, 12)}` : /^[0-9a-f]{12}$/.test(String(s.scan_commit ?? "")) ? s.scan_commit : "" } }),
     });
   } catch { throw new UserError("GitHub could not be reached, so the publish job did not start."); }
   if (r.status !== 204) throw new UserError(r.status === 401 || r.status === 403 || r.status === 404 ? "GitHub refused to start the publish job. The app's token may be missing, expired or lacking the Actions permission." : "GitHub could not start the publish job.");

@@ -600,3 +600,22 @@ table.health th, table.health td { padding: var(--s3) var(--s3) var(--s3) 0; }
 /* submit: room under the step cards, and a quieter closing note */
 .flow + p, .flow + .muted { margin-top: var(--s5); }
 .app .sub-actions, .app form .row { margin-top: var(--s4); }
+
+/* navigation without a jump: the Admin tab exists from the start and shows for maintainers only; the account area keeps its width */
+.top nav a.admin-tab { display: none; }
+html[data-admin] .top nav a.admin-tab { display: inline-block; }
+html[data-in] .acct .signin { visibility: hidden; }
+.menu summary span { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (min-width: 1041px) { .acct { min-width: 168px; justify-content: flex-end; } }
+
+/* the same page for signed-out and signed-in visitors: the sign-in hint on the page decides which wording shows, from the first paint */
+.when-in { display: none; }
+html[data-in] .when-in { display: inline; }
+html[data-in] .when-out { display: none; }
+
+/* plain tables on content pages */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+table.plain-table { width: 100%; border-collapse: collapse; }
+table.plain-table th, table.plain-table td { text-align: left; padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); vertical-align: top; }
+table.plain-table thead th { color: var(--muted); font-size: var(--fs-xs); font-weight: 600; letter-spacing: .02em; }
+table.plain-table tbody tr:last-child td { border-bottom: 0; }

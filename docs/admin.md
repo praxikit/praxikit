@@ -41,3 +41,6 @@ The catalogue has three kinds of entry. **Built by Praxikit** kits are the ones 
 - The job that reads a submitted repository has a **read-only** token. A separate job holds the write access and validates the entry again before committing.
 - Nothing from a submitted repository is executed, installed or checked out with its hooks, symlinks or submodules.
 - Everything that comes from a repository or a person is cleaned before it is shown and escaped again on the site.
+
+- **Large repositories.** The automatic scan refuses repositories over 100 MB. For those, the submission page offers "approve by hand": you tick that you read the repository at the commit shown, and it is listed as "reviewed by hand, not scanned", pinned to that commit. It is never offered when a scan ran and failed or flagged something.
+- **Removal log.** Every removal appears on the public page /removals/ (linked from the policy page and from this admin page).

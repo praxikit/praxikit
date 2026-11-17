@@ -79,11 +79,16 @@ jobs:
           IN_ALLOW_FAILED: "false"
           IN_NOTE: ${{ inputs.note }}
           IN_PICK: ${{ inputs.note != '' }}
-          IN_EXPECT_COMMIT: ${{ inputs.expected_commit }}
+          IN_EXPECT_RAW: ${{ inputs.expected_commit }}
           IN_REQUIRE_CLEAN: ${{ inputs.expected_commit == '' }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          # "hand:" plus a commit means the maintainer read a repository that was too large to scan; the script only honours it when the scan itself refused
+          case "$IN_EXPECT_RAW" in
+            hand:*) export IN_BY_HAND=true; export IN_EXPECT_COMMIT="${IN_EXPECT_RAW#hand:}" ;;
+            *) export IN_BY_HAND=false; export IN_EXPECT_COMMIT="$IN_EXPECT_RAW" ;;
+          esac
           node scripts/listings.mjs scan --mode dispatch --out-dir "$RUNNER_TEMP/listing"
           echo "status=$(cat "$RUNNER_TEMP/listing/status.txt")" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

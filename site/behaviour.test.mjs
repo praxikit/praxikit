@@ -19,7 +19,9 @@ const code = readFileSync(join(out, "site.js"), "utf8");
 rmSync(out, { recursive: true, force: true });
 
 class El {
-  constructor(tag = "div") { this.tag = tag; this.children = []; this.attrs = {}; this.listeners = {}; this.className = ""; this.textContent = ""; this.hidden = false; this.title = ""; this.parentNode = null; this.classes = new Set(); this.classList = { add: (c) => this.classes.add(c), remove: (c) => this.classes.delete(c), contains: (c) => this.classes.has(c) }; }
+  constructor(tag = "div") { this.tag = tag; this.children = []; this.attrs = {}; this.listeners = {}; this.className = ""; this._t = ""; this.hidden = false; this.title = ""; this.parentNode = null; this.classes = new Set(); this.classList = { add: (c) => this.classes.add(c), remove: (c) => this.classes.delete(c), contains: (c) => this.classes.has(c) }; }
+  get textContent() { return this._t; }
+  set textContent(v) { this._t = String(v); if (v === "") this.children = []; }
   setAttribute(k, v) { this.attrs[k] = String(v); }
   getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
   hasAttribute(k) { return k in this.attrs; }
@@ -36,17 +38,18 @@ class El {
 }
 
 /** One fake page. `hint` says whether the sign-in hint cookie is present; `me` is what /api/me answers (null = 401). */
-async function run({ hint = false, me = null, saved = [], dark = false, kits = false, search = "", community = null, counts = null, statKeys = [], creditEl = null, home = null }) {
+async function run({ cachedMe = null, hint = false, me = null, saved = [], dark = false, kits = false, search = "", community = null, counts = null, statKeys = [], creditEl = null, home = null }) {
   const calls = [], docListeners = {}, ids = {};
   const root = new El("html"), body = new El("body");
   body.attrs = { "data-root": "/", "data-app": "https://praxikit.com" };
   for (const id of ["theme", "menu-toggle", "acct", "site-q"]) ids[id] = new El(id === "site-q" ? "input" : "button");
   ids["site-q"].value = ""; ids["site-q"].parentNode = new El("form");
   const header = new El("header"); header.className = "top";
-  const nav = new El("nav"); const gh = new El("a"); gh.attrs.href = "https://github.com/praxikit/praxikit"; gh.textContent = "GitHub"; nav.appendChild(gh); nav.finder = (sel) => (sel.includes("github.com") ? gh : null);
+  const nav = new El("nav");
   const btn = new El("a"); btn.attrs = { "data-save": "k/keel/", "data-name": "keel", "aria-pressed": "false" };
   const label = new El("span"); btn.querySelector = (s) => (s === "span" ? label : null);
-  const store = {};
+  const store = cachedMe ? { "praxikit-me": JSON.stringify(cachedMe) } : {};
+  const signinLink = new El("a"); signinLink.attrs.href = "/auth/login?mode=user"; ids.acct.appendChild(signinLink); ids.acct.finder = (sel) => (sel === "a.signin" ? signinLink : null);
   const list = {};
   if (kits) {
     const mk = (name, src, date, text) => { const c = new El("li"); c.attrs = { "data-card": "", "data-src": src, "data-name": name, "data-date": date, "data-text": text, "data-tags": text.split(" ").join(" ") }; return c; };
@@ -85,14 +88,14 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
   const loc = { origin: "https://praxikit.com", pathname: "/k/keel/", search, href: "https://praxikit.com/k/keel/" };
   const ctx = vm.createContext({
     document: doc, location: loc, _unused: { origin: "https://praxikit.com", pathname: "/kits/", search, href: "https://praxikit.com/" },
-    matchMedia: () => ({ matches: dark }), localStorage: { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = v; } },
+    matchMedia: () => ({ matches: dark }), localStorage: { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = v; }, removeItem: (k) => { delete store[k]; } },
     fetch: fetchStub, URLSearchParams, Promise, setTimeout, clearTimeout, console, String, Array, Object, Number, JSON, encodeURIComponent, decodeURIComponent, Math, Date, RegExp, Error,
     navigator: { clipboard: { writeText: async () => {} } }, history: { replaceState() {} },
   });
   let threw = null;
   try { vm.runInContext(code, ctx); } catch (e) { threw = e; }
   await new Promise((r) => setTimeout(r, 30));
-  return { threw, list, stats, loc, calls, root, body, header, nav, ids, btn, label, store, doc, docListeners, click: (el) => { const ev = {}; for (const f of docListeners.click ?? []) f({ target: el, preventDefault() { ev.prevented = true; } }); return ev; } };
+  return { signinLink, threw, list, stats, loc, calls, root, body, header, nav, ids, btn, label, store, doc, docListeners, click: (el) => { const ev = {}; for (const f of docListeners.click ?? []) f({ target: el, preventDefault() { ev.prevented = true; } }); return ev; } };
 }
 
 // ---- the theme button
@@ -135,8 +138,8 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
 // ---- signed in as a maintainer: the tabs, the menu, the saved state and the toggle
 {
   const p = await run({ hint: true, me: { login: "ratul", id: 111, role: "admin" }, saved: ["k/keel/"] });
-  const labels = p.nav.children.map((c) => c.textContent);
-  must(labels[0] === "Admin" && labels.indexOf("My collection") > 0 && labels.indexOf("My collection") < labels.indexOf("GitHub"), `the Admin tab is first and My collection is in the navigation: ${labels.join(", ")}`);
+  must(p.root.getAttribute("data-admin") === "1" && p.root.getAttribute("data-in") === "1", "a maintainer's page is marked, so the Admin tab (already in the page) shows");
+  must(JSON.parse(p.store["praxikit-me"] ?? "{}").login === "ratul" && JSON.parse(p.store["praxikit-me"]).role === "admin", "the answer is remembered, so the next page shows the account at once");
   must(p.ids.acct.children.length === 1 && p.ids.acct.children[0].className === "menu", "the account menu replaces the Sign in button");
   must(p.btn.getAttribute("aria-pressed") === "true" && p.label.textContent === "Saved", "a saved kit's button shows as saved");
   const ev = p.click(p.btn);
@@ -149,7 +152,19 @@ async function run({ hint = false, me = null, saved = [], dark = false, kits = f
 // ---- a member: no Admin tab
 {
   const p = await run({ hint: true, me: { login: "carol", id: 3, role: "user" }, saved: [] });
-  must(!p.nav.children.some((c) => c.textContent === "Admin") && p.nav.children.some((c) => c.textContent === "My collection"), "a member has My collection but no Admin tab");
+  must(!p.root.hasAttribute("data-admin") && p.root.getAttribute("data-in") === "1" && p.ids.acct.children[0]?.className === "menu", "a member gets the account menu and no Admin tab");
+}
+
+// ---- a remembered answer is shown at once, before the server has answered; a stale one is undone
+{
+  const p = await run({ hint: true, cachedMe: { login: "ratul", id: 111, role: "admin" }, me: { login: "ratul", id: 111, role: "admin" } });
+  must(p.ids.acct.children.length === 1 && p.ids.acct.children[0].className === "menu" && p.root.getAttribute("data-admin") === "1", "with a remembered answer the account menu is built straight away");
+  const stale = await run({ hint: true, cachedMe: { login: "gone", id: 9, role: "admin" }, me: null });
+  must(!stale.root.hasAttribute("data-in") && !stale.root.hasAttribute("data-admin") && stale.ids.acct.children[0] === stale.signinLink && !("praxikit-me" in stale.store && stale.store["praxikit-me"]), "when the server says no, the remembered answer is dropped and Sign in is back");
+  const changed = await run({ hint: true, cachedMe: { login: "old", id: 1, role: "user" }, me: { login: "new", id: 2, role: "user" } });
+  must(changed.ids.acct.children[0]?.children[0]?.children.some((c) => c.textContent === "new"), "when the account is different from the remembered one, the menu shows the new account");
+  const nohint = await run({ hint: false, cachedMe: { login: "ratul", id: 111, role: "admin" } });
+  must(nohint.ids.acct.children[0] === nohint.signinLink && !nohint.root.hasAttribute("data-in"), "without the sign-in hint a remembered answer is ignored");
 }
 
 // ---- the kits list: filter, show, sort, clear

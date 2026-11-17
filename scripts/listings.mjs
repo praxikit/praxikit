@@ -153,6 +153,27 @@ export function editListing(list, url, patch) {
   return { list: list.map((x, i) => (i === at ? after : x)), before, after };
 }
 
+/**
+ * A maintainer read a repository that is too large (or otherwise unreadable) for the automatic scan. This replaces the scan
+ * only when the scan REFUSED to read it, never when it ran and failed or flagged something. The listing is pinned to the head
+ * commit, which must match the commit the maintainer was shown, and its check result says "reviewed by hand".
+ * `run(args)` runs gh and returns stdout or throws.
+ */
+export function byHandScan(url, scan, expectCommit, run) {
+  if (!scan?.refusal) return scan;
+  const m = /^https:\/\/github\.com\/([^/\s]+)\/([^/\s]+)$/.exec(String(url ?? "").trim());
+  const expect = String(expectCommit ?? "").toLowerCase();
+  if (!m || !/^[0-9a-f]{7,40}$/.test(expect)) return scan;
+  let sha = "";
+  try {
+    const branch = String(run(["api", `repos/${m[1]}/${m[2]}`, "--jq", ".default_branch"])).trim();
+    if (!/^[A-Za-z0-9._/-]{1,100}$/.test(branch)) return scan;
+    sha = String(run(["api", `repos/${m[1]}/${m[2]}/commits/${branch}`, "--jq", ".sha"])).trim().toLowerCase();
+  } catch { return scan; }
+  if (!/^[0-9a-f]{40}$/.test(sha)) return scan;
+  return { page: String(url), sha, label: "needs-manual-review", text: `${MARKER}\n### Automated checks\nThe automatic scan could not read this repository (${safe(scan.refusal.text ?? "", 160)}). A maintainer read it by hand at commit \`${sha.slice(0, 12)}\`; it was not scanned.\n` };
+}
+
 export const REASONS = ["malicious", "secret", "licence", "misleading", "unmaintained", "owner-request", "other"];
 
 /** Removes the entry for a repository. Returns { list, removed } where removed is null if it was not listed. */
@@ -185,7 +206,8 @@ function main() {
       const scan = scanUrl(form["Repository link"] ?? form.Link ?? "", declared);
       result = entryFromIssue(form, process.env.ISSUE_AUTHOR ?? "", Number(process.env.ISSUE_NUMBER), scan, today);
     } else {
-      const scan = scanUrl(process.env.IN_URL ?? "", "");
+      let scan = scanUrl(process.env.IN_URL ?? "", "");
+      if (String(process.env.IN_BY_HAND) === "true") scan = byHandScan(process.env.IN_URL, scan, process.env.IN_EXPECT_COMMIT, (args) => execFileSync("gh", args, { encoding: "utf8", timeout: 30_000, stdio: ["ignore", "pipe", "pipe"] }));
       result = entryFromDispatch(process.env, scan, today);
     }
     writeFileSync(join(dir, "comment.md"), result.comment.startsWith(MARKER) ? result.comment : `${MARKER}\n${result.comment}`);

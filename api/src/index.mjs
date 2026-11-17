@@ -564,11 +564,18 @@ async function approveRoute(request, env, s, id) {
   if (!name || name.length > 80 || !KINDS.includes(kind) || !text || text.length > 400 || (pick && (!pickNote || pickNote.length > 200))) return back(base, "bad");
   const row = await store.get(id);
   if (!row || row.status !== "pending") return back(base, "already");
-  // approving needs the full checks to have run, on a commit we can pin the listing to
-  if (row.scan_state !== "done" || !/^[0-9a-f]{12}$/.test(String(row.scan_commit)) || !["no-flags-found", "checks-flagged"].includes(row.scan_label)) return back(base, "needscan");
-  if (row.scan_label === "checks-flagged" && f.get("read") !== "yes") return back(base, "needread");
+  // approving needs the full checks to have run, on a commit we can pin the listing to. The one exception: a repository the checks could not read
+  // (too large) may be approved by hand, pinned to the commit the app read when it was submitted. A failed scan can never be approved this way.
+  const asked = f.get("by_hand") === "yes";
+  const byHand = asked && row.scan_state === "done" && row.scan_label === "needs-manual-review" && /^[0-9a-f]{40}$/.test(String(row.commit_sha ?? ""));
+  if (asked && !byHand) return back(base, "needscan");
+  if (byHand) { if (f.get("hand_read") !== "yes") return back(base, "needread"); }
+  else {
+    if (row.scan_state !== "done" || !/^[0-9a-f]{12}$/.test(String(row.scan_commit)) || !["no-flags-found", "checks-flagged"].includes(row.scan_label)) return back(base, "needscan");
+    if (row.scan_label === "checks-flagged" && f.get("read") !== "yes") return back(base, "needread");
+  }
   if (!(await store.approve(id, { by: s.sub, name, kind, text, at: new Date().toISOString(), pick, note: pickNote, tags }))) return back(base, "already");
-  const state = await startPublish(env, store, { ...row, final_name: name, final_kind: kind, final_text: text, final_pick: pick ? 1 : 0, final_note: pickNote, final_tags: tags, decided_by: s.sub });
+  const state = await startPublish(env, store, { ...row, final_name: name, final_kind: kind, final_text: text, final_pick: pick ? 1 : 0, final_note: pickNote, final_tags: tags, decided_by: s.sub, by_hand: byHand });
   return back(base, state === "dispatched" ? "approved" : "failed");
 }
 
@@ -695,7 +702,10 @@ async function route(request, env) {
       const prefill = cleanRepo(url.searchParams.get("url")); // a link from the website form; anything that is not a github.com repository is dropped
       if (!s) return send(signInPage("", { submit: true, next: prefill, return: "/submit" }));
       if (!storeFor(env)) return send(messagePage("Submissions are not open yet", "This app has no database connected yet.", false), { status: 503 });
-      return send(submitPage({ session: s, values: { url: prefill }, isPublic: await store0Public(env, s) }));
+      let relation = null; // does this person own the repository? GitHub decides, and we say so before they send anything
+      const asked = prefill ? parseRepo(prefill) : null;
+      if (asked) { try { const info = await fetchRepoInfo(env, asked); relation = { repo: `${info.owner}/${info.name}`, author: await isAuthor(env, info, s.sub) }; } catch { relation = null; } }
+      return send(submitPage({ session: s, values: { url: prefill }, isPublic: await store0Public(env, s), relation }));
     }
     if (method === "POST") return s ? submit(request, env, s) : send(signInPage("Sign in first, then submit again.", { submit: true }), { status: 401 });
   }

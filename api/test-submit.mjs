@@ -189,6 +189,12 @@ must((await verifyToken(carol.session["__Host-praxikit-session"], SECRET)).role 
 must(carol.loc.searchParams.get("state").startsWith("user."), "the sign-in mode travels in the state");
 const formPage = await (await note(await call("/submit", { cookies: carol.session }))).text();
 must(formPage.includes('name="url"') && formPage.includes('maxlength="200"') && !formPage.includes("maintainer"), "a signed-in submitter sees the form, as a plain user");
+{
+  const theirs = await (await note(await call("/submit?url=" + encodeURIComponent("https://github.com/alice/good"), { cookies: carol.session }))).text();
+  must(theirs.includes("You do not own alice/good") && theirs.includes("your recommendation"), "before sending, someone who does not own the repository is told it will be listed as their recommendation");
+  const blank = await (await note(await call("/submit", { cookies: carol.session }))).text();
+  must(!blank.includes("You own ") && !blank.includes("You do not own"), "with no link there is no ownership line");
+}
 
 // ---- submitting
 calls.length = 0;
@@ -206,6 +212,10 @@ const alice = await signIn("u-alice", "user");
 r = await submit(alice.session, "https://github.com/alice/other", "this note is ignored for an author");
 row = rows().find((x) => x.repo_key === "alice/other");
 must(r.status === 303 && row.source === "community" && row.why === "", "the owner submitting their own repository is a community listing, and the note is not kept");
+{
+  const mine = await (await note(await call("/submit?url=" + encodeURIComponent("https://github.com/alice/other"), { cookies: alice.session }))).text();
+  must(mine.includes("You own alice/other") && mine.includes("community kit"), "before sending, the owner is told it will be listed as a community kit, by them");
+}
 
 const bob = await signIn("u-bob", "user");
 r = await submit(bob.session, "https://github.com/acme/tool");

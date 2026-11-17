@@ -156,9 +156,9 @@ must(js.includes('data-app') && js.includes("location.origin === appOrigin") && 
 must(js.includes('"/collection/toggle"') && js.includes('"aria-pressed"') && js.includes("savedMap === null") && js.includes('getElementById("menu-toggle")') && js.includes('"aria-expanded"'), "the script turns Save links into a one-press toggle only when signed in, and runs the mobile menu");
 const home = await (await call("/kits/")).text();
 must(home.includes('class="save-btn"') && home.includes('data-save="k/keel/"') && home.includes('aria-label="Save keel to your collection"') && home.includes('id="menu-toggle"') && home.includes('aria-controls="site-nav"'), "cards carry a labelled bookmark button and the page has the menu button");
-must(js.includes('link("/collection", "My collection")') && js.includes('nav.insertBefore(mine,'), "signed-in people get a My collection tab in the navigation");
+must(js.includes('link("/collection", "My collection")') && !js.includes("nav.insertBefore("), "My collection is in the account menu, and the navigation tab is in the page from the start (nothing is inserted later)");
 must(js.includes('document.cookie.indexOf("praxikit-in=1") > -1') && js.includes('document.cookie = "praxikit-in=; Max-Age=0'), "visitors without the hint make no account requests, and a stale hint is cleared");
-must(js.includes('"/admin"') && js.includes("nav.insertBefore(a, nav.firstChild)") && js.includes('me.role === "admin"'), "the Admin tab is added first in the nav, only for the admin role");
+must(js.includes('"/admin"') && js.includes('"data-admin"') && js.includes('me.role === "admin"'), "the Admin tab is added first in the nav, only for the admin role");
 
 rmSync(out, { recursive: true, force: true });
 if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }

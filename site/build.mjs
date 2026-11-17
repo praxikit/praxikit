@@ -209,7 +209,8 @@ function ogPng() {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("IDAT", deflateSync(Buffer.concat(rows), { level: 9 })), chunk("IEND", Buffer.alloc(0))]);
 }
 
-const THEME_BOOT = `try{var t=localStorage.getItem("praxikit-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}`;
+const THEME_BOOT = `try{var t=localStorage.getItem("praxikit-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}
+try{var m=JSON.parse(localStorage.getItem("praxikit-me")||"null");if(m&&typeof m.login==="string"&&document.cookie.indexOf("praxikit-in=1")>-1){var h=document.documentElement;h.setAttribute("data-in","1");if(m.role==="admin")h.setAttribute("data-admin","1")}}catch(e){}`;
 // No regular expressions in here: this is a template literal, where backslashes would be eaten.
 const SITE_JS = `
 (function () {
@@ -386,25 +387,41 @@ const SITE_JS = `
   function link(href, text) { var a = el("a", "", text); a.href = href; return a; }
   var signin = slot ? slot.querySelector("a.signin") : null;
   if (signin && location.pathname.indexOf("/auth") !== 0) signin.href = signin.getAttribute("href") + "&return=" + encodeURIComponent(location.pathname + location.search);
-  var hinted = document.cookie.indexOf("praxikit-in=1") > -1;
+  var hinted = document.cookie.indexOf("praxikit-in=1") > -1, ME_KEY = "praxikit-me";
+  function readMe() { try { var o = JSON.parse(localStorage.getItem(ME_KEY) || "null"); return o && typeof o.login === "string" ? o : null; } catch (e) { return null; } }
+  function flags(me) {
+    if (me) { root.setAttribute("data-in", "1"); if (me.role === "admin") root.setAttribute("data-admin", "1"); else root.removeAttribute("data-admin"); }
+    else { root.removeAttribute("data-in"); root.removeAttribute("data-admin"); }
+  }
+  function showAccount(me) {
+    var d = el("details", "menu"), sum = el("summary");
+    if (Number.isInteger(me.id)) { var img = el("img"); img.src = "https://avatars.githubusercontent.com/u/" + me.id + "?s=64"; img.alt = ""; img.width = 28; img.height = 28; sum.appendChild(img); }
+    sum.appendChild(el("span", "", me.login)); sum.setAttribute("aria-label", "Account menu for " + me.login);
+    var list = el("div", "menu-list");
+    list.appendChild(link("/profile", "Profile")); list.appendChild(link("/collection", "My collection")); list.appendChild(link("/settings", "Settings"));
+    if (me.role === "admin") list.appendChild(link("/admin", "Admin"));
+    var f = el("form"); f.method = "post"; f.action = "/auth/logout"; var b = el("button", "", "Sign out"); b.type = "submit"; f.appendChild(b); list.appendChild(f);
+    f.addEventListener("submit", function () { try { localStorage.removeItem(ME_KEY); } catch (e) {} });
+    d.appendChild(sum); d.appendChild(list);
+    slot.textContent = ""; slot.appendChild(d);
+    document.addEventListener("click", function (e) { if (!d.contains(e.target)) d.removeAttribute("open"); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") d.removeAttribute("open"); });
+  }
   if (slot && appOrigin && location.origin === appOrigin && hinted) {
+    var cached = readMe();
+    if (cached) { flags(cached); showAccount(cached); }
     fetch("/api/me", { credentials: "same-origin", headers: { Accept: "application/json" } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (me) {
-      if (!me || typeof me.login !== "string") { document.cookie = "praxikit-in=; Max-Age=0; Path=/; Secure; SameSite=Lax"; return; }
+      if (!me || typeof me.login !== "string") {
+        document.cookie = "praxikit-in=; Max-Age=0; Path=/; Secure; SameSite=Lax";
+        try { localStorage.removeItem(ME_KEY); } catch (e) {}
+        flags(null); if (cached && signin) { slot.textContent = ""; slot.appendChild(signin); }
+        return;
+      }
+      var fresh = { login: me.login, id: me.id, role: me.role === "admin" ? "admin" : "user" };
+      try { localStorage.setItem(ME_KEY, JSON.stringify(fresh)); } catch (e) {}
+      flags(fresh);
+      if (!cached || cached.login !== fresh.login || cached.id !== fresh.id || cached.role !== fresh.role) showAccount(fresh);
       loadSaved();
-      var nav = document.querySelector("header nav"), admin = me.role === "admin";
-      if (admin && nav) { var a = link("/admin", "Admin"); a.className = "admin-tab"; if (location.pathname.indexOf("/admin") === 0) a.setAttribute("aria-current", "page"); nav.insertBefore(a, nav.firstChild); }
-      if (nav) { var mine = link("/collection", "My collection"); if (location.pathname.indexOf("/collection") === 0) mine.setAttribute("aria-current", "page"); nav.insertBefore(mine, nav.querySelector('a[href^="https://github.com"]')); }
-      var d = el("details", "menu"), sum = el("summary");
-      if (Number.isInteger(me.id)) { var img = el("img"); img.src = "https://avatars.githubusercontent.com/u/" + me.id + "?s=64"; img.alt = ""; img.width = 28; img.height = 28; sum.appendChild(img); }
-      sum.appendChild(el("span", "", me.login)); sum.setAttribute("aria-label", "Account menu for " + me.login);
-      var list = el("div", "menu-list");
-      list.appendChild(link("/profile", "Profile")); list.appendChild(link("/collection", "My collection")); list.appendChild(link("/settings", "Settings"));
-      if (admin) list.appendChild(link("/admin", "Admin"));
-      var f = el("form"); f.method = "post"; f.action = "/auth/logout"; var b = el("button", "", "Sign out"); b.type = "submit"; f.appendChild(b); list.appendChild(f);
-      d.appendChild(sum); d.appendChild(list);
-      slot.textContent = ""; slot.appendChild(d);
-      document.addEventListener("click", function (e) { if (!d.contains(e.target)) d.removeAttribute("open"); });
-      document.addEventListener("keydown", function (e) { if (e.key === "Escape") d.removeAttribute("open"); });
     }).catch(function () {});
   }
 
@@ -718,7 +735,7 @@ ${head}
 <header class="top"><div class="wrap bar">
 <a class="brand" href="${up}" aria-label="Praxikit home">${LOGO}<span>Praxikit</span></a>
 <form class="site-search" role="search" action="${up}search/" method="get"><label class="vh" for="site-q">Search the catalogue</label><input id="site-q" name="q" type="search" placeholder="Search  ( / )" autocomplete="off" spellcheck="false" maxlength="100"></form>
-<nav aria-label="Main" id="site-nav"><a href="${up}kits/"${cur("kits")}>Kits</a>${APP ? `<a href="${esc(APP)}/contributors" data-nav>Contributors</a><a href="${esc(APP)}/requests" data-nav>Requests</a>` : ""}<a href="${up}submit/"${cur("submit")}>Submit</a><a href="${esc(REPO)}" rel="noopener noreferrer">GitHub</a>
+<nav aria-label="Main" id="site-nav">${APP ? `<a class="admin-tab" href="${esc(APP)}/admin" data-nav data-admin-tab>Admin</a>` : ""}<a href="${up}kits/"${cur("kits")}>Kits</a>${APP ? `<a href="${esc(APP)}/contributors" data-nav>Contributors</a><a href="${esc(APP)}/requests" data-nav>Requests</a>` : ""}<a href="${up}submit/"${cur("submit")}>Submit</a>${APP ? `<a href="${esc(APP)}/collection" data-nav>My collection</a>` : ""}
 <button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false" title="Toggle dark mode"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg><span class="icon-label">Light or dark</span></button></nav>
 <div class="acct" id="acct">${APP ? `<a class="signin" href="${esc(APP)}/auth/login?mode=user">Sign in</a>` : ""}</div>
 <button class="icon-btn menu-toggle" id="menu-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="site-nav"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
@@ -849,8 +866,6 @@ function card(k, up) {
   const latest = dateOf(k.changelog[0]?.head);
   const groups = [slug(kindOf(k)), ...k.collections.map(slug)].join(" ");
   const text = [k.name, k.promise, ...(k.tags ?? []), ...k.collections, kindOf(k)].join(" ").toLowerCase();
-  const cmd = Array.isArray(k.install) && k.install.length ? k.install[k.install.length - 1] : "";
-  const copy = cmd ? `<button class="icon-act" type="button" data-copy-text="${esc(cmd)}" aria-label="Copy the install command for ${esc(k.name)}" title="Copy install command">${COPYICON}</button>` : "";
   return `<li class="card" data-card data-src="built" data-stars="0" data-health="0" data-name="${esc(k.name.toLowerCase())}" data-date="${esc(latest || "")}" data-tags="${esc(tagsOf(k).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
 <div class="card-head"><div class="meta-line"><span class="kind">${esc(kindOf(k))}</span><span class="ver">v${esc(k.version)}</span></div><div class="card-tools">${repoLink(`${REPO}/tree/main/kits/${k.name}`, `Open ${k.name} on GitHub`)}${saveLink(`k/${k.name}/`, k.name)}</div></div>
 <h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
@@ -858,7 +873,7 @@ function card(k, up) {
 <p class="promise">${esc(k.promise)}</p>
 ${tagChips(k, up, 3)}
 ${APP ? `<p class="stat" data-stat="k/${esc(k.name)}/" hidden></p>` : ""}
-<div class="card-foot"><span class="muted">${esc(bits)}${bits && latest ? " · " : ""}${latest ? `<span class="nowrap">updated ${esc(latest)}</span>` : ""}</span>${copy}</div>
+<div class="card-foot"><span class="muted">${esc(bits)}${bits && latest ? " · " : ""}${latest ? `<span class="nowrap">updated ${esc(latest)}</span>` : ""}</span></div>
 </li>`;
 }
 
@@ -1034,8 +1049,8 @@ function submitPage() {
   const form = APP
     ? `<form class="submit-form panel" method="get" action="${esc(APP)}/submit">
 <label for="repo">Repository link</label>
-<div class="row"><input id="repo" name="url" type="url" required maxlength="200" inputmode="url" autocapitalize="off" placeholder="https://github.com/owner/repo" autocomplete="off"><button class="btn" type="submit">Continue with GitHub</button></div>
-<p class="muted">You will sign in with GitHub (only your username is read) and confirm on the next screen. Your link is passed along so you do not paste it twice.</p>
+<div class="row"><input id="repo" name="url" type="url" required maxlength="200" inputmode="url" autocapitalize="off" placeholder="https://github.com/owner/repo" autocomplete="off"><button class="btn" type="submit"><span class="when-out">Continue with GitHub</span><span class="when-in">Continue</span></button></div>
+<p class="muted"><span class="when-out">You will sign in with GitHub (only your username is read) and confirm on the next screen. Your link is passed along so you do not paste it twice.</span><span class="when-in">You are signed in. The next screen tells you whether this is listed as yours or as your recommendation, and you confirm there.</span></p>
 </form>`
     : `<p class="note">Submissions are not open yet.</p>`;
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Submit</p><h1>Submit a kit</h1>
@@ -1151,8 +1166,31 @@ function privacyPage() {
   return page({ title: "Privacy — Praxikit", depth: 1, body, canonical: `${HOME_URL}privacy/`, description: "What Praxikit keeps about you: nothing on the website; a GitHub username and your collection if you sign in." });
 }
 
+const REASON_WORDS = { malicious: "Malicious", secret: "Exposed secret", licence: "Licence problem", misleading: "Misleading", unmaintained: "Unmaintained", "owner-request": "Owner asked", other: "Other" };
+/** Rows of docs/removals.md: | date | name | repository | reason | note |. Anything that does not look like a row is skipped. */
+function loadRemovals() {
+  const f = join(ROOT, "docs", "removals.md");
+  if (!existsSync(f)) return [];
+  const rows = [];
+  for (const line of readFileSync(f, "utf8").split("\n")) {
+    const c = line.split("|").map((x) => x.trim());
+    if (c.length < 7 || !/^\d{4}-\d{2}-\d{2}$/.test(c[1]) || !Number.isFinite(Date.parse(`${c[1]}T00:00:00Z`))) continue;
+    rows.push({ date: c[1], name: c[2], url: /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+$/.test(c[3]) ? c[3] : "", reason: c[4], note: c[5] });
+  }
+  return rows.sort((a, b) => b.date.localeCompare(a.date));
+}
+function removalsPage() {
+  const rows = loadRemovals();
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / <a href="../policy/">Policy</a> / Removal log</p>
+<h1>Removal log</h1>
+<p class="lead">Every listing taken off the catalogue, with the date and the reason. Nothing is removed quietly.</p>
+${rows.length ? `<div class="table-wrap"><table class="plain-table"><thead><tr><th scope="col">Date</th><th scope="col">Kit</th><th scope="col">Reason</th><th scope="col">Note</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.date)}</td><td>${r.url ? `<a href="${esc(r.url)}" rel="noopener noreferrer">${esc(r.name)}</a>` : esc(r.name)}</td><td>${esc(REASON_WORDS[r.reason] ?? r.reason)}</td><td>${esc(r.note)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="empty"><p><strong>Nothing has been removed yet.</strong> When a listing is taken down, it appears here with the date and the reason.</p></div>`}
+<p class="muted">How reports and removals work is on the <a href="../policy/">policy page</a>.</p></div>`;
+  return page({ title: "Removal log — Praxikit", depth: 1, body, canonical: `${HOME_URL}removals/`, description: "Every listing taken off the Praxikit catalogue, with the date and the reason." });
+}
+
 function policyPage() {
-  const REPORT = ISSUE("report-listing.yml"), PRIVATE = `${REPO}/security/advisories/new`, LOG = `${REPO}/blob/main/docs/removals.md`;
+  const REPORT = ISSUE("report-listing.yml"), PRIVATE = `${REPO}/security/advisories/new`, LOG = "../removals/";
   const ext = (href, text) => `<a href="${esc(href)}" rel="noopener noreferrer">${text}</a>`;
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Policy</p><h1>Listings, reports and removals</h1>
 <p class="lead">Praxikit is run by one maintainer, part-time. This page says what a listing means, how to report a problem and what happens next. It describes how the site is run; it is not legal advice.</p>
@@ -1242,7 +1280,8 @@ function buildSearchIndex(kits, listings, tagMap) {
 
 // ---------- write ----------
 const pages = []; // every public page, for the sitemap
-const write = (rel, text) => { const p = join(OUT, rel); mkdirSync(dirname(p), { recursive: true }); if (rel.endsWith(".html")) pages.push(rel); writeFileSync(p, text); };
+const newTab = (html) => html.replace(/<a\b[^>]*>/g, (tag) => (/href="https?:\/\//.test(tag) && /rel="noopener noreferrer"/.test(tag) && !/target=/.test(tag) ? tag.replace("<a", '<a target="_blank"') : tag));
+const write = (rel, text) => { const p = join(OUT, rel); mkdirSync(dirname(p), { recursive: true }); if (rel.endsWith(".html")) { pages.push(rel); text = newTab(text); } writeFileSync(p, text); };
 
 const kits = loadKits();
 const listings = loadListings();
@@ -1260,6 +1299,7 @@ write("kits/index.html", kitsPage(items, null));
 for (const g of GROUPS) write(`kits/${g.id}/index.html`, kitsPage(items, g));
 write("submit/index.html", submitPage());
 write("policy/index.html", policyPage());
+write("removals/index.html", removalsPage());
 write("privacy/index.html", privacyPage());
 write("about/index.html", aboutPage());
 writeFileSync(join(OUT, "og.png"), ogPng());
