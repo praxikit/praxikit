@@ -295,5 +295,133 @@
       "infrastructure",
       "devops"
     ]
+  },
+  {
+    "name": "Superpowers",
+    "url": "https://github.com/obra/superpowers",
+    "author": "obra",
+    "why": "An agentic skills framework & software development methodology that works.",
+    "kind": "skill",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+    "checks": "checks-flagged",
+    "tags": [
+      "workflow",
+      "planning",
+      "coding"
+    ]
+  },
+  {
+    "name": "Agent Skills (Addy Osmani)",
+    "url": "https://github.com/addyosmani/agent-skills",
+    "author": "addyosmani",
+    "why": "Production-grade engineering skills for AI coding agents.",
+    "kind": "skill",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
+    "checks": "checks-flagged",
+    "tags": [
+      "engineering",
+      "quality",
+      "coding"
+    ]
+  },
+  {
+    "name": "Claude Code official plugins",
+    "url": "https://github.com/anthropics/claude-plugins-official",
+    "author": "anthropics",
+    "why": "Official, Anthropic-managed directory of high quality Claude Code Plugins.",
+    "kind": "plugin",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "fd30cee3ecd5a8ee772733c5d20c0f2bae2da2f0",
+    "checks": "checks-flagged",
+    "tags": [
+      "plugins",
+      "official",
+      "directory"
+    ]
+  },
+  {
+    "name": "Planning with files",
+    "url": "https://github.com/OthmanAdi/planning-with-files",
+    "author": "OthmanAdi",
+    "why": "Persistent file-based planning for AI coding agents and long-running tasks. Crash-proof markdown plans, session recovery after /clear and compaction, per-turn re-injection against context rot, determi",
+    "kind": "plugin",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "51bf62def62d1cb317d37936929b4ef97cf862c3",
+    "checks": "checks-flagged",
+    "tags": [
+      "planning",
+      "memory",
+      "workflow"
+    ]
+  },
+  {
+    "name": "Obsidian skills",
+    "url": "https://github.com/obsidianmd/obsidian-skills",
+    "author": "obsidianmd",
+    "why": "Agent skills for Obsidian. Teach your agent to use Obsidian CLI and open formats including Markdown, Bases, JSON Canvas.",
+    "kind": "skill",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "caf3e98cd22d810db164f26c9a442f0a280daa43",
+    "checks": "no-flags-found",
+    "tags": [
+      "notes",
+      "obsidian",
+      "knowledge"
+    ]
+  },
+  {
+    "name": "Cloudflare security audit",
+    "url": "https://github.com/cloudflare/security-audit-skill",
+    "author": "cloudflare",
+    "why": "A coding-agent skill for multi-phase security audits with independently verified, machine-readable findings",
+    "kind": "skill",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "c1c8a8c1471069fb0e188eeaff69b8e8db6564a8",
+    "checks": "checks-flagged",
+    "tags": [
+      "security",
+      "audit",
+      "review"
+    ]
+  },
+  {
+    "name": "Claude Code subagents collection",
+    "url": "https://github.com/VoltAgent/awesome-claude-code-subagents",
+    "author": "VoltAgent",
+    "why": "A collection of 100+ specialized Claude Code subagents covering a wide range of development use cases",
+    "kind": "agent",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "ed74d115b7fb7026a22a4f816a8e3250f425e3b4",
+    "checks": "checks-flagged",
+    "tags": [
+      "subagents",
+      "roles",
+      "coding"
+    ]
+  },
+  {
+    "name": "Humanizer",
+    "url": "https://github.com/blader/humanizer",
+    "author": "blader",
+    "why": "Agent skill that removes signs of AI-generated writing from text",
+    "kind": "skill",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "b48c832f0f809c1b5658edbb838c2521b72f2413",
+    "checks": "no-flags-found",
+    "tags": [
+      "writing",
+      "editing",
+      "text"
+    ]
   }
 ]
