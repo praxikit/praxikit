@@ -3,7 +3,7 @@
   "https://github.com/addyosmani/agent-skills": "same",
   "https://github.com/anthropics/claude-plugins-official": "same",
   "https://github.com/blader/humanizer": "same",
-  "https://github.com/brave/brave-search-mcp-server": "same",
+  "https://github.com/brave/brave-search-mcp-server": "changed",
   "https://github.com/ckreiling/mcp-server-docker": "same",
   "https://github.com/cloudflare/mcp-server-cloudflare": "same",
   "https://github.com/cloudflare/security-audit-skill": "same",
@@ -22,8 +22,8 @@
   "https://github.com/obra/superpowers": "same",
   "https://github.com/obsidianmd/obsidian-skills": "same",
   "https://github.com/OthmanAdi/planning-with-files": "same",
-  "https://github.com/supabase/mcp": "same",
-  "https://github.com/upstash/context7": "same",
+  "https://github.com/supabase/mcp": "changed",
+  "https://github.com/upstash/context7": "changed",
   "https://github.com/VoltAgent/awesome-claude-code-subagents": "same",
   "https://github.com/voska/hass-mcp": "same"
 }
