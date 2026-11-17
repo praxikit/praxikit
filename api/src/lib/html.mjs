@@ -2,44 +2,44 @@
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 export const CSS = `
-.app{padding-block:36px 72px}
-.app h1{font-size:clamp(1.6rem,1rem + 1.6vw,2.2rem);margin:0 0 .8rem;max-width:none;letter-spacing:-.01em}
-.app h2{font-size: var(--fs-lg);margin:2rem 0 .6rem}
+.app{padding-block:var(--s6) var(--s8)}
+.app h1{font-size:clamp(1.6rem,1rem + 1.6vw,2.2rem);margin:0 0 var(--s4);max-width:none;letter-spacing:-.02em}
+.app h2{font-size:1.25rem;margin:var(--s7) 0 var(--s3)}
 .app p{max-width:70ch}
 .app .muted{color:var(--muted);font-size: var(--fs-sm)}
-.app .badge{font-size: var(--fs-xs);font-weight:600;padding:2px 8px;border-radius:4px;background:var(--accent);color:var(--accent-fg)}
+.app .badge{font-size: var(--fs-xs);font-weight:600;padding:2px 8px;border-radius:8px;background:var(--accent);color:var(--accent-fg)}
 .app .badge.warn{background:var(--warn-bg);color:var(--warn)}.app .badge.bad{background:var(--bad);color:#fff}
-.app .note{background:var(--warn-bg);border-left:3px solid var(--warn);padding:9px 13px;margin:1rem 0}
-.app .ok{background:var(--card);border-left:3px solid var(--accent);padding:9px 13px;margin:1rem 0}
-.app .btn,.app button{font:inherit;font-size: var(--fs-sm);padding:8px 16px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);text-decoration:none;cursor:pointer;display:inline-block}
+.app .note{background:var(--warn-bg);border-left:3px solid var(--warn);padding:var(--s3) var(--s4);margin:var(--s4) 0;border-radius:0 var(--radius-sm) var(--radius-sm) 0}
+.app .ok{background:var(--card);border-left:3px solid var(--accent);padding:var(--s3) var(--s4);margin:var(--s4) 0;border-radius:0 var(--radius-sm) var(--radius-sm) 0}
+.app .btn,.app button{font:inherit;font-size: var(--fs-sm);min-height:var(--control);padding:0 var(--s4);border-radius:var(--radius-sm);display:inline-flex;align-items:center;justify-content:center;font-weight:600;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);text-decoration:none;cursor:pointer;display:inline-block}
 .app button.ghost,.app .btn.ghost{background:transparent;color:var(--accent)}
 .app button.ghost:hover,.app .btn.ghost:hover{background:var(--accent-bg);filter:none}
 .app button[disabled]{opacity:.5;cursor:not-allowed}
-.app .table-wrap{overflow-x:auto}
-.app table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line)}
-.app th,.app td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);font-size: var(--fs-sm);vertical-align:top}
-.app th{color:var(--muted);font-weight:600}
-.app ul.links{padding-left:1.2rem}.app ul.links li{margin:.35rem 0}
-.app label{display:block;font-weight:600;margin:1rem 0 .3rem}
+.app .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+.app table{width:100%;border-collapse:collapse;background:transparent;border:0}
+.app th,.app td{text-align:left;padding:var(--s3) var(--s4);border-bottom:1px solid var(--line);font-size: var(--fs-sm);vertical-align:top}
+.app th{color:var(--muted);font-weight:600;font-size:var(--fs-xs);letter-spacing:.02em}.app tbody tr:last-child td{border-bottom:0}
+.app ul.links{padding-left:1.2rem}.app ul.links li{margin:var(--s2) 0}
+.app label{display:block;font-weight:600;margin:var(--s5) 0 var(--s2)}
 .app label.check{font-weight:400;display:flex;gap:8px;align-items:center}
-.app input[type=text],.app input[type=url],.app textarea{width:100%;max-width:640px;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
-.app textarea{min-height:5rem;resize:vertical}
-.app select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
+.app input[type=text],.app input[type=url],.app textarea{width:100%;max-width:640px;font:inherit;min-height:var(--control);padding:0 var(--s4);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--card);color:var(--fg)}
+.app textarea{min-height:6rem;padding:var(--s3) var(--s4);resize:vertical}
+.app select{font:inherit;min-height:var(--control);padding:0 var(--s3);border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--card);color:var(--fg)}
 .app .hint{font-weight:400;color:var(--muted);font-size: var(--fs-sm)}
 .app blockquote{margin:.5rem 0;padding:.4rem 1rem;border-left:3px solid var(--line);color:var(--muted)}
 .app dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:6px 18px}.app dt{color:var(--muted)}.app dd{margin:0;overflow-wrap:anywhere}
 .app ul.plain{list-style:none;padding:0;margin:0}
-.app .listing{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:10px 14px;margin:10px 0}
+.app .listing{border:1px solid var(--line);border-radius:var(--radius);background:var(--card);padding:var(--s4) var(--s5);margin:var(--s3) 0}
 .app .listing summary{cursor:pointer}.app .listing .danger{margin-top:18px;padding-top:6px;border-top:1px dashed var(--line)}
 .app .profile-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
 .app .profile-head img{width:72px;height:72px;border-radius:50%;border:1px solid var(--line)}
 .app .profile-head h1{margin:0}
-.app .cards{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));margin:12px 0}
-.app .cards a{display:block;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:12px 14px;text-decoration:none;color:var(--fg)}
+.app .cards{display:grid;gap:var(--s4);grid-template-columns:repeat(auto-fill,minmax(240px,1fr));margin:var(--s4) 0}
+.app .cards a{display:block;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);padding:var(--s4) var(--s5);text-decoration:none;color:var(--fg)}
 .app .cards a:hover{border-color:var(--accent)}
 .app .cards strong{display:block}
 .app .requests{list-style:none;padding:0;margin:0 0 1.5rem;display:grid;gap:12px}
-.app .request{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 20px;box-shadow:var(--shadow-sm)}
+.app .request{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:var(--s4) var(--s5);box-shadow:none}
 .app .request h3{margin:0 0 .25rem;font-size: var(--fs-lg)}.app .request p{margin:.2rem 0}
 .app .request.solved{border-left:4px solid var(--accent)}
 .app .req-main{min-width:0}

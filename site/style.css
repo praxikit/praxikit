@@ -596,3 +596,7 @@ table.health th, table.health td { padding: var(--s3) var(--s3) var(--s3) 0; }
   .seg button { flex: 1 0 auto; white-space: nowrap; }
   .sort, .toolbar select { flex: 1 1 140px; }
 }
+
+/* submit: room under the step cards, and a quieter closing note */
+.flow + p, .flow + .muted { margin-top: var(--s5); }
+.app .sub-actions, .app form .row { margin-top: var(--s4); }
