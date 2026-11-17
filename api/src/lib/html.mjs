@@ -11,7 +11,7 @@ export const CSS = `
 .app .badge.warn{background:var(--warn-bg);color:var(--warn)}.app .badge.bad{background:var(--bad);color:#fff}
 .app .note{background:var(--warn-bg);border-left:3px solid var(--warn);padding:var(--s3) var(--s4);margin:var(--s4) 0;border-radius:0 var(--radius-sm) var(--radius-sm) 0}
 .app .ok{background:var(--card);border-left:3px solid var(--accent);padding:var(--s3) var(--s4);margin:var(--s4) 0;border-radius:0 var(--radius-sm) var(--radius-sm) 0}
-.app .btn,.app button{font:inherit;font-size: var(--fs-sm);min-height:var(--control);padding:0 var(--s4);border-radius:var(--radius-sm);display:inline-flex;align-items:center;justify-content:center;font-weight:600;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);text-decoration:none;cursor:pointer;display:inline-block}
+.app .btn,.app button{font:inherit;font-size: var(--fs-sm);min-height:var(--control);padding:0 var(--s4);border-radius:var(--radius-sm);display:inline-flex;align-items:center;justify-content:center;font-weight:600;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);text-decoration:none;cursor:pointer}
 .app button.ghost,.app .btn.ghost{background:transparent;color:var(--accent)}
 .app button.ghost:hover,.app .btn.ghost:hover{background:var(--accent-bg);filter:none}
 .app button[disabled]{opacity:.5;cursor:not-allowed}

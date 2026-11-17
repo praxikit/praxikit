@@ -619,3 +619,55 @@ table.plain-table { width: 100%; border-collapse: collapse; }
 table.plain-table th, table.plain-table td { text-align: left; padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); vertical-align: top; }
 table.plain-table thead th { color: var(--muted); font-size: var(--fs-xs); font-weight: 600; letter-spacing: .02em; }
 table.plain-table tbody tr:last-child td { border-bottom: 0; }
+
+/* ===== A new look: kit blocks =====
+   The logo is a set of blocks, so each kit type gets a block of its own colour and icon. Metadata reads like code (mono),
+   the hero sits on a faint grid, and surfaces stay quiet so the colour does the sorting. */
+:root {
+  --k-plugin: #0a6a61; --k-skill: #944f00; --k-mcp: #3f4bb8; --k-template: #a8324f; --k-agent: #7a3fb0; --k-hook: #475569; --k-adapter: #3b6b2a;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --k-plugin: #52c8ba; --k-skill: #f0a45c; --k-mcp: #9aa6ff; --k-template: #ff93ab; --k-agent: #c9a0ff; --k-hook: #aab6c8; --k-adapter: #9ad47c; } }
+:root[data-theme="dark"] { --k-plugin: #52c8ba; --k-skill: #f0a45c; --k-mcp: #9aa6ff; --k-template: #ff93ab; --k-agent: #c9a0ff; --k-hook: #aab6c8; --k-adapter: #9ad47c; }
+[data-kind="plugin"] { --kc: var(--k-plugin); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M10%203a2%202%200%200%201%204%200v2h4v4h-2a2%202%200%200%200%200%204h2v4h-4v-2a2%202%200%200%200-4%200v2H6v-4h2a2%202%200%200%200%200-4H6V5h4z'%2F%3E%3C%2Fsvg%3E"); }
+[data-kind="skill"] { --kc: var(--k-skill); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M12%203l2.2%205.8L20%2011l-5.8%202.2L12%2019l-2.2-5.8L4%2011l5.8-2.2z'%2F%3E%3C%2Fsvg%3E"); }
+[data-kind="mcp"] { --kc: var(--k-mcp); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M9%203v5M15%203v5M6%208h12v3a6%206%200%200%201-12%200zM12%2017v4'%2F%3E%3C%2Fsvg%3E"); }
+[data-kind="template"] { --kc: var(--k-template); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M4%205h16v14H4zM4%2010h16M10%2010v9'%2F%3E%3C%2Fsvg%3E"); }
+[data-kind="agent"] { --kc: var(--k-agent); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M12%203a4%204%200%201%201%200%208%204%204%200%200%201%200-8zM4%2021a8%208%200%200%201%2016%200'%2F%3E%3C%2Fsvg%3E"); }
+[data-kind="hook"] { --kc: var(--k-hook); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M6%203v12M6%2015a3%203%200%201%200%200%20.01M18%209a3%203%200%201%200%200-.01M18%2012a6%206%200%200%201-6%206H9'%2F%3E%3C%2Fsvg%3E"); }
+[data-kind="adapter"] { --kc: var(--k-adapter); --kmask: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2024%2024'%20fill%3D'none'%20stroke%3D'black'%20stroke-width%3D'2'%20stroke-linecap%3D'round'%20stroke-linejoin%3D'round'%3E%3Cpath%20d%3D'M7%207h12l-3-3M17%2017H5l3%203'%2F%3E%3C%2Fsvg%3E"); }
+
+/* the block: a tinted square with the type's icon, left of the chips */
+.card[data-kind] { --tint: color-mix(in srgb, var(--kc) 13%, var(--card)); box-shadow: inset 0 3px 0 var(--kc); }
+.card[data-kind] .card-head { position: relative; padding-left: 52px; min-height: 40px; }
+.card[data-kind] .card-head::before { content: ""; position: absolute; left: 0; top: 50%; width: 40px; height: 40px; margin-top: -20px; border-radius: 12px; background: var(--tint); }
+.card[data-kind] .card-head::after { content: ""; position: absolute; left: 10px; top: 50%; width: 20px; height: 20px; margin-top: -10px; background: var(--kc); -webkit-mask: var(--kmask) center / contain no-repeat; mask: var(--kmask) center / contain no-repeat; }
+.card[data-kind] .kind:not(.pick):not(.fresh):not(.ext):not(.warn) { background: var(--tint); color: var(--kc); }
+@media (hover: hover) { .card[data-kind]:hover { border-color: color-mix(in srgb, var(--kc) 55%, var(--line)); box-shadow: inset 0 3px 0 var(--kc), var(--shadow-md); } }
+
+/* the home page's type list gets the same blocks */
+.type-row[data-kind] { position: relative; padding-left: 76px; }
+.type-row[data-kind]::before { content: ""; position: absolute; left: 20px; top: 50%; width: 40px; height: 40px; margin-top: -20px; border-radius: 12px; background: color-mix(in srgb, var(--kc) 13%, var(--card)); }
+.type-row[data-kind]::after { content: ""; position: absolute; left: 30px; top: 50%; width: 20px; height: 20px; margin-top: -10px; background: var(--kc); -webkit-mask: var(--kmask) center / contain no-repeat; mask: var(--kmask) center / contain no-repeat; }
+.type-row[data-kind] .count-line { color: var(--kc); }
+
+/* metadata reads like code */
+.byline, .ver, .receipt, .stat, .signals, .card-foot, .foot-in .muted, .crumb { font-family: var(--mono); font-size: var(--fs-xs); letter-spacing: -.01em; }
+.signals .stars, .score { font-family: var(--mono); }
+.card .byline { color: var(--muted); }
+
+/* the hero: a faint grid that fades out, so the page has a floor to stand on */
+.hero { position: relative; isolation: isolate; }
+.hero::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--fg) 16%, transparent) 1px, transparent 0); background-size: 24px 24px; -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 85%); mask-image: linear-gradient(to bottom, #000 0%, transparent 85%); }
+.hero h1 { letter-spacing: -.035em; }
+.eyebrow { font-family: var(--mono); letter-spacing: -.01em; }
+
+/* buttons: a little depth on the primary, a clear hover on the rest */
+.btn:not(.ghost), .app .btn:not(.ghost), .app button:not(.ghost) { box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 22%, transparent), 0 1px 2px rgba(0, 0, 0, .12); }
+.btn.ghost:hover, .app .btn.ghost:hover { border-color: var(--accent); }
+.top { border-bottom-color: color-mix(in srgb, var(--line) 80%, transparent); }
+
+/* the block stays at the top when the chips wrap onto more lines */
+.card[data-kind] .card-head { align-items: flex-start; }
+.card[data-kind] .card-head::before { top: 0; margin-top: 0; }
+.card[data-kind] .card-head::after { top: 10px; margin-top: 0; }
+.card[data-kind] .card-head .meta-line { min-height: 40px; align-content: center; }

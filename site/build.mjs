@@ -847,7 +847,7 @@ function extCard(l, up) {
   const groups = [slug(KIND_LABEL[l.kind] ?? l.kind), l.pick ? "picks" : "listed"].join(" ");
   const text = [l.name, l.why, l.note ?? "", l.author, l.kind, l.source, ...tagsOf(l)].join(" ").toLowerCase();
   const page = `${up}${lpath(l)}`;
-  return `<li class="card" data-card data-src="${l.pick ? "pick" : "listed"}" data-name="${esc(l.name.toLowerCase())}" data-date="${esc(l.added)}" data-stars="${m ? m.stars : 0}" data-health="${h ? h.score : 0}" data-tags="${esc(tagsOf(l).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
+  return `<li class="card" data-kind="${KIND_LABEL[l.kind] ? l.kind : "plugin"}" data-card data-src="${l.pick ? "pick" : "listed"}" data-name="${esc(l.name.toLowerCase())}" data-date="${esc(l.added)}" data-stars="${m ? m.stars : 0}" data-health="${h ? h.score : 0}" data-tags="${esc(tagsOf(l).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
 <div class="card-head"><div class="meta-line">${l.pick ? '<span class="kind pick">My pick</span>' : '<span class="kind ext">Listed</span>'}<span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span>${isNew(l.added, TODAY) ? '<span class="kind fresh">New</span>' : ""}${d.badge}</div><div class="card-tools">${repoLink(l.url, `Open ${l.name} on GitHub`)}${saveLink(l.url, l.name)}</div></div>
 <h3><a class="name" href="${esc(page)}">${esc(l.name)}</a></h3>
 <p class="byline">by ${esc(l.author)}</p>
@@ -866,7 +866,7 @@ function card(k, up) {
   const latest = dateOf(k.changelog[0]?.head);
   const groups = [slug(kindOf(k)), ...k.collections.map(slug)].join(" ");
   const text = [k.name, k.promise, ...(k.tags ?? []), ...k.collections, kindOf(k)].join(" ").toLowerCase();
-  return `<li class="card" data-card data-src="built" data-stars="0" data-health="0" data-name="${esc(k.name.toLowerCase())}" data-date="${esc(latest || "")}" data-tags="${esc(tagsOf(k).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
+  return `<li class="card" data-kind="${KIND_LABEL[k.kind] ? k.kind : "plugin"}" data-card data-src="built" data-stars="0" data-health="0" data-name="${esc(k.name.toLowerCase())}" data-date="${esc(latest || "")}" data-tags="${esc(tagsOf(k).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
 <div class="card-head"><div class="meta-line"><span class="kind">${esc(kindOf(k))}</span><span class="ver">v${esc(k.version)}</span></div><div class="card-tools">${repoLink(`${REPO}/tree/main/kits/${k.name}`, `Open ${k.name} on GitHub`)}${saveLink(`k/${k.name}/`, k.name)}</div></div>
 <h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
 <p class="byline">by Praxikit</p>
@@ -968,7 +968,7 @@ const releaseList = (items, up) => items.map(({ k, e, date, v }) => `<li><div cl
 
 function homePage(kits, picks) {
   const featured = kits.slice(0, 3);
-  const rows = GROUPS.map((g) => { const n = inGroup(kits, g).length; return `<li><a class="type-row" href="kits/${g.id}/"><span><strong>${esc(g.label)}</strong><span class="muted">${esc(g.blurb)}</span></span><span class="count-line">${n ? plural(n, "kit") : "None yet"}</span></a></li>`; }).join("");
+  const rows = GROUPS.map((g) => { const n = inGroup(kits, g).length; return `<li><a class="type-row" data-kind="${g.kinds[0]}" href="kits/${g.id}/"><span><strong>${esc(g.label)}</strong><span class="muted">${esc(g.blurb)}</span></span><span class="count-line">${n ? plural(n, "kit") : "None yet"}</span></a></li>`; }).join("");
   const topTags = sortedTags(collectTags(kits)).slice(0, 10);
   const built = kits.filter((k) => !k.ext).length;
   const dates = kits.map((k) => (k.ext ? k.added : dateOf(k.changelog?.[0]?.head))).filter(Boolean).sort();
