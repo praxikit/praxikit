@@ -22,5 +22,230 @@
     "added": "2026-11-15",
     "commit": "1f837447b20bb6f0e72d87b80ece1c221c362c7d",
     "checks": "checks-flagged"
+  },
+  {
+    "name": "MCP reference servers",
+    "url": "https://github.com/modelcontextprotocol/servers",
+    "author": "modelcontextprotocol",
+    "why": "The reference MCP servers: fetch a web page as text, a memory knowledge graph, filesystem, git and step-by-step thinking.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "e1dc4b18dbb948921da37f3d4224a628730b43b0",
+    "checks": "checks-flagged",
+    "tags": [
+      "reference",
+      "memory",
+      "web",
+      "files"
+    ]
+  },
+  {
+    "name": "Postgres MCP Pro",
+    "url": "https://github.com/crystaldba/postgres-mcp",
+    "author": "crystaldba",
+    "why": "Lets an agent explore a Postgres database: read-only queries, schema browsing, index advice and query-plan checks.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "15c8e33353546148acc2d8bd784551cf3905d1e2",
+    "checks": "checks-flagged",
+    "tags": [
+      "database",
+      "postgres",
+      "sql"
+    ]
+  },
+  {
+    "name": "Supabase MCP",
+    "url": "https://github.com/supabase/mcp",
+    "author": "supabase",
+    "why": "Manage a Supabase project from the agent: tables, SQL, migrations and project settings.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "9092ab9055509fcdfbedcb75edf02d9412feed37",
+    "checks": "checks-flagged",
+    "tags": [
+      "database",
+      "backend",
+      "supabase"
+    ]
+  },
+  {
+    "name": "Cloudflare MCP",
+    "url": "https://github.com/cloudflare/mcp-server-cloudflare",
+    "author": "cloudflare",
+    "why": "Cloudflare's MCP servers for Workers, D1, R2 and DNS, so an agent can inspect and manage them.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "a21972e219289337731a066befb5c66886b9ce7b",
+    "checks": "checks-flagged",
+    "tags": [
+      "cloud",
+      "cloudflare",
+      "devops"
+    ]
+  },
+  {
+    "name": "Kubernetes MCP",
+    "url": "https://github.com/Flux159/mcp-server-kubernetes",
+    "author": "Flux159",
+    "why": "Inspect and manage Kubernetes clusters from the agent: pods, deployments, logs and events.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "28fa39e2a63332c6c12d78a2ca5209f56519ffaf",
+    "checks": "checks-flagged",
+    "tags": [
+      "kubernetes",
+      "devops",
+      "cloud"
+    ]
+  },
+  {
+    "name": "Figma Context MCP",
+    "url": "https://github.com/GLips/Figma-Context-MCP",
+    "author": "GLips",
+    "why": "Gives the agent a Figma design's layout and styles so it can build the page from the design instead of a screenshot.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "c083d65c7e002923e7cb98f4e3bdafb105e90f6d",
+    "checks": "checks-flagged",
+    "tags": [
+      "design",
+      "figma",
+      "frontend"
+    ]
+  },
+  {
+    "name": "Mermaid MCP",
+    "url": "https://github.com/hustcc/mcp-mermaid",
+    "author": "hustcc",
+    "why": "Turns Mermaid text into diagram images, so an agent can draw a flow or architecture while it explains.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "13497062a98061295ed2f7546612bd6d235219eb",
+    "checks": "checks-flagged",
+    "tags": [
+      "diagrams",
+      "docs",
+      "visual"
+    ]
+  },
+  {
+    "name": "Brave Search MCP",
+    "url": "https://github.com/brave/brave-search-mcp-server",
+    "author": "brave",
+    "why": "Web, news, image and local search for the agent through Brave's search API (it has a free tier).",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "9df84be56c35b735c7afc53aa7ec3a252bdd54a2",
+    "checks": "checks-flagged",
+    "tags": [
+      "search",
+      "web",
+      "research"
+    ]
+  },
+  {
+    "name": "Zotero MCP",
+    "url": "https://github.com/54yyyu/zotero-mcp",
+    "author": "54yyyu",
+    "why": "Connects the agent to a Zotero library: search papers, read annotations and cite sources.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "71df195e77f83a035a5379fec946bd4b0b41c38e",
+    "checks": "checks-flagged",
+    "tags": [
+      "research",
+      "papers",
+      "citations"
+    ]
+  },
+  {
+    "name": "Obsidian MCP",
+    "url": "https://github.com/MarkusPfundstein/mcp-obsidian",
+    "author": "MarkusPfundstein",
+    "why": "Lets the agent read and search an Obsidian vault, so notes become context it can use.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "5ee0b84fa8319fd2fdf0db0ee1febb065e712a15",
+    "checks": "checks-flagged",
+    "tags": [
+      "notes",
+      "knowledge",
+      "obsidian"
+    ]
+  },
+  {
+    "name": "Notion MCP",
+    "url": "https://github.com/makenotion/notion-mcp-server",
+    "author": "makenotion",
+    "why": "Notion's official MCP server: search, read and update pages and databases from the agent.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "cf16e5c20bfbfb98ecec1227f210ef0ae3abebe5",
+    "checks": "checks-flagged",
+    "tags": [
+      "notion",
+      "notes",
+      "workspace"
+    ]
+  },
+  {
+    "name": "Slack MCP",
+    "url": "https://github.com/korotovsky/slack-mcp-server",
+    "author": "korotovsky",
+    "why": "Read channels and threads and post messages in Slack from the agent, without needing a bot app install.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "b88c0de3f706f4f07337c9eda7133c736d1c9524",
+    "checks": "checks-flagged",
+    "tags": [
+      "slack",
+      "team",
+      "messaging"
+    ]
+  },
+  {
+    "name": "Home Assistant MCP",
+    "url": "https://github.com/voska/hass-mcp",
+    "author": "voska",
+    "why": "Control and query a Home Assistant smart home from the agent: devices, states and automations.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "8744f568a15b4183b92dc636e11d0b71ef9091cb",
+    "checks": "checks-flagged",
+    "tags": [
+      "smart-home",
+      "automation",
+      "iot"
+    ]
+  },
+  {
+    "name": "Docker MCP",
+    "url": "https://github.com/ckreiling/mcp-server-docker",
+    "author": "ckreiling",
+    "why": "Manage Docker containers, images, volumes and networks from the agent in plain language.",
+    "kind": "mcp",
+    "source": "recommended",
+    "added": "2026-11-17",
+    "commit": "57a7df208fdc2362505835f670e53c66f3717c48",
+    "checks": "checks-flagged",
+    "tags": [
+      "docker",
+      "containers",
+      "devops"
+    ]
   }
 ]
