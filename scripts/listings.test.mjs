@@ -235,8 +235,9 @@ must(readFileSync(join(out, "comment.md"), "utf8").includes("Not listed") && rea
   must(byHandScan("https://github.com/o/big", refusal, "", run) === refusal, "without the commit the maintainer was shown there is no by-hand listing");
   must(byHandScan("https://evil.example/o/big", refusal, SHA.slice(0, 12), run) === refusal && byHandScan("https://github.com/o/big/tree/x", refusal, SHA.slice(0, 12), run) === refusal, "only a plain github.com repository link qualifies");
   must(byHandScan("https://github.com/o/nowhere", refusal, SHA.slice(0, 12), run) === refusal, "if GitHub cannot be read the refusal stands");
-  const ok = entryFromDispatch({ ...env, IN_EXPECT_COMMIT: SHA.slice(0, 12), IN_URL: "https://github.com/o/big" }, hand, "2026-11-15");
-  must(ok.ok && ok.entry.checks === "needs-manual-review" && ok.entry.commit === SHA, "the entry says it was reviewed by hand and pins the commit");
+  const { IN_AUTHOR: _drop, ...noAuthor } = env; // the workflow sends no author: it comes from the repository owner
+  const ok = entryFromDispatch({ ...noAuthor, IN_EXPECT_COMMIT: SHA.slice(0, 12), IN_URL: "https://github.com/o/big" }, hand, "2026-11-15");
+  must(ok.ok && ok.entry.checks === "needs-manual-review" && ok.entry.commit === SHA && ok.entry.author === "o", "the entry says it was reviewed by hand, pins the commit and takes the author from the repository owner");
   const moved = entryFromDispatch({ ...env, IN_EXPECT_COMMIT: "b".repeat(12), IN_URL: "https://github.com/o/big" }, hand, "2026-11-15");
   must(!moved.ok, "if the repository moved on from the commit the maintainer was shown, nothing is listed");
 }

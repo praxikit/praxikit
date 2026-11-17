@@ -171,7 +171,7 @@ export function byHandScan(url, scan, expectCommit, run) {
     sha = String(run(["api", `repos/${m[1]}/${m[2]}/commits/${branch}`, "--jq", ".sha"])).trim().toLowerCase();
   } catch { return scan; }
   if (!/^[0-9a-f]{40}$/.test(sha)) return scan;
-  return { page: String(url), sha, label: "needs-manual-review", text: `${MARKER}\n### Automated checks\nThe automatic scan could not read this repository (${safe(scan.refusal.text ?? "", 160)}). A maintainer read it by hand at commit \`${sha.slice(0, 12)}\`; it was not scanned.\n` };
+  return { page: String(url), sha, owner: m[1], repo: m[2], label: "needs-manual-review", text: `${MARKER}\n### Automated checks\nThe automatic scan could not read this repository (${safe(scan.refusal.text ?? "", 160)}). A maintainer read it by hand at commit \`${sha.slice(0, 12)}\`; it was not scanned.\n` };
 }
 
 export const REASONS = ["malicious", "secret", "licence", "misleading", "unmaintained", "owner-request", "other"];
