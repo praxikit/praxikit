@@ -4,20 +4,20 @@ export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&a
 export const CSS = `
 .app{padding-block:36px 72px}
 .app h1{font-size:clamp(1.6rem,1rem + 1.6vw,2.2rem);margin:0 0 .8rem;max-width:none;letter-spacing:-.01em}
-.app h2{font-size:1.15rem;margin:2rem 0 .6rem}
+.app h2{font-size: var(--fs-lg);margin:2rem 0 .6rem}
 .app p{max-width:70ch}
-.app .muted{color:var(--muted);font-size:.93rem}
-.app .badge{font-size:.78rem;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--accent);color:var(--accent-fg)}
+.app .muted{color:var(--muted);font-size: var(--fs-sm)}
+.app .badge{font-size: var(--fs-xs);font-weight:600;padding:2px 8px;border-radius:4px;background:var(--accent);color:var(--accent-fg)}
 .app .badge.warn{background:var(--warn-bg);color:var(--warn)}.app .badge.bad{background:var(--bad);color:#fff}
 .app .note{background:var(--warn-bg);border-left:3px solid var(--warn);padding:9px 13px;margin:1rem 0}
 .app .ok{background:var(--card);border-left:3px solid var(--accent);padding:9px 13px;margin:1rem 0}
-.app .btn,.app button{font:inherit;font-size:.95rem;padding:8px 16px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);text-decoration:none;cursor:pointer;display:inline-block}
+.app .btn,.app button{font:inherit;font-size: var(--fs-sm);padding:8px 16px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);text-decoration:none;cursor:pointer;display:inline-block}
 .app button.ghost,.app .btn.ghost{background:transparent;color:var(--accent)}
 .app button.ghost:hover,.app .btn.ghost:hover{background:var(--accent-bg);filter:none}
 .app button[disabled]{opacity:.5;cursor:not-allowed}
 .app .table-wrap{overflow-x:auto}
 .app table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line)}
-.app th,.app td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);font-size:.93rem;vertical-align:top}
+.app th,.app td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);font-size: var(--fs-sm);vertical-align:top}
 .app th{color:var(--muted);font-weight:600}
 .app ul.links{padding-left:1.2rem}.app ul.links li{margin:.35rem 0}
 .app label{display:block;font-weight:600;margin:1rem 0 .3rem}
@@ -25,7 +25,7 @@ export const CSS = `
 .app input[type=text],.app input[type=url],.app textarea{width:100%;max-width:640px;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
 .app textarea{min-height:5rem;resize:vertical}
 .app select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg)}
-.app .hint{font-weight:400;color:var(--muted);font-size:.88rem}
+.app .hint{font-weight:400;color:var(--muted);font-size: var(--fs-sm)}
 .app blockquote{margin:.5rem 0;padding:.4rem 1rem;border-left:3px solid var(--line);color:var(--muted)}
 .app dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:6px 18px}.app dt{color:var(--muted)}.app dd{margin:0;overflow-wrap:anywhere}
 .app ul.plain{list-style:none;padding:0;margin:0}
@@ -40,29 +40,29 @@ export const CSS = `
 .app .cards strong{display:block}
 .app .requests{list-style:none;padding:0;margin:0 0 1.5rem;display:grid;gap:12px}
 .app .request{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 20px;box-shadow:var(--shadow-sm)}
-.app .request h3{margin:0 0 .25rem;font-size:1.1rem}.app .request p{margin:.2rem 0}
+.app .request h3{margin:0 0 .25rem;font-size: var(--fs-lg)}.app .request p{margin:.2rem 0}
 .app .request.solved{border-left:4px solid var(--accent)}
 .app .req-main{min-width:0}
-.app .need-btn{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-weight:650;font-size:.93rem;text-decoration:none;cursor:pointer}
+.app .need-btn{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-weight:650;font-size: var(--fs-sm);text-decoration:none;cursor:pointer}
 .app .need-btn:hover{border-color:var(--accent);color:var(--accent)}
 .app .need-btn[aria-pressed="true"]{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
-.app .need-btn .count{padding:0 8px;border-radius:99px;background:var(--code-bg);color:var(--muted);font-size:.82rem}
+.app .need-btn .count{padding:0 8px;border-radius:99px;background:var(--code-bg);color:var(--muted);font-size: var(--fs-sm)}
 .app .req-form{max-width:640px;margin:1rem 0 2rem}
 @media (max-width:560px){.app .request{flex-direction:column}}
 .app .lb{background:linear-gradient(165deg,#0c786e 0%,#0a4f49 55%,#062f2c 100%);color:#fff;border-radius:22px;padding:clamp(18px,3.5vw,34px) clamp(14px,3.5vw,34px);max-width:760px;margin:1.2rem auto 2rem;box-shadow:var(--shadow-md)}
-.app .lb-title{text-align:center;font-size:1rem;letter-spacing:.24em;text-transform:uppercase;font-weight:800;margin:0 0 1.4rem;color:#fff}
+.app .lb-title{text-align:center;font-size: var(--fs-md);letter-spacing:.24em;text-transform:uppercase;font-weight:800;margin:0 0 1.4rem;color:#fff}
 .app .podium{list-style:none;padding:0;margin:0 auto 1.6rem;max-width:560px;display:flex;justify-content:center;align-items:flex-end;gap:clamp(8px,3vw,28px)}
 .app .place{flex:0 1 31%;min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px}
 .app .place-1{order:2;padding-bottom:12px}.app .place-2{order:1}.app .place-3{order:3}
-.app .place .posn{font-weight:800;font-size:1.1rem;color:#fff}
+.app .place .posn{font-weight:800;font-size: var(--fs-lg);color:#fff}
 .app .crown{width:36px;height:auto;color:#f5b73b;margin-bottom:-2px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
 .app .place .ring{display:block;border-radius:50%;padding:3px;background:rgba(255,255,255,.8)}
 .app .place-1 .ring{background:#f5b73b;padding:4px}
 .app .place img{display:block;border-radius:50%;background:#fff;width:clamp(54px,14vw,84px);height:clamp(54px,14vw,84px)}
 .app .place-1 img{width:clamp(74px,19vw,116px);height:clamp(74px,19vw,116px)}
-.app .place .login{color:#fff;font-weight:700;font-size:.92rem;text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app .place .login{color:#fff;font-weight:700;font-size: var(--fs-sm);text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .app .place .login:hover{text-decoration:underline}
-.app .place .pts{color:#ffc24d;font-weight:800;font-size:.92rem}
+.app .place .pts{color:#ffc24d;font-weight:800;font-size: var(--fs-sm)}
 .app .lb-list{list-style:none;padding:0;margin:0;display:grid;gap:10px}
 .app .lb-list > li{display:grid;grid-template-columns:1.9rem 44px minmax(0,1fr) auto;align-items:center;gap:12px;background:rgba(255,255,255,.1);border-radius:14px;padding:6px 6px 6px 12px}
 .app .lb-list .rank{font-weight:800;color:#ffc24d;text-align:center;font-variant-numeric:tabular-nums}
@@ -70,14 +70,14 @@ export const CSS = `
 .app .lb-list .who{min-width:0}
 .app .lb-list .login{color:#fff;font-weight:700;text-decoration:none;overflow-wrap:anywhere}
 .app .lb-list .login:hover{text-decoration:underline}
-.app .lb-list .score{background:rgba(0,0,0,.24);border-radius:10px;padding:12px 18px;min-width:4.6rem;text-align:center;color:#ffc24d;font-weight:800;font-size:1.15rem;font-variant-numeric:tabular-nums}
+.app .lb-list .score{background:rgba(0,0,0,.24);border-radius:10px;padding:12px 18px;min-width:4.6rem;text-align:center;color:#ffc24d;font-weight:800;font-size: var(--fs-lg);font-variant-numeric:tabular-nums}
 .app .lb .badge-row{margin-top:.2rem}
 .app .lb .badge-chip{background:rgba(255,255,255,.16);color:#fff}
 .app .lb a:focus-visible{outline-color:#fff}
 .app .lb-empty{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.3);color:#fff}.app .lb-empty a{color:#ffc24d}
 @media (max-width:420px){.app .lb-list > li{grid-template-columns:1.5rem 38px minmax(0,1fr) auto;gap:8px}.app .lb-list .score{padding:10px 12px;min-width:3.4rem}}
 .app .badge-row,.app .badge-list{list-style:none;padding:0;margin:.3rem 0 0;display:flex;flex-wrap:wrap;gap:6px}
-.app .badge-chip{font-size:.75rem;font-weight:650;padding:2px 10px;border-radius:99px;background:var(--accent-bg);color:var(--accent)}
+.app .badge-chip{font-size: var(--fs-xs);font-weight:650;padding:2px 10px;border-radius:99px;background:var(--accent-bg);color:var(--accent)}
 .app .badge-list{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))}
 .app .badge-list li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column}
 .app .danger-zone{border:1px solid var(--bad);border-radius:8px;padding:6px 16px 14px;margin-top:2rem}

@@ -852,8 +852,9 @@ function card(k, up) {
   const cmd = Array.isArray(k.install) && k.install.length ? k.install[k.install.length - 1] : "";
   const copy = cmd ? `<button class="icon-act" type="button" data-copy-text="${esc(cmd)}" aria-label="Copy the install command for ${esc(k.name)}" title="Copy install command">${COPYICON}</button>` : "";
   return `<li class="card" data-card data-src="built" data-stars="0" data-health="0" data-name="${esc(k.name.toLowerCase())}" data-date="${esc(latest || "")}" data-tags="${esc(tagsOf(k).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
-<div class="card-head"><div class="meta-line">${badge(k)}</div><div class="card-tools">${repoLink(`${REPO}/tree/main/kits/${k.name}`, `Open ${k.name} on GitHub`)}${saveLink(`k/${k.name}/`, k.name)}</div></div>
+<div class="card-head"><div class="meta-line"><span class="kind">${esc(kindOf(k))}</span><span class="ver">v${esc(k.version)}</span></div><div class="card-tools">${repoLink(`${REPO}/tree/main/kits/${k.name}`, `Open ${k.name} on GitHub`)}${saveLink(`k/${k.name}/`, k.name)}</div></div>
 <h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
+<p class="byline">by Praxikit</p>
 <p class="promise">${esc(k.promise)}</p>
 ${tagChips(k, up, 3)}
 ${APP ? `<p class="stat" data-stat="k/${esc(k.name)}/" hidden></p>` : ""}
