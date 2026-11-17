@@ -572,6 +572,7 @@ const SITE_JS = `
     var count = document.getElementById("count"), none = document.getElementById("none"), show = "all";
     var params = new URLSearchParams(location.search), wanted = params.get("show");
     q.value = (params.get("q") || "").slice(0, 100);
+    var filt = document.getElementById("filters"), fcount = document.getElementById("fcount");
     if (["all", "built", "pick", "listed"].indexOf(wanted) > -1 && segs.some(function (s) { return s.getAttribute("data-show") === wanted; })) show = wanted;
     if (sortSel && ["featured", "new", "az", "stars", "health"].indexOf(params.get("sort")) > -1) sortSel.value = params.get("sort");
     if (tagSel) {
@@ -594,6 +595,9 @@ const SITE_JS = `
       });
       segs.forEach(function (s) { s.setAttribute("aria-pressed", String(s.getAttribute("data-show") === show)); });
       count.textContent = shown + (shown === 1 ? " kit" : " kits");
+      var active = (show !== "all" ? 1 : 0) + (wantedTag ? 1 : 0);
+      if (fcount) { fcount.textContent = String(active); fcount.hidden = !active; }
+      if (filt && active && !filt.hasAttribute("open")) filt.setAttribute("open", "");
       none.hidden = shown !== 0;
       var p = new URLSearchParams();
       if (term) p.set("q", q.value.trim());
@@ -800,7 +804,14 @@ function signals(l) {
 }
 // who put it forward: shown small, as context. It does not decide whether it is a pick.
 const SLUG_OK = /^[a-z0-9-]{1,40}$/;
-const tagsOf = (item) => (Array.isArray(item.tags) ? item.tags.map(String).filter(Boolean) : []);
+// Two spellings of one tag (sub-agents and subagents) are one tag: the one with the hyphens wins. Built once from every tag in use.
+const TAGCANON = new Map();
+function buildTagCanon(all) {
+  const groups = new Map();
+  for (const it of all) for (const t of (Array.isArray(it.tags) ? it.tags : []).map(String)) { const k = t.split("-").join(""); if (!groups.has(k)) groups.set(k, new Set()); groups.get(k).add(t); }
+  for (const set of groups.values()) if (set.size > 1) { const pick = [...set].sort((a, b) => b.split("-").length - a.split("-").length || a.localeCompare(b))[0]; for (const t of set) TAGCANON.set(t, pick); }
+}
+const tagsOf = (item) => [...new Set((Array.isArray(item.tags) ? item.tags.map(String).filter(Boolean) : []).map((t) => TAGCANON.get(t) ?? t))];
 const MAX_CHIPS = 8; // a card shows at most two rows of tags; the rest are on the tag pages and in the tooltip of "+N"
 /** A Save button: a link to the app's confirmation page (so it works without scripts and signs you in first), which the site script turns into a one-press toggle once you are signed in. */
 const BOOKMARK = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16.2a.4.4 0 0 1-.64.32L12 16.9l-5.86 4.12a.4.4 0 0 1-.64-.32V4.5a1 1 0 0 1 1-1z"/></svg>';
@@ -857,7 +868,7 @@ function extCard(l, up) {
 ${signals(l)}<p class="promise">${esc(l.why)}</p>
 ${tagChips(l, up, 3)}
 ${APP ? `<p class="stat" data-stat="${esc(l.url)}" hidden></p>` : ""}
-${l.pick ? `<p class="pick-note"><b>I use it.</b> ${esc(l.note)}</p>` : ""}
+${l.pick ? `<p class="pick-note">${esc(l.note)}</p>` : ""}
 <div class="card-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>${d.warn ? esc(d.short) : "Read at"} <code>${esc(l.commit.slice(0, 7))}</code></span></span></div>
 </li>`;
 }
@@ -1037,12 +1048,11 @@ function kitsPage(kits, group) {
   const title = group ? group.label : "All kits";
   const n = { built: list.filter((k) => !k.ext).length, pick: list.filter((k) => k.ext && k.pick).length, listed: list.filter((k) => k.ext && !k.pick).length };
   const seg = (id, label, count) => (id === "all" || count ? `<button type="button" data-show="${id}" aria-pressed="${id === "all"}">${label} <span class="count">${count ?? list.length}</span></button>` : "");
-  const tagOpts = sortedTags(collectTags(list));
-  const tagSel = tagOpts.length ? `<label class="sort"><span class="vh">Tag</span><select id="tag"><option value="">All tags</option>${tagOpts.map(([t, l]) => `<option value="${esc(t)}">${esc(t)} (${l.length})</option>`).join("")}</select></label>` : "";
+  const tagOpts = sortedTags(collectTags(list)).slice(0, 12);
+  const tagSel = tagOpts.length ? `<label class="field"><span>Tag</span><select id="tag"><option value="">All tags</option>${tagOpts.map(([t, l]) => `<option value="${esc(t)}">${esc(t)} (${l.length})</option>`).join("")}</select></label>` : "";
   const search = list.length >= 3 ? `<div class="toolbar">
 <label class="search"><span class="vh">Search kits</span><input id="q" type="search" aria-label="Filter these kits" placeholder="Filter these kits" autocomplete="off" spellcheck="false"></label>
-<div class="seg" role="group" aria-label="Show">${seg("all", "All")}${seg("built", "Built here", n.built)}${seg("pick", "My picks", n.pick)}${seg("listed", "Listed", n.listed)}</div>
-${tagSel}
+<details class="filters" id="filters"><summary>Filters <span class="fcount" id="fcount" hidden></span></summary><div class="filters-body"><div class="field"><span>Show</span><div class="seg" role="group" aria-label="Show">${seg("all", "All")}${seg("built", "Built here", n.built)}${seg("pick", "My picks", n.pick)}${seg("listed", "Listed", n.listed)}</div></div>${tagSel}</div></details>
 <label class="sort"><span class="vh">Sort by</span><select id="sort"><option value="featured">Featured first</option><option value="new">Newest</option><option value="stars">Most stars</option><option value="health">Healthiest</option><option value="az">A to Z</option></select></label>
 </div>` : "";
   const empty = group && !list.length ? `<div class="empty"><p><strong>No ${esc(group.noun)} yet.</strong> <a href="${up}submit/">Submit one</a> or <a href="${up}kits/">see all kits</a>.</p></div>` : "";
@@ -1305,6 +1315,7 @@ METRICS = loadMetrics();
 const picks = listings.filter((l) => l.pick);
 // everything that appears in the kit lists: kits built here first, then other people's listings
 const items = [...kits, ...listings.map((l) => ({ ...l, ext: true }))];
+buildTagCanon(items);
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 copyFileSync(join(here, "style.css"), join(OUT, "style.css"));

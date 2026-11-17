@@ -56,7 +56,7 @@ async function run({ cachedMe = null, hint = false, me = null, saved = [], dark 
     const ul = new El("ul");
     for (const c of [mk("keel", "built", "2026-11-16", "keel planning"), mk("pitch-panel", "built", "2026-11-15", "pitch startup"), mk("playwright mcp", "pick", "2026-11-14", "playwright browser"), mk("marketingskills", "listed", "2026-11-13", "marketing")]) ul.appendChild(c);
     const grid = new El("div"); grid.appendChild(ul); grid.querySelectorAll = (s) => (s === "[data-card]" ? ul.children.slice() : []);
-    ids.q = Object.assign(new El("input"), { value: "" }); ids.kits = grid; ids.count = new El("p"); ids.none = Object.assign(new El("div"), { hidden: true }); ids.clear = new El("button"); ids.sort = Object.assign(new El("select"), { value: "featured" }); ids.tag = Object.assign(new El("select"), { value: "", options: ["", "planning", "marketing", "browser"].map((v) => ({ value: v })) });
+    ids.filters = new El("details"); ids.fcount = Object.assign(new El("span"), { hidden: true }); ids.q = Object.assign(new El("input"), { value: "" }); ids.kits = grid; ids.count = new El("p"); ids.none = Object.assign(new El("div"), { hidden: true }); ids.clear = new El("button"); ids.sort = Object.assign(new El("select"), { value: "featured" }); ids.tag = Object.assign(new El("select"), { value: "", options: ["", "planning", "marketing", "browser"].map((v) => ({ value: v })) });
     list.ul = ul; list.segs = ["all", "built", "pick", "listed"].map((s) => { const b = new El("button"); b.attrs = { "data-show": s, "aria-pressed": String(s === "all") }; return b; });
   }
   const stats = statKeys.map((k) => { const e = new El("p"); e.attrs = { "data-stat": k }; e.hidden = true; return e; });
@@ -175,9 +175,11 @@ async function run({ cachedMe = null, hint = false, me = null, saved = [], dark 
   must(!p.threw && names().length === 4 && p.ids.count.textContent === "4 kits", "the list starts with every kit and says how many");
   p.list.segs[2].fire("click");
   must(names().join() === "playwright mcp" && p.ids.count.textContent === "1 kit" && p.list.segs[2].getAttribute("aria-pressed") === "true", "Show: My picks keeps only the picks");
+  must(p.ids.fcount.textContent === "1" && p.ids.fcount.hidden === false && p.ids.filters.hasAttribute("open"), "the Filters menu says one filter is on, and opens so you can see it");
   p.list.segs[1].fire("click");
   must(names().join() === "keel,pitch-panel", "Show: Built here keeps only what is built here");
   p.list.segs[0].fire("click");
+  must(p.ids.fcount.hidden === true, "with no filter on, the count is hidden");
   p.ids.q.value = "keel"; p.ids.q.fire("input");
   must(names().join() === "keel" && p.ids.none.hidden === true, "typing filters by text");
   p.ids.q.value = "zzz"; p.ids.q.fire("input");

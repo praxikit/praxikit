@@ -51,6 +51,11 @@ const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
 must(htmlFiles.length === 24, `expected 23 earlier pages plus the removal log = 24 html files, got ${htmlFiles.length}`);
 {
+  const kp = readFileSync(join(out, "kits", "index.html"), "utf8");
+  const opts = (kp.split('<select id="tag">')[1]?.split("</select>")[0] ?? "").split("<option").length - 1;
+  must(kp.includes('<details class="filters" id="filters">') && kp.includes('data-show="all"') && opts <= 13, "the kits page keeps search, type tabs, one Filters menu and sort; the tag menu holds at most twelve tags");
+}
+{
   const home0 = readFileSync(join(out, "index.html"), "utf8");
   must(existsSync(join(out, "fonts", "bricolage-grotesque.woff2")) && existsSync(join(out, "fonts", "OFL.txt")) && home0.includes('rel="preload" href="./fonts/bricolage-grotesque.woff2"') && readFileSync(join(out, "style.css"), "utf8").includes("@font-face"), "the heading font ships with its licence, from this site, and is preloaded");
   must(!home0.includes('class="eyebrow"') && !home0.includes('class="stats"') && !home0.includes('class="trust"') && home0.includes('class="receipts"') && home0.includes("Read at"), "the home page leads with real listings (what was read, at which commit) and has no eyebrow, stats row or icon cards");
@@ -82,11 +87,11 @@ must(commHtml.includes("What the check found") && commHtml.includes("were not sa
 must(skillsPage.includes('href="../../l/o-comm/"') && skillsPage.includes("Listed") && !skillsPage.includes(`class="kind pick"`) && skillsPage.includes("by someone"), "a community listing shows on its type page as a listed kit, linking to its own page");
 must(/href="https:\/\/github\.com\/o\/comm" rel="noopener noreferrer"/.test(commHtml) && commHtml.includes("Submitted by its author") && commHtml.includes("not built by Praxikit") && commHtml.includes("<code>aaaaaaa</code>") && commHtml.includes("Review receipt"), "its page links to GitHub safely and carries the review receipt with the reviewed commit");
 const mcpPage = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
-must(mcpPage.includes("My pick") && mcpPage.includes("<b>I use it.</b>") && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("l/o-rec/") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
+must(mcpPage.includes("My pick") && mcpPage.includes('class="pick-note"') && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("l/o-rec/") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
 must(idx.includes("Changed since review") && recHtml.includes('href="https://github.com/o/rec/compare/' + SHA + '...HEAD"'), "a listing whose repository moved on says so, and its page links to the comparison");
 must(skillsPage.includes("Repository not reachable") && !skillsPage.includes("Changed since review"), "an unreachable listing says so, and a 'same' or unknown status adds nothing");
 const picksHtml = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
-must(picksHtml.includes("l/o-rec/") && picksHtml.includes("My pick") && picksHtml.includes("<b>I use it.</b>") && !existsSync(join(out, "picks")) && !existsSync(join(out, "updates")), "picks live on the kits page with the owner's note, and there are no separate Picks or Updates pages");
+must(picksHtml.includes("l/o-rec/") && picksHtml.includes("My pick") && picksHtml.includes('class="pick-note"') && !existsSync(join(out, "picks")) && !existsSync(join(out, "updates")), "picks live on the kits page with the owner's note, and there are no separate Picks or Updates pages");
 must(!idx.includes(">Recommended<") && !idx.includes(">Picks<") && idx.includes("My picks"), "the word Recommended is gone, and picks are a section on the home page, not a navigation tab");
 must(!/href="https:\/\/github\.com[^"]*"(?![^>]*rel=)/.test(idx), "external GitHub link without rel");
 must(existsSync(join(out, "k/evil/index.html")) && existsSync(join(out, "c/planning/index.html")) && existsSync(join(out, "c/design-and-3d/index.html")), "kit or collection pages missing");
