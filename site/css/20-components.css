@@ -1286,3 +1286,8 @@ label.check {
 .install-steps .step-label { display: block; margin: 0 0 var(--s2); padding-top: 4px; font-weight: 650; }
 .install-steps .cmd { margin: 0; }
 .install-panel > .muted { margin: 0; max-width: 52ch; }
+
+/* a warning on a card sits under the name; the account chip keeps its shape when the avatar is missing */
+.cap-warn { margin: 0; }
+.cap-warn .kind { display: inline-block; }
+.avatar-fallback { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); font: 700 var(--fs-sm) var(--display); flex: none; }

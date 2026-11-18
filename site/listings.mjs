@@ -90,7 +90,7 @@ export function healthScore(l, m, drift, today) {
   const activity = m.archived ? [0, "The repository is archived"]
     : days <= 30 ? [30, "Updated in the last month"] : days <= 90 ? [24, "Updated in the last 3 months"] : days <= 180 ? [15, "Updated in the last 6 months"] : days <= 365 ? [6, "Updated in the last year"] : [0, "Not updated for over a year"];
   const scan = { "no-flags-found": [30, "Automatic checks found nothing"], "checks-flagged": [20, "Checks flagged things that a person read"], "needs-manual-review": [20, "Reviewed by hand"], "checks-failed": [6, "Automatic checks failed; accepted after a read"] }[l.checks] ?? [10, "Checked"];
-  const stable = drift === "same" ? [15, "Unchanged since it was reviewed"] : drift === "changed" ? [6, "Changed since it was reviewed"] : drift === "unreachable" ? [0, "Repository not reachable"] : [10, "Change check not run yet"];
+  const stable = drift === "same" ? [15, "Unchanged since it was reviewed"] : drift === "newer" ? [12, "Newer commits, none touching files that run"] : (drift === "review" || drift === "changed") ? [6, "Files that run changed since it was reviewed"] : drift === "unreachable" ? [0, "Repository not reachable"] : [10, "Change check not run yet"];
   const parts = [{ name: "Licence", got: licence[0], max: 25, text: licence[1] }, { name: "Upkeep", got: activity[0], max: 30, text: activity[1] }, { name: "Checks", got: scan[0], max: 30, text: scan[1] }, { name: "Stability", got: stable[0], max: 15, text: stable[1] }];
   let score = parts.reduce((s, p) => s + p.got, 0);
   if (m.archived) score = Math.min(score, 20);

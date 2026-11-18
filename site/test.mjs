@@ -25,11 +25,12 @@ put("kits/evil/plugin/skills/s/SKILL.md", `---\nname: ${XSS}\ndescription: ${XSS
 for (const n of ["a", "b", "c"]) put(`kits/${n}/kit.json`, JSON.stringify({ name: n, kind: "plugin", collections: ["Planning"], tags: [XSS], version: "0.0.1", promise: "p " + XSS, install: ["/plugin install " + n], limits: ["l"] }));
 const SHA = "a".repeat(40);
 put("docs/removals.md", "# Removed listings\n\n| Date | Name | Repository | Reason | Note |\n|---|---|---|---|---|\n| 2026-11-16 | <script>x</script> | https://github.com/o/gone | malicious | a note |\n| 2026-13-45 | bad date | https://github.com/o/x | other | skipped |\n| 2026-11-10 | odd link | https://evil.example/x | other | no link |\n");
-put("site/drift.json", JSON.stringify({ "https://github.com/o/rec": "changed", "https://github.com/o/comm": "unreachable", "https://github.com/o/ignored": "bogus", "https://evil.example/x": "changed" }));
+put("site/drift.json", JSON.stringify({ "https://github.com/o/rec": "changed", "https://github.com/o/comm": "unreachable", "https://github.com/o/newer": "newer", "https://github.com/o/ignored": "bogus", "https://evil.example/x": "changed" }));
 put("site/metrics.json", JSON.stringify({ "https://github.com/o/rec": { stars: 64900, licence: "MIT", pushed: "2026-11-10", archived: false }, "https://github.com/o/comm": { stars: 3, licence: "<script>", pushed: "2026-11-10", archived: false } }));
 put("site/listings.json", JSON.stringify([
   { name: XSS, url: "https://github.com/o/rec", author: XSS, why: XSS, kind: "mcp", source: "recommended", added: "2026-11-14", commit: SHA, checks: "no-flags-found", pick: true, note: XSS, found: { files: 42, checks: [{ id: "network", status: "flag", note: "3 lines & more" }, { id: "shape", status: "pass", note: "" }] } },
   { name: "Community " + XSS, url: "https://github.com/o/comm", author: "someone", why: XSS, kind: "skill", source: "community", added: "2026-11-14", commit: SHA, checks: "checks-flagged", issue: 5 },
+  { name: "Newer commits", url: "https://github.com/o/newer", author: "someone", why: "Has newer commits.", kind: "skill", source: "community", added: "2026-11-14", commit: SHA, checks: "no-flags-found" },
 ]));
 
 execFileSync("node", [join(here, "build.mjs"), "--root", root, "--out", out], { stdio: "inherit", env: { ...process.env, PRAXIKIT_TODAY: "2026-11-17" } });
@@ -49,7 +50,7 @@ const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 }
 
 
-must(htmlFiles.length === 24, `expected 23 earlier pages plus the removal log = 24 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 25, `expected 23 earlier pages plus the removal log and one more listing = 25 html files, got ${htmlFiles.length}`);
 {
   // the stylesheet: five source files, assembled into three cascade layers (the app adds a fourth); only the generated cover colours sit outside a layer
   const css = readFileSync(join(out, "style.css"), "utf8"), rows = css.split(String.fromCharCode(10));
@@ -78,7 +79,7 @@ must(htmlFiles.length === 24, `expected 23 earlier pages plus the removal log = 
   must(home0.includes("Install a kit built here") && home0.includes('class="install-steps"') && (home0.match(/data-copy/g) || []).length >= 1, "the home page shows the install steps for kits built here, each with a copy button");
   must(home0.includes('<p class="credit">') && home0.includes("Built with") && home0.includes('href="https://github.com/royal-programmer" rel="noopener noreferrer"') && home0.includes('<a target="_blank" href="https://github.com/royal-programmer"') && home0.includes("(Ratul Roy)") && home0.includes("Search  (Ctrl K)"), "the footer carries a small credit with a safe link to the maker, and the search box names its shortcut");
   must(existsSync(join(out, "fonts", "bricolage-grotesque.woff2")) && existsSync(join(out, "fonts", "OFL.txt")) && home0.includes('rel="preload" href="./fonts/bricolage-grotesque.woff2"') && readFileSync(join(out, "style.css"), "utf8").includes("@font-face"), "the heading font ships with its licence, from this site, and is preloaded");
-  must(!home0.includes('class="eyebrow"') && !home0.includes('class="stats"') && !home0.includes('class="trust"') && home0.includes('class="stack"') && home0.includes("Start here") && (home0.includes("Read at") || home0.includes("Changed since review")),"the home page leads with covers and shelves of real listings (what was read, at which commit) and has no eyebrow, stats row or icon cards");
+  must(!home0.includes('class="eyebrow"') && !home0.includes('class="stats"') && !home0.includes('class="trust"') && home0.includes('class="stack"') && home0.includes("Start here") && (home0.includes("Read at") || home0.includes("Needs re-review")),"the home page leads with covers and shelves of real listings (what was read, at which commit) and has no eyebrow, stats row or icon cards");
   must(!/border-(left|right):\s*[2-9]px solid var\(--(warn|spark|accent|bad)\)/.test(readFileSync(join(out, "style.css"), "utf8")), "no coloured stripe on the side of a callout or card");
 }
 {
@@ -109,8 +110,12 @@ must(skillsPage.includes('href="../../l/o-comm/"') && skillsPage.includes('data-
 must(/href="https:\/\/github\.com\/o\/comm" rel="noopener noreferrer"/.test(commHtml) && commHtml.includes("Submitted by its author") && commHtml.includes("not built by Praxikit") && commHtml.includes("<code>aaaaaaa</code>") && commHtml.includes("Check facts"), "its page links to GitHub safely and carries the review receipt with the reviewed commit");
 const mcpPage = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
 must(mcpPage.includes("My pick") && mcpPage.includes('class="pick-note"') && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("l/o-rec/") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
-must(idx.includes("Changed since review") && recHtml.includes('href="https://github.com/o/rec/compare/' + SHA + '...HEAD"'), "a listing whose repository moved on says so, and its page links to the comparison");
-must(skillsPage.includes("Repository not reachable") && !skillsPage.includes("Changed since review"), "an unreachable listing says so, and a 'same' or unknown status adds nothing");
+must(idx.includes("Needs re-review") && recHtml.includes('href="https://github.com/o/rec/compare/' + SHA + '...HEAD"'), "a listing whose repository moved on says so, and its page links to the comparison");
+must(skillsPage.includes("Repository not reachable") && !skillsPage.includes("Needs re-review"), "an unreachable listing says so, and a 'same' or unknown status adds nothing");
+{
+  const newerPage = readFileSync(join(out, "l", "o-newer", "index.html"), "utf8");
+  must(newerPage.includes("Newer commits since it was read") && newerPage.includes("none touch files that run code") && !newerPage.includes("Needs re-review") && !newerPage.includes('class="cflag warn"') && newerPage.includes('href="https://github.com/o/newer/compare/' + SHA + '...HEAD"'), "a listing with newer commits that touch nothing that runs is told quietly, with a link to the comparison, and gets no warning");
+}
 const picksHtml = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
 must(picksHtml.includes("l/o-rec/") && picksHtml.includes("My pick") && picksHtml.includes('class="pick-note"') && !existsSync(join(out, "picks")) && !existsSync(join(out, "updates")), "picks live on the kits page with the owner's note, and there are no separate Picks or Updates pages");
 must(!idx.includes(">Recommended<") && !idx.includes(">Picks<") && idx.includes("My picks"), "the word Recommended is gone, and picks are a section on the home page, not a navigation tab");

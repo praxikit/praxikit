@@ -84,10 +84,33 @@ export function appendListing(list, entry, replace = false) {
 }
 
 /**
+ * Files whose change can change what a kit DOES on someone's machine without anyone asking it to: hooks, plugin and MCP configuration, install and
+ * setup scripts, package manifests, shell scripts, containers. Instruction files (SKILL.md, agents, commands, rules) are not in this list: they change
+ * constantly in active collections, and a daily alarm for them would teach everyone to ignore alarms. Edit this list on purpose, not casually.
+ */
+export const RUNS_CODE = [
+  /^hooks?\//, /(^|\/)hooks?\.json$/, /(^|\/)\.?mcp\.json$/, /(^|\/)smithery\.ya?ml$/,
+  /(^|\/)(install|setup|postinstall|bootstrap)(\.(sh|ps1|bat|cmd|py|js|mjs|cjs|ts))?$/i, /\.(sh|ps1|bat|cmd)$/i, /(^|\/)Makefile$/, /(^|\/)Dockerfile$/,
+];
+/** Manifests change all the time (versions, dependencies): they count only when the change touches what runs (scripts, bin, install hooks, commands, MCP servers). No patch to read (a big diff) counts. */
+export const MANIFESTS = [/^\.claude\//, /^\.claude-plugin\//, /(^|\/)(plugin|marketplace|server|package)\.json$/, /(^|\/)(pyproject\.toml|setup\.py|Cargo\.toml)$/];
+const RUNS_FIELD = /^[+-].*\b(scripts|bin|hooks?|mcpServers|command|args|preinstall|postinstall|install|prepare|entry_?points?|console_scripts|cmdclass)\b/m;
+/** The changed files that run code on their own. Each item is a file name, or {f, p} with the compare patch. */
+export const touchesRunning = (files) => files.filter((x) => {
+  const f = typeof x === "string" ? x : x.f, p = typeof x === "string" ? undefined : x.p;
+  if (RUNS_CODE.some((re) => re.test(f))) return true;
+  return MANIFESTS.some((re) => re.test(f)) && (typeof p !== "string" || RUNS_FIELD.test(p));
+});
+
+/**
  * Compares each listing's reviewed commit with its repository's current default branch through the
  * GitHub API. `run(args)` runs `gh` and returns stdout or throws an error with `.stderr`.
- * Returns { url: "same" | "changed" | "unreachable" }. A transient failure (network, rate limit)
- * keeps the previous answer instead of flipping a listing.
+ * Returns { url: "same" | "newer" | "review" | "unreachable" }:
+ *   same        the repository is still at the commit that was read
+ *   newer       it has newer commits, none of which touch files that run code on their own (see RUNS_CODE): a quiet note, no re-review needed
+ *   review      newer commits touch such files, or there are too many changes to tell, or the reviewed commit is gone from its history: needs a person to read it again
+ *   unreachable removed or made private
+ * A transient failure (network, rate limit) keeps the previous answer instead of flipping a listing.
  */
 export function computeDrift(list, previous, run) {
   const gone = (e) => /HTTP 404|Not Found/i.test(String(e?.stderr ?? e?.message ?? ""));
@@ -103,9 +126,13 @@ export function computeDrift(list, previous, run) {
       if (!/^[A-Za-z0-9._/-]{1,100}$/.test(branch)) { keep(); continue; }
     } catch (e) { if (gone(e)) out[l.url] = "unreachable"; else keep(); continue; }
     try {
-      const ahead = String(run(["api", `repos/${owner}/${repo}/compare/${l.commit}...${branch}`, "--jq", ".ahead_by"])).trim();
-      if (/^\d+$/.test(ahead)) out[l.url] = ahead === "0" ? "same" : "changed"; else keep();
-    } catch (e) { if (gone(e)) out[l.url] = "changed"; else keep(); } // the reviewed commit is no longer in its history
+      const raw = String(run(["api", `repos/${owner}/${repo}/compare/${l.commit}...${branch}`, "--jq", "{ahead: .ahead_by, files: [.files[]?|{f: .filename, p: .patch}]}"])).trim();
+      let j = null; try { j = JSON.parse(raw); } catch { /* not JSON */ }
+      if (!j || !Number.isInteger(j.ahead) || j.ahead < 0) { keep(); continue; }
+      if (j.ahead === 0) out[l.url] = "same";
+      else if (!Array.isArray(j.files) || j.files.length >= 300) out[l.url] = "review"; // the API lists at most 300 files: more than that is too much to judge from names
+      else out[l.url] = touchesRunning(j.files).length ? "review" : "newer";
+    } catch (e) { if (gone(e)) out[l.url] = "review"; else keep(); } // the reviewed commit is no longer in its history
   }
   return out;
 }
@@ -173,6 +200,12 @@ export function byHandScan(url, scan, expectCommit, run) {
   } catch { return scan; }
   if (!/^[0-9a-f]{40}$/.test(sha)) return scan;
   return { page: String(url), sha, owner: m[1], repo: m[2], label: "needs-manual-review", text: `${MARKER}\n### Automated checks\nThe automatic scan could not read this repository (${safe(scan.refusal.text ?? "", 160)}). A maintainer read it by hand at commit \`${sha.slice(0, 12)}\`; it was not scanned.\n` };
+}
+
+/** Names of listings that need re-review now but did not before (legacy "changed" counts as the same thing). */
+export function newlyNeedingReview(list, before, after) {
+  const was = (u) => before?.[u] === "review" || before?.[u] === "changed";
+  return list.filter((l) => after?.[l.url] === "review" && !was(l.url)).map((l) => l.name);
 }
 
 export const REASONS = ["malicious", "secret", "licence", "misleading", "unmaintained", "owner-request", "other"];
@@ -246,7 +279,7 @@ function main() {
     const sorted = Object.fromEntries(Object.entries(next).sort(([a], [b]) => a.localeCompare(b)));
     writeFileSync(outFile, JSON.stringify(sorted, null, 2) + "\n");
     const n = Object.values(sorted);
-    console.log(`checked ${list.length} listing(s): ${n.filter((s) => s === "same").length} same, ${n.filter((s) => s === "changed").length} changed, ${n.filter((s) => s === "unreachable").length} unreachable`);
+    console.log(`checked ${list.length} listing(s): ${n.filter((s) => s === "same").length} same, ${n.filter((s) => s === "newer").length} newer commits, ${n.filter((s) => s === "review").length} need re-review, ${n.filter((s) => s === "unreachable").length} unreachable`);
     return;
   }
 
@@ -282,6 +315,15 @@ function main() {
       console.log(`recorded ${l.url}${scan.label !== l.checks ? ` (note: the scan now says ${scan.label}, the listing says ${l.checks})` : ""}`);
     }
     console.log(`done: ${done} recorded, ${skipped} skipped`);
+    return;
+  }
+
+  if (cmd === "drift-news") {
+    // Prints, one per line, the names of listings that need re-review now and did not in the previous drift file.
+    const listFile = arg("--file"), beforeFile = arg("--before"), afterFile = arg("--after");
+    if (!listFile || !afterFile) { console.error("drift-news needs --file and --after (and --before)"); process.exit(2); }
+    const read = (f, d) => { try { return JSON.parse(readFileSync(f, "utf8")); } catch { return d; } };
+    for (const name of newlyNeedingReview(read(listFile, []), beforeFile ? read(beforeFile, {}) : {}, read(afterFile, {}))) console.log(String(name).replace(/[^\x20-\x7e]/g, "?").replace(/[\r\n]/g, " ").slice(0, 60));
     return;
   }
 

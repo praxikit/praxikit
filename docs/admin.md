@@ -21,7 +21,7 @@ Everything is done in the app at `https://praxikit.com`. Maintainers (owners of 
 
 - Approving, editing and removing need a sign-in from the last 30 minutes. The app only starts GitHub Actions jobs with fixed inputs; the jobs commit the change and the site redeploys.
 - The checks never run a submitted repository's code. They read it at one commit and report licence, secret-like strings, code that runs automatically, network access, binaries and hidden instructions. A result is a starting point, not a decision, and never says a kit is safe.
-- A listing records the **commit that was read** and the **check result**. If the repository moves on, nothing changes by itself: the daily `listing-drift` job marks it **Changed since review** (it only asks the GitHub API whether the default branch has commits after the reviewed one). When you have read the new code, run **Add listing** with **replace** ticked to record the new commit.
+- A listing records the **commit that was read** and the **check result**. If the repository moves on, the daily `listing-drift` job asks the GitHub API what changed after the reviewed commit and sorts it into three: **same**; **newer commits** that touch no file that runs code (a quiet note on the page, nothing for you to do); and **needs re-review** when they touch hooks, plugin or MCP configuration, install or setup scripts or package manifests (a warning on the page, and a push to your phone, once). When you have read the new code, run **Add listing** with **replace** ticked to record the new commit. The list of files that count is `RUNS_CODE` in `scripts/listings.mjs`.
 
 ## Where entries live
 

@@ -395,7 +395,12 @@ const SITE_JS = `
   }
   function showAccount(me) {
     var d = el("details", "menu"), sum = el("summary");
-    if (Number.isInteger(me.id)) { var img = el("img"); img.src = "https://avatars.githubusercontent.com/u/" + me.id + "?s=64"; img.alt = ""; img.width = 28; img.height = 28; sum.appendChild(img); }
+    var letter = el("span", "avatar-fallback", String(me.login).charAt(0).toUpperCase());
+    if (Number.isInteger(me.id)) {
+      var img = el("img"); img.src = "https://avatars.githubusercontent.com/u/" + me.id + "?s=64"; img.alt = ""; img.width = 28; img.height = 28;
+      img.addEventListener("error", function () { if (img.parentNode) img.parentNode.replaceChild(letter, img); });
+      sum.appendChild(img);
+    } else sum.appendChild(letter);
     sum.appendChild(el("span", "", me.login)); sum.setAttribute("aria-label", "Account menu for " + me.login);
     var list = el("div", "menu-list");
     list.appendChild(link("/profile", "Profile")); list.appendChild(link("/collection", "My collection")); list.appendChild(link("/settings", "Settings"));
@@ -822,12 +827,12 @@ function checker(kits, only) {
 }
 const badge = (k) => `<span class="kind own">Built by Praxikit</span><span class="kind">${esc(kindOf(k))}</span><span class="ver">v${esc(k.version)}</span>`;
 
-// "same" | "changed" | "unreachable" per listing url, written daily by the listing-drift workflow; unknown values are ignored
+// "same" | "newer" | "review" | "unreachable" per listing url, written daily by the listing-drift workflow; unknown values are ignored. An older file may say "changed": that means "review".
 let DRIFT = {};
 function loadDrift() {
   const f = join(ROOT, "site", "drift.json");
   if (!existsSync(f)) return {};
-  try { return Object.fromEntries(Object.entries(readJson(f)).filter(([, v]) => ["same", "changed", "unreachable"].includes(v))); } catch { return {}; }
+  try { return Object.fromEntries(Object.entries(readJson(f)).filter(([, v]) => ["same", "newer", "review", "changed", "unreachable"].includes(v)).map(([k, v]) => [k, v === "changed" ? "review" : v])); } catch { return {}; }
 }
 // Stars, licence and last push per repository, written daily by the listing-drift workflow; anything that does not validate is ignored.
 let METRICS = {};
@@ -890,9 +895,11 @@ const SHIELD = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable
 const COPYICON = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
 const driftOf = (l) => {
   const st = DRIFT[l.url];
-  return st === "changed" ? { badge: '<span class="kind warn">Changed since review</span>', short: "Changed since review", warn: true, note: ` <a href="${esc(l.url)}/compare/${esc(l.commit)}...HEAD" rel="noopener noreferrer">See what changed</a>.` }
-    : st === "unreachable" ? { badge: '<span class="kind warn">Repository not reachable</span>', short: "Repository not reachable", warn: true, note: " It may have been removed or made private." }
-      : { badge: "", short: "", warn: false, note: "" };
+  const compare = `<a href="${esc(l.url)}/compare/${esc(l.commit)}...HEAD" rel="noopener noreferrer">See what changed</a>`;
+  return st === "review" ? { state: st, badge: '<span class="kind warn">Needs re-review</span>', short: "Needs re-review", warn: true, note: ` Files that run code changed since a person read it. ${compare}.` }
+    : st === "newer" ? { state: st, badge: "", short: "Newer commits since it was read", warn: false, quiet: true, note: ` The repository has newer commits since a person read it, but none touch files that run code on their own (hooks, plugin and MCP configuration, install scripts, package manifests). Installs follow the latest version, so read the changes if it matters to you. ${compare}.` }
+    : st === "unreachable" ? { state: st, badge: '<span class="kind warn">Repository not reachable</span>', short: "Repository not reachable", warn: true, note: " It may have been removed or made private." }
+      : { state: "same", badge: "", short: "", warn: false, note: "" };
 };
 const receiptText = (l) => `Read by a person at commit ${l.commit.slice(0, 7)}; ${CHECK_WORDS[l.checks] ?? l.checks}. Installs follow the author's latest version, which can differ.`;
 const sourceWord = (l) => { const w = SOURCE_LABEL[l.source] ?? ""; return w ? w[0].toUpperCase() + w.slice(1) : ""; };
@@ -957,12 +964,12 @@ function extCard(l, up) {
   const groups = [slug(KIND_LABEL[l.kind] ?? l.kind), l.pick ? "picks" : "listed"].join(" ");
   const text = [l.name, l.why, l.note ?? "", l.author, l.kind, l.source, ...tagsOf(l)].join(" ").toLowerCase();
   const page = `${up}${lpath(l)}`;
-  const flags = `${l.pick ? '<span class="cflag pick">My pick</span>' : ""}${isNew(l.added, TODAY) ? '<span class="cflag fresh">New</span>' : ""}${d.warn ? `<span class="cflag warn">${esc(d.short)}</span>` : ""}`;
+  const flags = `${l.pick ? '<span class="cflag pick">My pick</span>' : ""}${isNew(l.added, TODAY) ? '<span class="cflag fresh">New</span>' : ""}`;
   return `<li class="card" data-kind="${KIND_LABEL[l.kind] ? l.kind : "plugin"}" data-card data-src="${l.pick ? "pick" : "listed"}" data-name="${esc(l.name.toLowerCase())}" data-date="${esc(l.added)}" data-stars="${m ? m.stars : 0}" data-health="${h ? h.score : 0}" data-tags="${esc(tagsOf(l).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
 ${coverLink({ href: page, kind: l.kind, name: l.name, flags, health: h ? h.score : null })}
 <div class="cap">
 <p class="byline">by ${esc(l.author)}${starLine(l) ? ` · ${starLine(l)}` : ""}</p>
-<p class="promise">${esc(l.why)}</p>
+${d.warn ? `<p class="cap-warn">${d.badge}</p>` : ""}<p class="promise">${esc(l.why)}</p>
 ${l.pick ? `<p class="pick-note">${esc(l.note)}</p>` : ""}
 ${tagChips(l, up, 3)}
 ${APP ? `<p class="stat" data-stat="${esc(l.url)}" hidden></p>` : ""}
@@ -1002,8 +1009,8 @@ function labelSection(l, d) {
     : `<h3>What the check found</h3><p class="lfoot">An automatic check read this repository before it was listed, and a person read the result (${esc(CHECK_WORDS[l.checks] ?? l.checks)}). The detailed results were not saved for this listing yet.</p>`;
   return `<section class="checklabel" id="found"><h2>Check facts</h2>
 ${row("Commit read", `<a href="${esc(commitUrl)}" rel="noopener noreferrer"><code>${esc(l.commit.slice(0, 7))}</code></a>`, " big")}${h ? row("Health score", `${h.score} / 100`, " big") : ""}
-${row("Status", d.warn ? `<strong>${esc(d.short)}</strong>` : "Unchanged since it was read")}${row("Listed on", esc(l.added))}${row("Put forward by", `<span data-credit="${esc(sourceWord(l))}">${esc(sourceWord(l))}</span>`)}
-${d.warn ? `<p class="lfoot">${d.note.trim()}</p>` : ""}${checks}
+${row("Status", d.warn ? `<strong>${esc(d.short)}</strong>` : d.quiet ? esc(d.short) : "Unchanged since it was read")}${row("Listed on", esc(l.added))}${row("Put forward by", `<span data-credit="${esc(sourceWord(l))}">${esc(sourceWord(l))}</span>`)}
+${d.warn || d.quiet ? `<p class="lfoot">${d.note.trim()}</p>` : ""}${checks}
 <p class="lfoot">Installs follow the author's latest version, which can differ from the commit that was read. A daily check marks the listing if the repository moves on. <a href="../../policy/#report">Report a problem with this listing</a></p></section>`;
 }
 
@@ -1210,7 +1217,7 @@ ${form}
 <ol class="flow">
 <li><strong>The checks run.</strong> A maintainer asks for the full read-only scan: it reads the public repository at one commit without running or installing anything, and reports licence, secret-like strings, code that runs automatically, network access, binaries and hidden instructions. It reports what it found and never says a kit is safe.</li>
 <li><strong>A person reads the report and decides.</strong> The result is a starting point, not a decision. Only GitHub links can be checked automatically.</li>
-<li><strong>If it is listed,</strong> the listing is pinned to the commit that person reviewed, and a daily check marks it <em>Changed since review</em> if the repository moves on. It becomes one of the owner's <em>picks</em> only if the owner uses it.</li>
+<li><strong>If it is listed,</strong> the listing is pinned to the commit that person reviewed, and a daily check notes when the repository moves on, and marks it <em>Needs re-review</em> if the new commits touch files that run code. It becomes one of the owner's <em>picks</em> only if the owner uses it.</li>
 </ol>
 <p class="muted">Nothing is listed for payment, and listing is not a promise that a kit is safe. Read the <a href="../policy/">policy</a> for how reports and removals work.</p></div>`;
   return page({ title: "Submit a kit — Praxikit", depth: 1, body, current: "submit", canonical: `${HOME_URL}submit/`, description: "Submit a kit to Praxikit for free: paste a public GitHub repository link. An automatic read-only check runs, then a person reviews it." });
@@ -1352,7 +1359,7 @@ function policyPage() {
 <li>Kits <strong>built by Praxikit</strong> are ours. We maintain them and ship fixes as new versions.</li>
 <li><strong>Listed</strong> kits and <strong>picks</strong> are other people's work. We link to the public repository. We do not host, copy or run it. A <em>pick</em> is a kit the owner has used, with a note on how; a <em>listed</em> kit was scanned and read by a person, and is not necessarily used.</li>
 <li>A listing means a person read the repository and the automatic result <strong>at one commit</strong>, which each listing shows. It is not an endorsement and not a safety guarantee. The automatic checks are pattern checks and cannot see everything.</li>
-<li><strong>The reviewed commit is not what you install.</strong> Installs come from the author's repository and follow its latest version, so the code you get can be newer than the code that was reviewed. A daily check marks a listing <strong>Changed since review</strong> when its repository has moved on, with a link to what changed. That tells you something changed, not whether it is safe; compare before you install.</li>
+<li><strong>The reviewed commit is not what you install.</strong> Installs come from the author's repository and follow its latest version, so the code you get can be newer than the code that was reviewed. A daily check looks at what changed. If there are newer commits that touch only other files, the page says so quietly and the listing stays as it is. If they touch files that run code on their own (hooks, plugin and MCP configuration, install and setup scripts, package manifests), the listing is marked <strong>Needs re-review</strong>, with a link to what changed, and stays marked until a person reads the new commit. Neither says whether the kit is safe; compare before you install.</li>
 <li><strong>Stars, New and Health.</strong> A listing shows its GitHub stars, a <em>New</em> tag for its first 30 days and a <strong>health score</strong> from 0 to 100. The score says how well a kit is looked after, not how good it is: licence (25), upkeep from its last push (30), the automatic checks (30) and whether it has changed since review (15). Stars are shown beside it and are not part of it. The listing page shows every point and why. The facts are read from GitHub once a day.</li>
 <li>Listing is free. Nothing is listed for payment, and payment never changes a check or a decision.</li>
 <li>A listing needs a licence that lets others use the work, and the submitter confirms they wrote it or have permission.</li>
