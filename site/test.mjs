@@ -51,6 +51,14 @@ const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
 must(htmlFiles.length === 24, `expected 23 earlier pages plus the removal log = 24 html files, got ${htmlFiles.length}`);
 {
+  // the live security policy is style-src 'self': an inline style="" attribute is silently ignored there, so none may be used
+  const inline = htmlFiles.filter((f) => / style="/.test(readFileSync(f, "utf8")));
+  must(inline.length === 0, `no page uses an inline style attribute (the live policy would ignore it): ${inline.slice(0, 3).join(", ")}`);
+  const css = readFileSync(join(out, "style.css"), "utf8");
+  const used = new Set([...readFileSync(join(out, "kits", "index.html"), "utf8").matchAll(/class="cover (cv[0-9a-f]{6})"/g)].map((m) => m[1]));
+  must(used.size > 0 && [...used].every((c) => css.includes("." + c + "{--c:#")), "every cover colour used on the kits page has its class in the stylesheet");
+}
+{
   const kp = readFileSync(join(out, "kits", "index.html"), "utf8");
   const opts = (kp.split('<select id="tag">')[1]?.split("</select>")[0] ?? "").split("<option").length - 1;
   must(kp.includes('<details class="filters" id="filters">') && kp.includes('data-show="all"') && opts <= 13, "the kits page keeps search, type tabs, one Filters menu and sort; the tag menu holds at most twelve tags");
@@ -139,7 +147,7 @@ execFileSync("node", [join(here, "build.mjs"), "--root", root2, "--out", join(ro
 const few = readFileSync(join(root2, "out", "index.html"), "utf8");
 must(few.includes('class="card"') && !few.includes('id="q"'), "few kits show cards and no search box");
 must(!/<img src=x/.test(few) && few.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "card is not escaped");
-must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('class="cover"') && !readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('id="q"'), "with one kit the kits page shows a card and no search");
+must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('class="cover cv') && !readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('id="q"'), "with one kit the kits page shows a card and no search");
 
 // tags, search and the submit form
 {

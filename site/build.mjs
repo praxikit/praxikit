@@ -12,7 +12,7 @@
  * site lives at one address, set in site/config.json.
  * Our own inline scripts carry a data-site attribute so the test can prove no other script exists.
  */
-import { readFileSync, readdirSync, existsSync, mkdirSync, writeFileSync, rmSync, copyFileSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, mkdirSync, writeFileSync, rmSync, copyFileSync, appendFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { deflateSync } from "node:zlib";
@@ -444,7 +444,7 @@ const SITE_JS = `
     if (typing(e.target)) return;
     if (e.key === "?") { e.preventDefault(); toggleKeys(); return; }
     if (e.key === "j" || e.key === "k") {
-      var covers = [].slice.call(document.querySelectorAll("li[data-card]:not([hidden]) a.cover"));
+      var covers = [].slice.call(document.querySelectorAll("li[data-card]:not([hidden]) a.cover, table[data-rows] a.row-link"));
       if (!covers.length) return;
       var at = covers.indexOf(document.activeElement), next = e.key === "j" ? at + 1 : (at < 0 ? covers.length - 1 : at - 1);
       if (next < 0 || next >= covers.length) return;
@@ -783,7 +783,7 @@ ${head}
 ${body}
 </main>
 <footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>A catalogue of kits for AI coding agents.<br>Free, open source, MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}about/">About</a>${APP ? `<a href="${esc(APP)}/contributors">Contributors</a>` : ""}<a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a><button type="button" class="linklike" id="keys-open" aria-expanded="false" aria-controls="keys">Keyboard shortcuts</button></div></div></footer>
-<div class="keys" id="keys" role="dialog" aria-labelledby="keys-h" hidden><div class="keys-in"><h2 id="keys-h">Keyboard shortcuts</h2><dl><dt><kbd>/</kbd></dt><dd>Search</dd><dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next and previous kit</dd><dt><kbd>Enter</kbd></dt><dd>Open the kit in focus</dd><dt><kbd>s</kbd></dt><dd>Save the kit in focus (when signed in)</dd><dt><kbd>?</kbd></dt><dd>Show or hide this list</dd><dt><kbd>Esc</kbd></dt><dd>Close this list</dd></dl><p><button type="button" id="keys-close">Close</button></p></div></div>
+<div class="keys" id="keys" role="dialog" aria-labelledby="keys-h" hidden><div class="keys-in"><h2 id="keys-h">Keyboard shortcuts</h2><dl><dt><kbd>/</kbd></dt><dd>Search</dd><dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next and previous kit (or row in a list)</dd><dt><kbd>Enter</kbd></dt><dd>Open the kit in focus</dd><dt><kbd>s</kbd></dt><dd>Save the kit in focus (when signed in)</dd><dt><kbd>?</kbd></dt><dd>Show or hide this list</dd><dt><kbd>Esc</kbd></dt><dd>Close this list</dd></dl><p><button type="button" id="keys-close">Close</button></p></div></div>
 <script src="${up}site.js?v=${hashStr(SITE_JS)}" defer data-site></script>
 </body>
 </html>
@@ -928,13 +928,17 @@ function coverArt(name) {
   ];
   return `<svg viewBox="0 0 120 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">${parts[p]}</svg>`;
 }
+// The page's security policy forbids inline style attributes, so each cover colour is a class (cv + the hex digits) written to style.css at the end of the build.
+const COVER_COLOURS = new Set();
 const BUILT_MARK = `<svg class="bm" viewBox="-4 -1 30 32" aria-hidden="true" focusable="false">${mark("#ffffff", "#ffffff")}</svg>`;
 /** The cover itself: a link to the kit's page. Type, any flags, the name and the health score are its text. */
 function coverLink({ href, kind, name, flags = "", health = null, builtMark = false, plain = false }) {
   const label = KIND_LABEL[kind] ?? kind;
   const inner = `${coverArt(name)}<span class="ct">${esc(label)}</span>${flags}${builtMark ? BUILT_MARK : ""}<span class="cn">${esc(name)}</span>${health != null ? `<span class="seal"><span class="vh">Health score </span>${health}</span>` : ""}`;
-  const style = `--c:${coverColour(KIND_LABEL[kind] ? kind : "plugin", name)}`;
-  return plain ? `<div class="cover" style="${style}">${inner}</div>` : `<a class="cover" href="${esc(href)}" style="${style}">${inner}</a>`;
+  const colour = coverColour(KIND_LABEL[kind] ? kind : "plugin", name);
+  COVER_COLOURS.add(colour);
+  const cls = `cover cv${colour.slice(1)}`;
+  return plain ? `<div class="${cls}">${inner}</div>` : `<a class="${cls}" href="${esc(href)}">${inner}</a>`;
 }
 const starLine = (l) => { const m = METRICS[l.url]; return m ? `<span class="stars" title="GitHub stars (not part of the health score)">${STAR}<span>${esc(fmtStars(m.stars))}</span></span>` : ""; };
 
@@ -1448,4 +1452,5 @@ write("app-shell.html", page({ title: "@@TITLE@@", depth: 0, abs: true, body: "<
   write(".well-known/security.txt", ["Contact: https://github.com/praxikit/praxikit/security/advisories/new", `Expires: ${new Date(Date.now() + 365 * 86400_000).toISOString().replace(/\.\d+Z$/, "Z")}`, "Preferred-Languages: en", `Policy: ${HOME_URL}policy/#report`, `Canonical: ${HOME_URL}.well-known/security.txt`, ""].join("\n"));
 write("robots.txt", ["User-agent: *", "Allow: /", "Disallow: /admin", "Disallow: /auth/", "Disallow: /api/", "Disallow: /collection", "Disallow: /account/", "Disallow: /profile", "Disallow: /settings", "Disallow: /app-shell.html", `Sitemap: ${HOME_URL}sitemap.xml`, ""].join("\n"));
 }
+appendFileSync(join(OUT, "style.css"), ["", "/* cover colours, generated by the build (one class per colour in use) */", ...[...COVER_COLOURS].sort().map((c) => `.cv${c.slice(1)}{--c:${c}}`), ""].join(String.fromCharCode(10)));
 console.log(`built ${kits.length} kit(s), ${listings.length} listing(s) (${picks.length} picks) -> ${OUT}`);

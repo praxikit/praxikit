@@ -92,7 +92,7 @@ r = await call("/admin", { cookies: carol });
 must((await r.text()).includes("sign in again with organisation access"), "a member who is a maintainer is told how to get admin access");
 r = await call("/admin", { cookies: admin });
 html = await r.text();
-must(r.status === 200 && html.includes("Catalogue admin") && html.includes("Manage live listings"), "a maintainer sees the admin page");
+must(r.status === 200 && html.includes("Catalogue admin") && html.includes("Live listings") && html.includes('class="adm-tabs"'), "a maintainer sees the admin page");
 must((await call("/api/me", { cookies: admin })).status === 200 && (await (await call("/api/me", { cookies: admin })).json()).role === "admin" && (await (await call("/api/me", { cookies: carol })).json()).role === "user" && (await call("/api/me")).status === 401, "the header learns the role from /api/me; signed out it gets 401");
 must((await call("/settings", { cookies: carol })).status === 200 && (await (await call("/settings")).text()).includes("Sign in"), "settings needs a sign-in");
 for (const gone of ["/mine", "/recommended/", "/assets/admin.css"]) must((await call(gone, { cookies: carol })).status === 404, `${gone} is gone: the old paths are not kept`);

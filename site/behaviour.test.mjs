@@ -71,7 +71,7 @@ async function run({ cachedMe = null, hint = false, me = null, saved = [], dark 
     getElementById: (id) => ids[id] ?? null,
     querySelector: (s) => (s === "header nav" ? nav : s === "header.top" ? header : s === "[data-credit]" ? creditEl : null),
     activeElement: null,
-    querySelectorAll: (s) => (s === "li[data-card]:not([hidden]) a.cover" ? coverEls : s === "[data-save]" ? [btn] : s === "[data-show]" ? (list.segs ?? []) : s === "[data-stat]" ? stats : []),
+    querySelectorAll: (s) => (s === "li[data-card]:not([hidden]) a.cover, table[data-rows] a.row-link" ? coverEls : s === "[data-save]" ? [btn] : s === "[data-show]" ? (list.segs ?? []) : s === "[data-stat]" ? stats : []),
     createElement: (t) => new El(t),
     addEventListener: (t, f) => (docListeners[t] ??= []).push(f),
   };

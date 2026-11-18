@@ -86,7 +86,7 @@ must((await call("/admin/requests")).status === 200 && (await text(await call("/
 must((await call("/admin/requests", { cookies: carol })).status === 403, "a member cannot open it");
 html = await text(await call("/admin/requests", { cookies: admin }));
 must(html.includes(ASK.title) && html.includes("@carol") && html.includes('value="solve"'), "a maintainer sees it with the person and the choices");
-must((await text(await call("/admin", { cookies: admin }))).includes("Review requests (1)"), "and the admin page counts what is waiting");
+must((await text(await call("/admin", { cookies: admin }))).includes('href="/admin/requests">Requests <span class="n">1</span>'), "and the admin page counts what is waiting");
 must((await post("/admin/requests/decide", carol, { id: "1", action: "show" })).status === 403, "a member cannot decide");
 must((await post("/admin/requests/decide", stale, { id: "1", action: "show" })).status === 401, "a stale maintainer sign-in is refused");
 must((await post("/admin/requests/decide", admin, { id: "1", action: "show" }, "https://evil.example")).status === 403, "from another origin is refused");

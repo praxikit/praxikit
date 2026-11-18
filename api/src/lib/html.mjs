@@ -49,6 +49,21 @@ export const CSS = `
 .app .need-btn .count{padding:0 8px;border-radius:99px;background:var(--code-bg);color:var(--muted);font-size: var(--fs-sm)}
 .app .req-form{max-width:640px;margin:1rem 0 2rem}
 @media (max-width:560px){.app .request{flex-direction:column}}
+.app .adm-tabs{display:flex;flex-wrap:wrap;gap:var(--s2);margin:0 0 var(--s3)}
+.app .adm-tabs a{display:inline-flex;align-items:center;gap:var(--s2);min-height:var(--control);padding:0 var(--s4);border-radius:99px;background:var(--card);box-shadow:inset 0 0 0 1px var(--line);color:var(--fg);text-decoration:none;font-weight:650}
+.app .adm-tabs a:hover{box-shadow:inset 0 0 0 2px var(--accent)}
+.app .adm-tabs a[aria-current="page"]{background:var(--fg);color:var(--bg);box-shadow:none}
+.app .adm-tabs .n{min-width:1.6em;padding:0 var(--s2);border-radius:99px;background:var(--accent);color:var(--accent-fg);font-size:var(--fs-xs);text-align:center}
+.app .chip{display:inline-block;padding:2px 10px;border-radius:99px;font-size:var(--fs-xs);font-weight:650;white-space:nowrap}
+.app .chip.ok{background:var(--accent-bg);color:var(--accent)}.app .chip.flag{background:var(--warn-bg);color:var(--warn)}.app .chip.bad{background:var(--bad);color:#fff}.app .chip.muted{background:var(--bg2);color:var(--muted)}
+.app table.queue tbody tr:hover,.app table.queue tbody tr:has(a.row-link:focus-visible){background:var(--bg2)}
+.app a.row-link{font-weight:650}.app a.row-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.app ul.toolgrid{list-style:none;padding:0;margin:var(--s3) 0;display:grid;gap:var(--s3);grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.app ul.toolgrid li{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:var(--s4);font-size:var(--fs-sm);color:var(--muted)}
+.app ul.toolgrid li a{display:block;font-weight:650;font-size:var(--fs-md);margin-bottom:var(--s1)}
+.app .sub-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--s6);align-items:start}
+.app .sub-decide h2:first-child{margin-top:0}
+@media(min-width:1040px){.app .sub-layout{grid-template-columns:minmax(0,1.1fr) minmax(380px,.9fr)}.app .sub-decide{position:sticky;top:84px;max-height:calc(100vh - 104px);overflow:auto;padding:var(--s5);background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}}
 .app .lb{background:linear-gradient(165deg,#0c786e 0%,#0a4f49 55%,#062f2c 100%);color:#fff;border-radius:22px;padding:clamp(18px,3.5vw,34px) clamp(14px,3.5vw,34px);max-width:760px;margin:1.2rem auto 2rem;box-shadow:var(--shadow-md)}
 .app .lb-title{text-align:center;font-size: var(--fs-md);letter-spacing:.24em;text-transform:uppercase;font-weight:800;margin:0 0 1.4rem;color:#fff}
 .app .podium{list-style:none;padding:0;margin:0 auto 1.6rem;max-width:560px;display:flex;justify-content:center;align-items:flex-end;gap:clamp(8px,3vw,28px)}
@@ -92,7 +107,8 @@ export const CSS_V = hash(CSS);
 let SHELL = "";
 export const setShell = (text) => { SHELL = typeof text === "string" && text.includes("<!--@@BODY@@-->") && text.includes("@@TITLE@@") ? text : ""; };
 const HEAD_EXTRA = `<meta name="robots" content="noindex,nofollow"><link rel="stylesheet" href="/assets/app.css?v=${CSS_V}">`;
-const wrapTables = (b) => b.split("<table>").join('<div class="table-wrap"><table>').split("</table>").join("</table></div>");
+// every table, with or without attributes, gets a frame that scrolls sideways on a narrow screen
+const wrapTables = (b) => b.split("<table").map((part, i) => (i > 0 && (part[0] === ">" || part[0] === " ") ? `<div class="table-wrap"><table${part}` : i > 0 ? `<table${part}` : part)).join("").split("</table>").join("</table></div>");
 const newTab = (html) => html.replace(/<a\b[^>]*>/g, (tag) => (/href="https?:\/\//.test(tag) && /rel="noopener noreferrer"/.test(tag) && !/target=/.test(tag) ? tag.replace("<a", '<a target="_blank"') : tag));
 export const page = (title, rawBody) => { const body = newTab(wrapTables(rawBody)); return SHELL
   ? SHELL.split("@@TITLE@@").join(esc(title)).replace("<!--@@HEAD@@-->", () => HEAD_EXTRA).replace("<!--@@BODY@@-->", () => `<div class="wrap app">${body}</div>`)
@@ -206,21 +222,32 @@ export function minePage({ session, rows, flash }) {
   return page("My submissions — Praxikit", `${nav(session)}<h1>My submissions</h1>${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${body}<p><a class="btn" href="/submit">Submit another</a></p>`);
 }
 
+const CHECK_CHIP = { "no-flags-found": ["Nothing found", "ok"], "checks-flagged": ["Read the report", "flag"], "checks-failed": ["Failed", "bad"], "needs-manual-review": ["Too large: read by hand", "flag"] };
+/** The full-check result of a submission in a few plain words, as [text, tone]. */
+export const scanChip = (s) => (s.scan_state === "done" ? (CHECK_CHIP[s.scan_label] ?? [String(s.scan_label), "muted"]) : s.scan_state === "running" ? ["Running", "muted"] : s.scan_state === "failed" ? ["Did not finish", "bad"] : ["Not run yet", "muted"]);
+const chip = ([text, tone]) => `<span class="chip ${tone}">${esc(text)}</span>`;
+/** "today", "yesterday", "3 days ago" for an ISO date, with the date itself on hover. */
+export function ago(iso, now = Date.now()) {
+  const t = Date.parse(iso); if (!Number.isFinite(t)) return "";
+  const d = Math.floor((now - t) / 86400000);
+  return d <= 0 ? "today" : d === 1 ? "yesterday" : d < 60 ? `${d} days ago` : String(iso).slice(0, 10);
+}
+
 export function adminPage({ session, env, queueError, noteCount = 0, requestCount = 0, subs, recent, flash }) {
   const via = session.via === "owner" ? `an owner of ${esc(env.ORG)}` : `a member of ${esc(env.ORG)}/${esc(env.TEAM)}`;
-  const subRows = (subs ?? []).map((s) => `<tr><td><a href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a><br><span class="muted">${esc(s.owner)}</span></td><td>${esc(s.kind_guess || "?")}</td><td>${esc(s.source)}</td><td>${esc(s.license || "none")}</td><td>${status(s.precheck_status)}</td><td>${esc(s.scan_state === "done" ? (s.scan_label === "no-flags-found" ? "nothing found" : s.scan_label === "checks-flagged" ? "read the report" : s.scan_label) : s.scan_state === "running" ? "running" : s.scan_state === "failed" ? "did not finish" : "not run")}</td><td>${esc(s.submitted_by)}</td><td>${esc(String(s.created_at).slice(0, 10))}</td></tr>`).join("");
-  const recentRows = (recent ?? []).map((s) => `<tr><td><a href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a></td><td>${esc(s.status)}</td><td>${esc(s.status === "approved" ? (PUBLISH[s.publish_state] ?? s.publish_state) : s.status === "rejected" ? s.decision_note : "")}</td><td>${esc(s.decided_by)}</td><td>${esc(String(s.decided_at).slice(0, 10))}</td></tr>`).join("");
+  const subRows = (subs ?? []).map((s) => `<tr><td><a class="row-link" href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a><br><span class="muted">${esc(s.owner)}</span></td><td>${esc(s.kind_guess || "?")}</td><td>${esc(s.source)}</td><td>${esc(s.license || "none")}</td><td>${status(s.precheck_status)}</td><td>${chip(scanChip(s))}</td><td>${esc(s.submitted_by)}</td><td title="${esc(String(s.created_at).slice(0, 10))}">${esc(ago(s.created_at))}</td></tr>`).join("");
+  const recentRows = (recent ?? []).map((s) => `<tr><td><a class="row-link" href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a></td><td>${chip([s.status, s.status === "approved" ? "ok" : "muted"])}</td><td>${esc(s.status === "approved" ? (PUBLISH[s.publish_state] ?? s.publish_state) : s.status === "rejected" ? s.decision_note : "")}</td><td>${esc(s.decided_by)}</td><td title="${esc(String(s.decided_at).slice(0, 10))}">${esc(ago(s.decided_at))}</td></tr>`).join("");
   return page("Admin — Praxikit", `${nav(session)}
 <h1>Catalogue admin</h1>
-<p class="actions"><a class="btn ghost" href="/admin/listings">Manage live listings</a><a class="btn ghost" href="/admin/notes">Review notes${noteCount ? ` (${Number(noteCount)})` : ""}</a><a class="btn ghost" href="/admin/requests">Review requests${requestCount ? ` (${Number(requestCount)})` : ""}</a></p>
-<p class="muted">You can maintain the catalogue because you are ${via}.</p>
+<nav class="adm-tabs" aria-label="Maintainer areas"><a href="/admin" aria-current="page">Submissions${subs ? ` <span class="n">${subs.length}</span>` : ""}</a><a href="/admin/notes">Notes${noteCount ? ` <span class="n">${Number(noteCount)}</span>` : ""}</a><a href="/admin/requests">Requests${requestCount ? ` <span class="n">${Number(requestCount)}</span>` : ""}</a><a href="/admin/listings">Live listings</a></nav>
+<p class="muted">You can maintain the catalogue because you are ${via}. Keys: <kbd>j</kbd> and <kbd>k</kbd> move down and up the list, <kbd>Enter</kbd> opens.</p>
 ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
-${subs ? `<h2>New submissions (${subs.length})</h2>${subRows ? `<table><thead><tr><th>Repository</th><th>Type</th><th>As</th><th>Licence</th><th>Quick check</th><th>Full checks</th><th>By</th><th>Opened</th></tr></thead><tbody>${subRows}</tbody></table><p class="muted">Open one to approve or reject it.</p>` : '<p class="muted">Nothing is waiting.</p>'}` : ""}
-${recentRows ? `<h2>Recently decided</h2><table><thead><tr><th>Repository</th><th>Decision</th><th>Result</th><th>By</th><th>Date</th></tr></thead><tbody>${recentRows}</tbody></table>` : ""}
+${subs ? `<h2>New submissions (${subs.length})</h2>${subRows ? `<table class="queue" data-rows><thead><tr><th>Repository</th><th>Type</th><th>As</th><th>Licence</th><th>Quick check</th><th>Full checks</th><th>By</th><th>Opened</th></tr></thead><tbody>${subRows}</tbody></table><p class="muted">Open one to approve or reject it.</p>` : '<p class="muted">Nothing is waiting.</p>'}` : ""}
+${recentRows ? `<h2>Recently decided</h2><table class="queue" data-rows><thead><tr><th>Repository</th><th>Decision</th><th>Result</th><th>By</th><th>Decided</th></tr></thead><tbody>${recentRows}</tbody></table>` : ""}
 
 ${subs ? "" : `<p class="note">${esc(queueError || "The submissions database is not connected, so there is nothing to review here.")}</p>`}
 <h2>Shortcuts</h2>
-<ul class="links">
+<ul class="toolgrid">
 <li><a href="/submit">Open the submit form</a> (as a maintainer, what you submit is published directly after the scan)</li>
 <li><a href="${esc(REPO_LINK(env.REPO, "/actions/workflows/add-listing.yml"))}" rel="noopener noreferrer">Add a listing</a> on GitHub (also the only way to list something whose checks failed)</li>
 <li><a href="${esc(REPO_LINK(env.REPO, "/actions/workflows/remove-listing.yml"))}" rel="noopener noreferrer">Remove a listing</a></li>
@@ -284,6 +311,7 @@ ${s.status === "approved" && s.publish_state === "blocked" ? `<form method="post
 <p class="muted"><a href="/admin">All submissions</a></p>
 <h1>${esc(s.name)} <span class="badge${s.precheck_status === "fail" ? " bad" : s.precheck_status === "flag" ? " warn" : ""}">${status(s.precheck_status)}</span></h1>
 ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
+<div class="sub-layout"><div class="sub-evidence">
 <dl>
 <dt>Repository</dt><dd><a href="${esc(s.repo_url)}" rel="noopener noreferrer">${esc(s.repo_url)}</a></dd>
 <dt>Created by</dt><dd>${esc(s.owner)} (${esc(s.owner_type)})</dd>
@@ -300,5 +328,5 @@ ${s.why ? `<h2>Note from the submitter</h2><blockquote>${esc(s.why)}</blockquote
 <h2>Quick checks</h2>
 <table><thead><tr><th>Check</th><th>Result</th><th>Note</th></tr></thead><tbody>${cs.map((c) => `<tr><td>${esc(c.title)}</td><td>${status(c.status)}</td><td>${esc(c.note)}</td></tr>`).join("")}</tbody></table>
 <p class="muted">These are quick checks from GitHub's own data. The full read-only scan of the code is a separate step below.</p>
-${decide}`);
+</div><aside class="sub-decide" aria-label="Decision">${decide}</aside></div>`);
 }
