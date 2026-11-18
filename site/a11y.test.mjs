@@ -12,7 +12,7 @@ const failures = [];
 const must = (c, m) => { if (!c) failures.push(m); };
 
 // ---- contrast, from the stylesheet's own tokens
-const css = readFileSync(join(here, "style.css"), "utf8");
+const css = readFileSync(join(here, "css", "00-tokens.css"), "utf8");
 const tokens = (block) => Object.fromEntries([...block.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})/g)].map((m) => [m[1], m[2]]));
 const light = tokens(css.slice(css.indexOf(":root {"), css.indexOf("@media (prefers-color-scheme: dark)")));
 const darkStart = css.indexOf(':root[data-theme="dark"]');

@@ -1413,7 +1413,12 @@ const items = [...kits, ...listings.map((l) => ({ ...l, ext: true }))];
 buildTagCanon(items);
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
-copyFileSync(join(here, "style.css"), join(OUT, "style.css"));
+// The stylesheet is five files, written to one, in this order. Three cascade layers, so that what must lose, loses: the tokens, then the base (rules for bare elements:
+// headings, text, links), then "site" (the three files after it: components, layout, pages) where specificity decides as usual and file order breaks ties, then the app's own rules
+// (api/src/lib/html.mjs) as the last layer. A later layer wins over an earlier one whatever the selectors, so never move a rule to a later layer to make it stronger.
+const SITE_FILES = ["20-components", "30-layout", "40-pages"], read = (f) => readFileSync(join(here, "css", f + ".css"), "utf8");
+const block = (name, css) => [`@layer ${name} {`, css, "}"].join(String.fromCharCode(10));
+writeFileSync(join(OUT, "style.css"), ["@layer tokens, base, site, app;", block("tokens", read("00-tokens")), block("base", read("10-base")), block("site", SITE_FILES.map(read).join(String.fromCharCode(10)))].join(String.fromCharCode(10) + String.fromCharCode(10)));
 mkdirSync(join(OUT, "fonts"), { recursive: true });
 for (const f of readdirSync(join(here, "fonts"))) copyFileSync(join(here, "fonts", f), join(OUT, "fonts", f));
 write("index.html", homePage(items, picks));

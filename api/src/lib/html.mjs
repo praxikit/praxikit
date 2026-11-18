@@ -1,7 +1,7 @@
 /** Pages are plain HTML with no scripts at all; the CSP forbids them anyway. Everything dynamic goes through esc(). */
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-export const CSS = `
+const APP_CSS = `
 .app{padding-block:var(--s6) var(--s8)}
 .app h1{font-size:clamp(1.6rem,1rem + 1.6vw,2.2rem);margin:0 0 var(--s4);max-width:none;letter-spacing:-.02em}
 .app h2{font-size:1.25rem;margin:var(--s7) 0 var(--s3)}
@@ -14,6 +14,7 @@ export const CSS = `
 .app .btn,.app button{font:inherit;font-size: var(--fs-sm);min-height:var(--control);padding:0 var(--s4);border-radius:var(--radius-sm);display:inline-flex;align-items:center;justify-content:center;font-weight:600;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);text-decoration:none;cursor:pointer}
 .app button.ghost,.app .btn.ghost{background:transparent;color:var(--accent)}
 .app button.ghost:hover,.app .btn.ghost:hover{background:var(--accent-bg);filter:none}
+.app .btn.ghost{border:0;box-shadow:inset 0 0 0 2px var(--accent)}
 .app button[disabled]{opacity:.5;cursor:not-allowed}
 .app .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
 .app table{width:100%;border-collapse:collapse;background:transparent;border:0}
@@ -96,6 +97,12 @@ export const CSS = `
 .app .badge-list{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))}
 .app .badge-list li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column}
 .app .danger-zone{border:1px solid var(--bad);border-radius:8px;padding:6px 16px 14px;margin-top:2rem}
+`;
+// the app's rules are the last cascade layer, after the site's three (the order is declared here too, because this file loads first)
+export const CSS = `@layer tokens, base, site, app;
+@layer app {
+${APP_CSS}
+}
 `;
 
 // the stylesheet is cached for an hour, so its address changes whenever its content does

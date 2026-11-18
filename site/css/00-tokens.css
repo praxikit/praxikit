@@ -1,0 +1,123 @@
+/* Tokens: colours, type, spacing, radii, shadows. Light is the default; dark redefines the same names.
+   Cover colours (cv + hex) are generated at the end of the build. */
+
+:root {
+  color-scheme: light;
+  --bg: #f1f0fa;
+  --bg2: #e8e6f6;
+  --fg: #17142b;
+  --muted: #55516f;
+  --line: #d9d6ec;
+  --card: #ffffff;
+  --accent: #4a2fd9;
+  --spark: #e07b1a;
+  --accent-fg: #ffffff;
+  --accent-bg: #e7e3fc;
+  --warn: #8a4a0a;
+  --warn-bg: #fbeedd;
+  --bad: #b3261e;
+  --code-bg: #e8e6f6;
+  --term: #17142b;
+  --term-fg: #ece9ff;
+  --shadow-sm: 0 1px 2px rgba(23, 20, 43, .06), 0 1px 1px rgba(23, 20, 43, .04);
+  --shadow-md: 0 14px 30px -14px rgba(23, 20, 43, .45), 0 2px 6px rgba(23, 20, 43, .06);
+  --k-plugin: #5b3df5;
+  --k-skill: #d9480f;
+  --k-mcp: #00796b;
+  --k-template: #c2255c;
+  --k-agent: #9a6700;
+  --k-hook: #3a4a8c;
+  --k-adapter: #2f6f1f;
+  --gutter: clamp(16px, 3.2vw, 48px);
+  --maxw: 1200px;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+:root:not([data-theme="light"]) {
+  color-scheme: dark;
+  --bg: #0f0d20;
+  --bg2: #17142e;
+  --fg: #eeecfc;
+  --muted: #aba7c8;
+  --line: #2a2650;
+  --card: #181532;
+  --accent: #a89bff;
+  --spark: #f0a45c;
+  --accent-fg: #120c3a;
+  --accent-bg: #26215a;
+  --warn: #f0a45c;
+  --warn-bg: #2b2114;
+  --bad: #ff8a80;
+  --code-bg: #1f1b40;
+  --term: #0a0818;
+  --term-fg: #e4e0ff;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-md: 0 12px 30px -10px rgba(0, 0, 0, .65);
+}
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f0d20;
+  --bg2: #17142e;
+  --fg: #eeecfc;
+  --muted: #aba7c8;
+  --line: #2a2650;
+  --card: #181532;
+  --accent: #a89bff;
+  --spark: #f0a45c;
+  --accent-fg: #120c3a;
+  --accent-bg: #26215a;
+  --warn: #f0a45c;
+  --warn-bg: #2b2114;
+  --bad: #ff8a80;
+  --code-bg: #1f1b40;
+  --term: #0a0818;
+  --term-fg: #e4e0ff;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-md: 0 12px 30px -10px rgba(0, 0, 0, .65);
+}
+@media (min-width: 1500px) {
+:root {
+  --maxw: 1400px;
+}
+}
+@media (min-width: 1900px) {
+:root {
+  --maxw: 1640px;
+}
+}
+@media (min-width: 2400px) {
+:root {
+  --maxw: 1960px;
+}
+}
+:root {
+  --fs-xs: .8125rem;
+  --fs-sm: .9rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.125rem;
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --s8: 72px;
+  --radius: 16px;
+  --radius-sm: 12px;
+  --control: 44px;
+  --shadow-sm: 0 1px 2px rgba(20, 32, 30, .04);
+  --shadow-md: 0 10px 28px -12px rgba(20, 32, 30, .18);
+}
+@font-face { font-family: "Bricolage Grotesque"; src: url("fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 200 800; font-style: normal; font-display: swap;  }
+:root {
+  --display: "Bricolage Grotesque", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+:root {
+  --display: "Bricolage Grotesque", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --pill: 999px;
+}

@@ -85,7 +85,11 @@ must(html.includes("@carol") && html.includes('href="/assets/app.css?v=') && htm
 must(!html.includes('href="./') && !html.includes('href="../'), "no relative links on an app page (they would break on /admin/submissions/5)");
 must(!/<script(?![^>]*(?:\ssrc=|ld\+json))[^>]*>/i.test(html), "app pages carry no inline script");
 const css = await call("/assets/app.css");
-must(css.status === 200 && (css.headers.get("Content-Type") ?? "").includes("text/css") && (await css.text()).includes(".app "), "the app's styles are served and scoped to .app");
+must(css.status === 200 && (css.headers.get("Content-Type") ?? "").includes("text/css"), "the app's styles are served as CSS");
+{
+  const appCss = await (await call("/assets/app.css")).text();
+  must(appCss.startsWith("@layer tokens, base, site, app;") && appCss.includes("@layer app {") && appCss.includes(".app "), "the app's styles are scoped to .app and are the last cascade layer, after the site's three");
+}
 r = await call("/admin");
 must(r.status === 200 && (await r.text()).includes("Sign in") && (await call("/admin")).headers.get("Content-Security-Policy").includes("default-src 'none'"), "signed out, /admin is the sign-in page inside the frame, with the app's strict policy");
 r = await call("/admin", { cookies: carol });

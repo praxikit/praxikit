@@ -51,6 +51,16 @@ const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
 must(htmlFiles.length === 24, `expected 23 earlier pages plus the removal log = 24 html files, got ${htmlFiles.length}`);
 {
+  // the stylesheet: five source files, assembled into three cascade layers (the app adds a fourth); only the generated cover colours sit outside a layer
+  const css = readFileSync(join(out, "style.css"), "utf8"), rows = css.split(String.fromCharCode(10));
+  must(css.startsWith("@layer tokens, base, site, app;"), "the stylesheet declares its layers first, in order");
+  const opens = rows.filter((l) => l === "@layer tokens {" || l === "@layer base {" || l === "@layer site {");
+  const cover = rows.filter((l) => l.startsWith(".cv") && l.endsWith("}"));
+  const lastLayerEnd = rows.lastIndexOf("}"), firstCover = rows.findIndex((l) => l.startsWith(".cv"));
+  must(opens.length === 3 && cover.length > 0 && firstCover > lastLayerEnd, "tokens, base and site are the three layers, and the cover colours follow them");
+  must(existsSync(join(here, "css", "00-tokens.css")) && !existsSync(join(here, "style.css")), "the stylesheet is built from site/css, and there is no second copy to edit by mistake");
+}
+{
   // the live security policy is style-src 'self': an inline style="" attribute is silently ignored there, so none may be used
   const inline = htmlFiles.filter((f) => / style="/.test(readFileSync(f, "utf8")));
   must(inline.length === 0, `no page uses an inline style attribute (the live policy would ignore it): ${inline.slice(0, 3).join(", ")}`);
