@@ -1,7 +1,7 @@
 {
   "https://github.com/54yyyu/zotero-mcp": "same",
   "https://github.com/addyosmani/agent-skills": "same",
-  "https://github.com/anthropics/claude-plugins-official": "review",
+  "https://github.com/anthropics/claude-plugins-official": "newer",
   "https://github.com/blader/humanizer": "same",
   "https://github.com/brave/brave-search-mcp-server": "newer",
   "https://github.com/ckreiling/mcp-server-docker": "same",
@@ -20,7 +20,7 @@
   "https://github.com/microsoft/playwright-mcp": "review",
   "https://github.com/modelcontextprotocol/servers": "review",
   "https://github.com/obra/superpowers": "same",
-  "https://github.com/obsidianmd/obsidian-skills": "review",
+  "https://github.com/obsidianmd/obsidian-skills": "newer",
   "https://github.com/OthmanAdi/planning-with-files": "same",
   "https://github.com/supabase/mcp": "review",
   "https://github.com/upstash/context7": "newer",

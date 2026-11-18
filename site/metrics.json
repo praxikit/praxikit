@@ -12,13 +12,13 @@
     "archived": false
   },
   "https://github.com/anthropics/claude-plugins-official": {
-    "stars": 47500,
+    "stars": 47600,
     "licence": "Apache-2.0",
     "pushed": "2026-11-12",
     "archived": false
   },
   "https://github.com/blader/humanizer": {
-    "stars": 70200,
+    "stars": 70700,
     "licence": "MIT",
     "pushed": "2026-11-05",
     "archived": false
@@ -42,15 +42,15 @@
     "archived": false
   },
   "https://github.com/cloudflare/security-audit-skill": {
-    "stars": 74500,
+    "stars": 75100,
     "licence": "MIT",
     "pushed": "2026-09-10",
     "archived": false
   },
   "https://github.com/coreyhaines31/marketingskills": {
-    "stars": 61000,
+    "stars": 61200,
     "licence": "MIT",
-    "pushed": "2026-11-05",
+    "pushed": "2026-11-12",
     "archived": false
   },
   "https://github.com/crystaldba/postgres-mcp": {
@@ -66,7 +66,7 @@
     "archived": false
   },
   "https://github.com/github/github-mcp-server": {
-    "stars": 34500,
+    "stars": 34600,
     "licence": "MIT",
     "pushed": "2026-11-12",
     "archived": false
@@ -120,13 +120,13 @@
     "archived": false
   },
   "https://github.com/obra/superpowers": {
-    "stars": 319000,
+    "stars": 320000,
     "licence": "MIT",
     "pushed": "2026-10-29",
     "archived": false
   },
   "https://github.com/obsidianmd/obsidian-skills": {
-    "stars": 53000,
+    "stars": 53100,
     "licence": "MIT",
     "pushed": "2026-11-12",
     "archived": false
@@ -144,7 +144,7 @@
     "archived": false
   },
   "https://github.com/upstash/context7": {
-    "stars": 65000,
+    "stars": 65100,
     "licence": "MIT",
     "pushed": "2026-11-12",
     "archived": false
