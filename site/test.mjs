@@ -41,9 +41,9 @@ const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 
 {
   const kitsHtml = readFileSync(join(out, "kits", "index.html"), "utf8");
-  must(kitsHtml.includes("64.9k") && kitsHtml.includes('data-stars="64900"') && /Health \d+/.test(kitsHtml), "a listed card shows its stars and health score");
+  must(kitsHtml.includes("64.9k") && kitsHtml.includes('data-stars="64900"') && kitsHtml.includes('class="seal"') && kitsHtml.includes("Health score "), "a listed card shows its stars and health score");
   must(!kitsHtml.includes("&lt;script&gt;") || !/data-stars="3"/.test(kitsHtml), "facts that do not validate are not shown");
-  must(kitsHtml.includes('class="kind fresh">New</span>') && kitsHtml.includes('<option value="stars">') && kitsHtml.includes('<option value="health">'), "new listings are tagged and the kits page can sort by stars and health");
+  must(kitsHtml.includes('class="cflag fresh">New</span>') && kitsHtml.includes('<option value="stars">') && kitsHtml.includes('<option value="health">'), "new listings are tagged and the kits page can sort by stars and health");
   const lp = walk(join(out, "l")).filter((f) => f.endsWith("index.html")).map((f) => readFileSync(f, "utf8")).find((h) => h.includes("Health score:"));
   must(!!lp && lp.includes("<table class=\"health\">") && lp.includes("Licence: MIT") && lp.includes("stars are not part of it"), "a listing page shows the score and every point behind it");
 }
@@ -58,7 +58,7 @@ must(htmlFiles.length === 24, `expected 23 earlier pages plus the removal log = 
 {
   const home0 = readFileSync(join(out, "index.html"), "utf8");
   must(existsSync(join(out, "fonts", "bricolage-grotesque.woff2")) && existsSync(join(out, "fonts", "OFL.txt")) && home0.includes('rel="preload" href="./fonts/bricolage-grotesque.woff2"') && readFileSync(join(out, "style.css"), "utf8").includes("@font-face"), "the heading font ships with its licence, from this site, and is preloaded");
-  must(!home0.includes('class="eyebrow"') && !home0.includes('class="stats"') && !home0.includes('class="trust"') && home0.includes('class="receipts"') && home0.includes("Read at"), "the home page leads with real listings (what was read, at which commit) and has no eyebrow, stats row or icon cards");
+  must(!home0.includes('class="eyebrow"') && !home0.includes('class="stats"') && !home0.includes('class="trust"') && home0.includes('class="stack"') && home0.includes("Start here") && (home0.includes("Read at") || home0.includes("Changed since review")),"the home page leads with covers and shelves of real listings (what was read, at which commit) and has no eyebrow, stats row or icon cards");
   must(!/border-(left|right):\s*[2-9]px solid var\(--(warn|spark|accent|bad)\)/.test(readFileSync(join(out, "style.css"), "utf8")), "no coloured stripe on the side of a callout or card");
 }
 {
@@ -84,8 +84,8 @@ const skillsPage = readFileSync(join(out, "kits/skills/index.html"), "utf8");
 const commHtml = readFileSync(join(out, "l/o-comm/index.html"), "utf8"), recHtml = readFileSync(join(out, "l/o-rec/index.html"), "utf8");
 must(recHtml.includes("What the check found") && recHtml.includes("42 files read") && recHtml.includes("Look closer") && recHtml.includes("3 lines &amp; more") && recHtml.includes("does not mean the kit is unsafe"), "a listing page shows what the check found, escaped, with the plain meaning of the words");
 must(commHtml.includes("What the check found") && commHtml.includes("were not saved for this listing yet"), "a listing without the record says so instead of hiding the section");
-must(skillsPage.includes('href="../../l/o-comm/"') && skillsPage.includes("Listed") && !skillsPage.includes(`class="kind pick"`) && skillsPage.includes("by someone"), "a community listing shows on its type page as a listed kit, linking to its own page");
-must(/href="https:\/\/github\.com\/o\/comm" rel="noopener noreferrer"/.test(commHtml) && commHtml.includes("Submitted by its author") && commHtml.includes("not built by Praxikit") && commHtml.includes("<code>aaaaaaa</code>") && commHtml.includes("Review receipt"), "its page links to GitHub safely and carries the review receipt with the reviewed commit");
+must(skillsPage.includes('href="../../l/o-comm/"') && skillsPage.includes('data-src="listed"') && !skillsPage.includes('class="cflag pick"') && skillsPage.includes("by someone"), "a community listing shows on its type page as a listed kit, linking to its own page");
+must(/href="https:\/\/github\.com\/o\/comm" rel="noopener noreferrer"/.test(commHtml) && commHtml.includes("Submitted by its author") && commHtml.includes("not built by Praxikit") && commHtml.includes("<code>aaaaaaa</code>") && commHtml.includes("Check facts"), "its page links to GitHub safely and carries the review receipt with the reviewed commit");
 const mcpPage = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
 must(mcpPage.includes("My pick") && mcpPage.includes('class="pick-note"') && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("l/o-rec/") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
 must(idx.includes("Changed since review") && recHtml.includes('href="https://github.com/o/rec/compare/' + SHA + '...HEAD"'), "a listing whose repository moved on says so, and its page links to the comparison");
@@ -107,8 +107,8 @@ const sub = readFileSync(join(out, "submit/index.html"), "utf8");
 must(!sub.includes("template=suggest-kit.yml") && !sub.includes("template=recommend.yml"), "submitting is the form on the site; the old issue forms are gone");
 // routes: the home page shows a few kits and links on to pages instead of holding everything
 must(idx.includes('href="kits/"') && idx.includes('href="kits/plugins/"') && idx.includes('href="kits/skills/"') && idx.includes('href="kits/mcp/"') && idx.includes('href="kits/other/"'), "home must link to the kits page and each type page");
-must(idx.includes('href="kits/"') && idx.includes('href="kits/?show=pick"') && idx.includes('href="submit/"') && !idx.includes('href="updates/"') && !idx.includes('href="picks/"') && idx.includes("<body data-home data-root=\"./\" data-app=\"\">"), "home links to kits, the picks filter and submit, and no longer to Updates or Picks pages");
-must((idx.match(/<li class="card[ "]/g) ?? []).length <= 3 + 3, "home should show at most three kits (and three picks)");
+must(idx.includes('href="kits/"') && idx.includes('href="kits/?show=built"') && idx.includes('href="submit/"') && !idx.includes('href="updates/"') && !idx.includes('href="picks/"') && idx.includes("<body data-home data-root=\"./\" data-app=\"\">"), "home links to kits, the picks filter and submit, and no longer to Updates or Picks pages");
+must((idx.match(/<li class="card[ "]/g) ?? []).length <= 6 + 8, "home shows at most six kits to start with and eight recent listings");
 const pol = readFileSync(join(out, "policy/index.html"), "utf8");
 must(pol.includes("security/advisories/new") && pol.includes("template=report-listing.yml") && pol.includes('href="../removals/"') &&pol.includes("not a safety guarantee") && pol.includes("one maintainer"), "policy page needs the private channel, the report form, the removal log and honest limits");
 must(pol.includes("The reviewed commit is not what you install"), "the policy must say that installs follow the author's latest version, not the reviewed commit");
@@ -139,7 +139,7 @@ execFileSync("node", [join(here, "build.mjs"), "--root", root2, "--out", join(ro
 const few = readFileSync(join(root2, "out", "index.html"), "utf8");
 must(few.includes('class="card"') && !few.includes('id="q"'), "few kits show cards and no search box");
 must(!/<img src=x/.test(few) && few.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "card is not escaped");
-must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('class="name"') && !readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('id="q"'), "with one kit the kits page shows a card and no search");
+must(readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('class="cover"') && !readFileSync(join(root2, "out", "kits", "index.html"), "utf8").includes('id="q"'), "with one kit the kits page shows a card and no search");
 
 // tags, search and the submit form
 {

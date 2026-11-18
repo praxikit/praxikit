@@ -425,6 +425,40 @@ const SITE_JS = `
     }).catch(function () {});
   }
 
+  // ---- keyboard: j and k move through the covers, s saves the one in focus, ? lists the keys
+  var keysBox = document.getElementById("keys");
+  function typing(t) { var n = t && t.tagName ? String(t.tagName).toLowerCase() : ""; return n === "input" || n === "textarea" || n === "select" || !!(t && t.isContentEditable); }
+  function toggleKeys(open) {
+    if (!keysBox) return;
+    var on = typeof open === "boolean" ? open : keysBox.hasAttribute("hidden");
+    if (on) keysBox.removeAttribute("hidden"); else keysBox.setAttribute("hidden", "");
+    var opener = document.getElementById("keys-open"); if (opener) opener.setAttribute("aria-expanded", String(on));
+    if (on) { var close = document.getElementById("keys-close"); if (close && close.focus) close.focus(); }
+  }
+  var keysOpen = document.getElementById("keys-open"), keysClose = document.getElementById("keys-close");
+  if (keysOpen) keysOpen.addEventListener("click", function () { toggleKeys(true); });
+  if (keysClose) keysClose.addEventListener("click", function () { toggleKeys(false); if (keysOpen && keysOpen.focus) keysOpen.focus(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Escape" && keysBox && !keysBox.hasAttribute("hidden")) { toggleKeys(false); return; }
+    if (typing(e.target)) return;
+    if (e.key === "?") { e.preventDefault(); toggleKeys(); return; }
+    if (e.key === "j" || e.key === "k") {
+      var covers = [].slice.call(document.querySelectorAll("li[data-card]:not([hidden]) a.cover"));
+      if (!covers.length) return;
+      var at = covers.indexOf(document.activeElement), next = e.key === "j" ? at + 1 : (at < 0 ? covers.length - 1 : at - 1);
+      if (next < 0 || next >= covers.length) return;
+      e.preventDefault();
+      covers[next].focus();
+      try { covers[next].scrollIntoView({ block: "center", inline: "nearest" }); } catch (x) {}
+      return;
+    }
+    if (e.key === "s" && document.activeElement && document.activeElement.closest && root.hasAttribute("data-in")) {
+      var card = document.activeElement.closest("li[data-card]"), saveBtn = card ? card.querySelector("[data-save]") : null;
+      if (saveBtn) { e.preventDefault(); saveBtn.click(); }
+    }
+  });
+
   // ---- community: counts on cards, and "helped me" with short notes on a kit's own page
   function apiCall(path, method, form) {
     var init = { method: method || "GET", credentials: "same-origin", headers: { Accept: "application/json" } };
@@ -748,7 +782,8 @@ ${head}
 <main id="main">
 ${body}
 </main>
-<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>A catalogue of kits for AI coding agents.<br>Free, open source, MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}about/">About</a>${APP ? `<a href="${esc(APP)}/contributors">Contributors</a>` : ""}<a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a></div></div></footer>
+<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>A catalogue of kits for AI coding agents.<br>Free, open source, MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}about/">About</a>${APP ? `<a href="${esc(APP)}/contributors">Contributors</a>` : ""}<a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a><button type="button" class="linklike" id="keys-open" aria-expanded="false" aria-controls="keys">Keyboard shortcuts</button></div></div></footer>
+<div class="keys" id="keys" role="dialog" aria-labelledby="keys-h" hidden><div class="keys-in"><h2 id="keys-h">Keyboard shortcuts</h2><dl><dt><kbd>/</kbd></dt><dd>Search</dd><dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next and previous kit</dd><dt><kbd>Enter</kbd></dt><dd>Open the kit in focus</dd><dt><kbd>s</kbd></dt><dd>Save the kit in focus (when signed in)</dd><dt><kbd>?</kbd></dt><dd>Show or hide this list</dd><dt><kbd>Esc</kbd></dt><dd>Close this list</dd></dl><p><button type="button" id="keys-close">Close</button></p></div></div>
 <script src="${up}site.js?v=${hashStr(SITE_JS)}" defer data-site></script>
 </body>
 </html>
@@ -856,20 +891,69 @@ const REPOICON = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusab
 /** An icon link out to the repository, for the top corner of a card. */
 const repoLink = (href, label) => `<a class="icon-act" href="${esc(href)}" rel="noopener noreferrer" aria-label="${esc(label)}" title="Open the repository on GitHub">${REPOICON}</a>`;
 
+// ---------- covers: every kit gets a cover in its type's colour, made from its name ----------
+const COVER_BASE = { plugin: "#5b3df5", skill: "#d9480f", mcp: "#00796b", template: "#c2255c", agent: "#9a6700", hook: "#3a4a8c", adapter: "#2f6f1f" };
+const hnum = (t) => { let h = 7; for (let i = 0; i < String(t).length; i++) h = (h * 31 + String(t).charCodeAt(i)) >>> 0; return h; };
+function hexToHsl(hex) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min, l = (max + min) / 2;
+  let h = 0, sat = 0;
+  if (d) { sat = d / (1 - Math.abs(2 * l - 1)); h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; if (h < 0) h += 360; }
+  return [h, sat, l];
+}
+function hslToHex(h, sat, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * sat, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+  const [r, g, bl] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return "#" + [r, g, bl].map((v) => Math.round((v + m) * 255).toString(16).padStart(2, "0")).join("");
+}
+const lumOf = (hex) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(parseInt(hex.slice(1, 3), 16)) + 0.7152 * f(parseInt(hex.slice(3, 5), 16)) + 0.0722 * f(parseInt(hex.slice(5, 7), 16)); };
+/** The type's colour, nudged a little by the name so eighteen MCP configs are not one block of green. White text on it stays at 4.5:1 or better. */
+function coverColour(kind, name) {
+  const [h, sat, l0] = hexToHsl(COVER_BASE[kind] ?? COVER_BASE.plugin), n = hnum(name);
+  let col = hslToHex((h + (((n % 7) - 3) * 11) + 360) % 360, Math.min(0.95, sat * (0.85 + ((n >> 3) % 4) * 0.08)), Math.max(0.2, Math.min(0.42, l0 + (((n >> 5) % 5) - 2) * 0.025)));
+  let l = l0;
+  while ((1.05) / (lumOf(col) + 0.05) < 4.5 && l > 0.12) { l -= 0.02; col = hslToHex(h, sat, l); }
+  return col;
+}
+function coverArt(name) {
+  const n = hnum(name), p = n % 6;
+  const W = (extra) => `fill="#fff" fill-opacity="${extra}"`;
+  const parts = [
+    `<g fill="none" stroke="#fff" stroke-opacity=".26" stroke-width="3"><circle cx="86" cy="52" r="20"/><circle cx="86" cy="52" r="36"/><circle cx="86" cy="52" r="52"/><circle cx="86" cy="52" r="68"/></g>`,
+    `<g stroke="#fff" stroke-opacity=".24" stroke-width="5">${Array.from({ length: 12 }, (_, i) => `<path d="M${-20 + i * 16} 160L${60 + i * 16} 0"/>`).join("")}</g>`,
+    `<g ${W(".24")}>${Array.from({ length: 12 }, (_, i) => ((n >> i) & 1 ? `<rect x="${12 + (i % 3) * 32}" y="${14 + Math.floor(i / 3) * 24}" width="24" height="18" rx="5"/>` : "")).join("")}</g>`,
+    `<g ${W(".28")}>${Array.from({ length: 36 }, (_, i) => `<circle cx="${14 + (i % 6) * 20}" cy="${16 + Math.floor(i / 6) * 17}" r="${2 + ((n >> (i % 20)) & 3)}"/>`).join("")}</g>`,
+    `<g fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3">${Array.from({ length: 6 }, (_, i) => `<path d="M0 ${24 + i * 14}Q30 ${8 + i * 14} 60 ${24 + i * 14}T120 ${24 + i * 14}"/>`).join("")}</g>`,
+    `<g ${W(".22")}><path d="M0 160L60 70 120 160z"/><path d="M40 160L96 96 120 124V160z" fill-opacity=".18"/><circle cx="92" cy="40" r="16"/></g>`,
+  ];
+  return `<svg viewBox="0 0 120 160" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">${parts[p]}</svg>`;
+}
+const BUILT_MARK = `<svg class="bm" viewBox="-4 -1 30 32" aria-hidden="true" focusable="false">${mark("#ffffff", "#ffffff")}</svg>`;
+/** The cover itself: a link to the kit's page. Type, any flags, the name and the health score are its text. */
+function coverLink({ href, kind, name, flags = "", health = null, builtMark = false, plain = false }) {
+  const label = KIND_LABEL[kind] ?? kind;
+  const inner = `${coverArt(name)}<span class="ct">${esc(label)}</span>${flags}${builtMark ? BUILT_MARK : ""}<span class="cn">${esc(name)}</span>${health != null ? `<span class="seal"><span class="vh">Health score </span>${health}</span>` : ""}`;
+  const style = `--c:${coverColour(KIND_LABEL[kind] ? kind : "plugin", name)}`;
+  return plain ? `<div class="cover" style="${style}">${inner}</div>` : `<a class="cover" href="${esc(href)}" style="${style}">${inner}</a>`;
+}
+const starLine = (l) => { const m = METRICS[l.url]; return m ? `<span class="stars" title="GitHub stars (not part of the health score)">${STAR}<span>${esc(fmtStars(m.stars))}</span></span>` : ""; };
+
 function extCard(l, up) {
   const d = driftOf(l), m = METRICS[l.url], h = healthOf(l);
   const groups = [slug(KIND_LABEL[l.kind] ?? l.kind), l.pick ? "picks" : "listed"].join(" ");
   const text = [l.name, l.why, l.note ?? "", l.author, l.kind, l.source, ...tagsOf(l)].join(" ").toLowerCase();
   const page = `${up}${lpath(l)}`;
+  const flags = `${l.pick ? '<span class="cflag pick">My pick</span>' : ""}${isNew(l.added, TODAY) ? '<span class="cflag fresh">New</span>' : ""}${d.warn ? `<span class="cflag warn">${esc(d.short)}</span>` : ""}`;
   return `<li class="card" data-kind="${KIND_LABEL[l.kind] ? l.kind : "plugin"}" data-card data-src="${l.pick ? "pick" : "listed"}" data-name="${esc(l.name.toLowerCase())}" data-date="${esc(l.added)}" data-stars="${m ? m.stars : 0}" data-health="${h ? h.score : 0}" data-tags="${esc(tagsOf(l).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
-<div class="card-head"><div class="meta-line">${l.pick ? '<span class="kind pick">My pick</span>' : '<span class="kind ext">Listed</span>'}<span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span>${isNew(l.added, TODAY) ? '<span class="kind fresh">New</span>' : ""}${d.badge}</div><div class="card-tools">${repoLink(l.url, `Open ${l.name} on GitHub`)}${saveLink(l.url, l.name)}</div></div>
-<h3><a class="name" href="${esc(page)}">${esc(l.name)}</a></h3>
-<p class="byline">by ${esc(l.author)}</p>
-${signals(l)}<p class="promise">${esc(l.why)}</p>
+${coverLink({ href: page, kind: l.kind, name: l.name, flags, health: h ? h.score : null })}
+<div class="cap">
+<p class="byline">by ${esc(l.author)}${starLine(l) ? ` · ${starLine(l)}` : ""}</p>
+<p class="promise">${esc(l.why)}</p>
+${l.pick ? `<p class="pick-note">${esc(l.note)}</p>` : ""}
 ${tagChips(l, up, 3)}
 ${APP ? `<p class="stat" data-stat="${esc(l.url)}" hidden></p>` : ""}
-${l.pick ? `<p class="pick-note">${esc(l.note)}</p>` : ""}
-<div class="card-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>${d.warn ? esc(d.short) : "Read at"} <code>${esc(l.commit.slice(0, 7))}</code></span></span></div>
+<div class="cap-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>${d.warn ? esc(d.short) : "Read at"} <code>${esc(l.commit.slice(0, 7))}</code></span></span><span class="card-tools">${repoLink(l.url, `Open ${l.name} on GitHub`)}${saveLink(l.url, l.name)}</span></div>
+</div>
 </li>`;
 }
 
@@ -881,26 +965,32 @@ function card(k, up) {
   const groups = [slug(kindOf(k)), ...k.collections.map(slug)].join(" ");
   const text = [k.name, k.promise, ...(k.tags ?? []), ...k.collections, kindOf(k)].join(" ").toLowerCase();
   return `<li class="card" data-kind="${KIND_LABEL[k.kind] ? k.kind : "plugin"}" data-card data-src="built" data-stars="0" data-health="0" data-name="${esc(k.name.toLowerCase())}" data-date="${esc(latest || "")}" data-tags="${esc(tagsOf(k).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
-<div class="card-head"><div class="meta-line"><span class="kind">${esc(kindOf(k))}</span><span class="ver">v${esc(k.version)}</span></div><div class="card-tools">${repoLink(`${REPO}/tree/main/kits/${k.name}`, `Open ${k.name} on GitHub`)}${saveLink(`k/${k.name}/`, k.name)}</div></div>
-<h3><a class="name" href="${up}k/${esc(k.name)}/">${esc(k.name)}</a></h3>
-<p class="byline">by Praxikit</p>
+${coverLink({ href: `${up}k/${k.name}/`, kind: k.kind, name: k.name, builtMark: true })}
+<div class="cap">
+<p class="byline">by Praxikit · <span class="ver">v${esc(k.version)}</span></p>
 <p class="promise">${esc(k.promise)}</p>
 ${tagChips(k, up, 3)}
 ${APP ? `<p class="stat" data-stat="k/${esc(k.name)}/" hidden></p>` : ""}
-<div class="card-foot"><span class="muted">${esc(bits)}${bits && latest ? " · " : ""}${latest ? `<span class="nowrap">updated ${esc(latest)}</span>` : ""}</span><span class="receipt" title="Built and read by the owner. No second person has reviewed it yet.">${SHIELD}<span>Built here, no second reviewer yet</span></span></div>
+<div class="cap-foot"><span class="receipt" title="Built and read by the owner. No second person has reviewed it yet.">${SHIELD}<span>Built here${bits ? `, ${esc(bits)}` : ""}${latest ? `, updated ${esc(latest)}` : ""}</span></span><span class="card-tools">${repoLink(`${REPO}/tree/main/kits/${k.name}`, `Open ${k.name} on GitHub`)}${saveLink(`k/${k.name}/`, k.name)}</span></div>
+</div>
 </li>`;
 }
 
 const FOUND_TITLES = { shape: "Recognisable kit contents", licence: "Licence", secrets: "Secret-like strings", autorun: "Runs automatically", network: "Network access in code", exec: "Runs other programs or code", instructions: "Commands in agent instructions", odd: "Binaries, hidden instructions, obfuscation", size: "Size" };
 const FOUND_WORDS = { pass: "Pass", flag: "Look closer", fail: "Fail" };
-/** What each automatic check found at the commit that was read, with the plain meaning of the words used. */
-function foundSection(l) {
-  const f = l.found;
-  if (!f) return `<section id="found"><h2>What the check found</h2><p>An automatic check read this repository before it was listed, and a person read the result (${esc(CHECK_WORDS[l.checks] ?? l.checks)}). The detailed results were not saved for this listing yet.</p></section>`;
-  const rows = f.checks.map((c) => `<tr><th scope="row">${esc(FOUND_TITLES[c.id] ?? c.id)}</th><td class="res res-${esc(c.status)}">${esc(FOUND_WORDS[c.status] ?? c.status)}</td><td>${esc(c.note)}</td></tr>`).join("");
-  return `<section id="found"><h2>What the check found</h2>
-<p class="muted">${esc(String(f.files))} files read at commit <code>${esc(l.commit.slice(0, 7))}</code>, then read by a person before it was listed on ${esc(l.added)}. <strong>Look closer</strong> means a pattern turned up that a human has to judge, such as network calls in code. It does not mean the kit is unsafe, and <strong>Pass</strong> does not mean it is safe.</p>
-<div class="table-wrap"><table class="plain-table"><thead><tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">Detail</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+/** The label on the back: the receipt (what was read, when, by whom) and what each check found, in one place. */
+function labelSection(l, d) {
+  const f = l.found, h = healthOf(l);
+  const commitUrl = `${l.url}/commit/${l.commit}`;
+  const row = (name, value, cls = "") => `<div class="lrow${cls}"><span>${name}</span><span>${value}</span></div>`;
+  const checks = f
+    ? `<h3>What the check found</h3>${f.checks.map((c) => `<div class="lrow res-${esc(c.status)}"><span>${esc(FOUND_TITLES[c.id] ?? c.id)}${c.note ? `<small>${esc(c.note)}</small>` : ""}</span><span>${esc(FOUND_WORDS[c.status] ?? c.status)}</span></div>`).join("")}<p class="lfoot">${esc(String(f.files))} files read at commit <code>${esc(l.commit.slice(0, 7))}</code>, then read by a person before it was listed on ${esc(l.added)}. <strong>Look closer</strong> means a pattern turned up that a human has to judge, such as network calls in code. It does not mean the kit is unsafe, and <strong>Pass</strong> does not mean it is safe.</p>`
+    : `<h3>What the check found</h3><p class="lfoot">An automatic check read this repository before it was listed, and a person read the result (${esc(CHECK_WORDS[l.checks] ?? l.checks)}). The detailed results were not saved for this listing yet.</p>`;
+  return `<section class="checklabel" id="found"><h2>Check facts</h2>
+${row("Commit read", `<a href="${esc(commitUrl)}" rel="noopener noreferrer"><code>${esc(l.commit.slice(0, 7))}</code></a>`, " big")}${h ? row("Health score", `${h.score} / 100`, " big") : ""}
+${row("Status", d.warn ? `<strong>${esc(d.short)}</strong>` : "Unchanged since it was read")}${row("Listed on", esc(l.added))}${row("Put forward by", `<span data-credit="${esc(sourceWord(l))}">${esc(sourceWord(l))}</span>`)}
+${d.warn ? `<p class="lfoot">${d.note.trim()}</p>` : ""}${checks}
+<p class="lfoot">Installs follow the author's latest version, which can differ from the commit that was read. A daily check marks the listing if the repository moves on. <a href="../../policy/#report">Report a problem with this listing</a></p></section>`;
 }
 
 /** The health score and where every point came from, so the number can be checked. */
@@ -914,33 +1004,25 @@ function healthSection(l) {
 }
 
 function listingPage(l, all) {
-  const d = driftOf(l);
-  const related = all.filter((x) => x.url !== l.url && tagsOf(x).some((t) => tagsOf(l).includes(t))).slice(0, 3);
-  const commitUrl = `${l.url}/commit/${l.commit}`;
+  const d = driftOf(l), h = healthOf(l);
+  const related = all.filter((x) => x.url !== l.url && tagsOf(x).some((t) => tagsOf(l).includes(t))).slice(0, 4);
+  const flags = `${l.pick ? '<span class="cflag pick">My pick</span>' : ""}${isNew(l.added, TODAY) ? '<span class="cflag fresh">New</span>' : ""}`;
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../../">Home</a> / <a href="../../kits/">Kits</a> / ${esc(KIND_LABEL[l.kind] ?? l.kind)}</p>
+<div class="prod">
+<div class="prod-cover">${coverLink({ kind: l.kind, name: l.name, flags, health: h ? h.score : null, plain: true })}
+<p class="actions"><a class="btn" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a>${APP ? saveLink(l.url, l.name, true) : ""}</p></div>
+<div class="prod-main">
 <h1>${esc(l.name)}</h1>
-<p class="meta-line">${l.pick ? '<span class="kind pick">My pick</span>' : '<span class="kind ext">Listed</span>'}<span class="kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span>${isNew(l.added, TODAY) ? '<span class="kind fresh">New</span>' : ""}${d.badge}<span>by ${esc(l.author)}, not built by Praxikit</span></p>
+<p class="meta-line">${d.badge}<span>by ${esc(l.author)}, not built by Praxikit · ${esc(KIND_LABEL[l.kind] ?? l.kind)}</span></p>
 <p class="lead">${esc(l.why)}</p>
 ${signals(l)}${tagChips(l, "../../")}
-<p class="actions"><a class="btn" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a>${APP ? saveLink(l.url, l.name, true) : ""}</p>
-<div class="two listing-two">
-<div class="main-col">
+${labelSection(l, d)}
 ${l.pick ? `<section><h2>How I use it</h2><p class="pick-note big">${esc(l.note)}</p><p class="muted">This is one of the owner's picks: a kit made by someone else that they use themselves.</p></section>` : `<section><h2>Why it is listed</h2><p>${esc(sourceWord(l))}. It was scanned automatically and read by a person before it was listed. Listing is not an endorsement.</p></section>`}
-${foundSection(l)}
 ${healthSection(l)}
 <section><h2>What the review covers</h2>
 <p>The automatic check reads the repository without running or installing anything and reports its licence, secret-like strings, code that runs automatically, network access, binaries and hidden instructions. A person then reads the report. It never says a kit is safe: read the code before you give it access to anything that matters. <a href="../../policy/">How listings work</a>.</p></section>
-${related.length ? `<section><h2>More like this</h2><ul class="cards few-3">${related.map((r) => card(r, "../../")).join("")}</ul></section>` : ""}
-</div>
-<aside class="side"><div class="panel"><h2>Review receipt</h2>
-<dl><dt>Status</dt><dd>${d.warn ? `<strong>${esc(d.short)}</strong>.${d.note}` : "Unchanged since it was read"}</dd>
-<dt>Commit read</dt><dd><a href="${esc(commitUrl)}" rel="noopener noreferrer"><code>${esc(l.commit.slice(0, 7))}</code></a></dd>
-<dt>Automatic check</dt><dd>${esc(CHECK_WORDS[l.checks] ?? l.checks)}</dd>
-<dt>Listed on</dt><dd>${esc(l.added)}</dd>
-<dt>Put forward by</dt><dd data-credit="${esc(sourceWord(l))}">${esc(sourceWord(l))}</dd></dl>
-<p class="muted">Installs follow the author's latest version, which can differ from the commit that was read. A daily check marks the listing if the repository moves on.</p>
-<p class="side-links"><a href="../../policy/#report">Report a problem with this listing</a></p></div></aside>
-</div>
+</div></div>
+${related.length ? `<section class="sec-inner"><h2>More like this</h2><ul class="cards">${related.map((r) => card(r, "../../")).join("")}</ul></section>` : ""}
 ${communityBlock(l.url)}</div>`;
   return page({ title: `${l.name} — Praxikit`, depth: 2, body, canonical: `${HOME_URL}${lpath(l)}`, description: l.why,
     ld: { "@context": "https://schema.org", "@type": "SoftwareSourceCode", name: l.name, description: l.why, codeRepository: l.url, author: { "@type": "Person", name: l.author }, url: `${HOME_URL}${lpath(l)}` } });
@@ -1001,25 +1083,32 @@ function homePage(kits, picks) {
   const dates = kits.map((k) => (k.ext ? k.added : dateOf(k.changelog?.[0]?.head))).filter(Boolean).sort();
   const updated = dates[dates.length - 1] ?? "";
 
-  const recent = kits.filter((k) => k.ext).slice().sort((x, y) => String(y.added).localeCompare(String(x.added))).slice(0, 4);
-  const receiptRows = recent.map((l) => { const m = METRICS[l.url], h = healthOf(l); return `<li><a class="receipt-row" href="${lpath(l)}"><span class="rr-name">${esc(l.name)}</span><span class="rr-kind">${esc(KIND_LABEL[l.kind] ?? l.kind)}</span><span class="rr-meta"><span>Read at <code>${esc(l.commit.slice(0, 7))}</code></span>${m ? `<span>${esc(licenceWord(m.licence))}</span>` : ""}${h ? `<span class="score ${h.level}">Health ${h.score}</span>` : ""}</span></a></li>`; }).join("");
   const builtKits = kits.filter((k) => !k.ext);
+  const listed = kits.filter((k) => k.ext);
+  const newest = listed.slice().sort((x, y) => String(y.added).localeCompare(String(x.added)) || x.name.localeCompare(y.name)).slice(0, 8);
+  const start = [...builtKits, ...picks].slice(0, 6);
+  const bestHealth = listed.slice().sort((x, y) => (healthOf(y)?.score ?? 0) - (healthOf(x)?.score ?? 0))[0];
+  const stackItems = [builtKits[0], picks[0], bestHealth].filter((x, i, arr) => x && arr.findIndex((y) => y && y.name === x.name) === i);
+  const stack = stackItems.map((x) => (x.url
+    ? coverLink({ href: `${lpath(x)}`, kind: x.kind, name: x.name, health: healthOf(x)?.score ?? null })
+    : coverLink({ href: `k/${x.name}/`, kind: x.kind, name: x.name, builtMark: true }))).join("");
+  const shelfRow = (list) => `<ul class="cards shelf">${list.map((k) => (k.url ? extCard(k, "./") : card(k, "./"))).join("")}</ul>`;
+  const typeChips = GROUPS.map((g) => { const n = inGroup(kits, g).length; return `<li><a class="chip-link" href="kits/${g.id}/">${esc(g.label)} <span class="count">${n}</span></a></li>`; }).join("");
   const body = `
 <section class="hero"><div class="wrap hero-in">
 <div class="hero-text">
-<h1>Kits for AI coding agents, read before you trust.</h1>
+<h1>Pick a kit. Read the label.</h1>
 <p class="lead">Kits are plugins, skills and MCP servers that give AI coding agents new abilities. Each one here was scanned, then read by a person. Its page shows the commit that was read and what the check found.</p>
-<div class="hero-install"><span class="label">Add the marketplace in Claude Code</span>${install(["/plugin marketplace add praxikit/praxikit"])}</div>
 <p class="actions"><a class="btn" href="kits/">Browse ${kits.length} kits</a><a class="btn ghost" href="submit/">Submit a kit</a></p>
+<div class="hero-install"><span class="label">Add the marketplace in Claude Code</span>${install(["/plugin marketplace add praxikit/praxikit"])}</div>
 </div>
-${receiptRows ? `<div class="hero-receipts"><h2 class="sub">Recently listed</h2><ul class="receipts">${receiptRows}</ul><p class="receipts-more"><a href="kits/">All kits</a></p></div>` : ""}
+${stack ? `<div class="stack" aria-label="Some kits">${stack}</div>` : ""}
 </div></section>
 
-${builtKits.length ? `<section class="wrap sec"><div class="sec-head"><h2>Built here</h2><a class="viewall" href="kits/?show=built">All built kits</a></div>${listHtml(builtKits.slice(0, 3), "./")}</section>` : ""}
+${start.length ? `<section class="wrap sec"><div class="sec-head"><h2>Start here</h2><a class="viewall" href="kits/?show=built">Built here</a></div>${shelfRow(start)}</section>` : ""}
 
-${picks.length ? `<section class="wrap sec"><div class="sec-head"><h2>My picks</h2><a class="viewall" href="kits/?show=pick">All picks</a></div><ul class="cards">${picks.slice(0, 3).map((r) => recCard(r)).join("")}</ul></section>` : ""}
-
-<section class="wrap sec"><h2>Browse by type</h2><ul class="typelist">${rows}</ul></section>
+<section class="wrap sec"><div class="sec-head"><h2>Recently listed</h2><a class="viewall" href="kits/?sort=new">All ${plural(kits.length, "kit")}</a></div>${shelfRow(newest)}
+<ul class="chiprow" aria-label="Browse by type">${typeChips}</ul></section>
 
 <section class="wrap sec"><h2>How a kit gets listed</h2>
 <ol class="plain-steps">

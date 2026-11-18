@@ -38,11 +38,13 @@ class El {
 }
 
 /** One fake page. `hint` says whether the sign-in hint cookie is present; `me` is what /api/me answers (null = 401). */
-async function run({ cachedMe = null, hint = false, me = null, saved = [], dark = false, kits = false, search = "", community = null, counts = null, statKeys = [], creditEl = null, home = null }) {
+async function run({ cachedMe = null, hint = false, me = null, saved = [], dark = false, kits = false, search = "", community = null, counts = null, statKeys = [], creditEl = null, home = null, keys = false }) {
   const calls = [], docListeners = {}, ids = {};
   const root = new El("html"), body = new El("body");
   body.attrs = { "data-root": "/", "data-app": "https://praxikit.com" };
   for (const id of ["theme", "menu-toggle", "acct", "site-q"]) ids[id] = new El(id === "site-q" ? "input" : "button");
+  const coverEls = keys ? [0, 1, 2].map((i) => { const c = new El("a"); c.focus = () => { doc.activeElement = c; }; c.scrollIntoView = () => {}; c.attrs.id = "c" + i; return c; }) : [];
+  if (keys) { ids.keys = new El("div"); ids.keys.attrs.hidden = ""; ids["keys-open"] = new El("button"); ids["keys-close"] = new El("button"); ids["keys-close"].focus = () => { doc.activeElement = ids["keys-close"]; }; }
   ids["site-q"].value = ""; ids["site-q"].parentNode = new El("form");
   const header = new El("header"); header.className = "top";
   const nav = new El("nav");
@@ -68,7 +70,8 @@ async function run({ cachedMe = null, hint = false, me = null, saved = [], dark 
     documentElement: root, body, cookie: hint ? "praxikit-in=1" : "",
     getElementById: (id) => ids[id] ?? null,
     querySelector: (s) => (s === "header nav" ? nav : s === "header.top" ? header : s === "[data-credit]" ? creditEl : null),
-    querySelectorAll: (s) => (s === "[data-save]" ? [btn] : s === "[data-show]" ? (list.segs ?? []) : s === "[data-stat]" ? stats : []),
+    activeElement: null,
+    querySelectorAll: (s) => (s === "li[data-card]:not([hidden]) a.cover" ? coverEls : s === "[data-save]" ? [btn] : s === "[data-show]" ? (list.segs ?? []) : s === "[data-stat]" ? stats : []),
     createElement: (t) => new El(t),
     addEventListener: (t, f) => (docListeners[t] ??= []).push(f),
   };
@@ -165,6 +168,20 @@ async function run({ cachedMe = null, hint = false, me = null, saved = [], dark 
   must(changed.ids.acct.children[0]?.children[0]?.children.some((c) => c.textContent === "new"), "when the account is different from the remembered one, the menu shows the new account");
   const nohint = await run({ hint: false, cachedMe: { login: "ratul", id: 111, role: "admin" } });
   must(nohint.ids.acct.children[0] === nohint.signinLink && !nohint.root.hasAttribute("data-in"), "without the sign-in hint a remembered answer is ignored");
+}
+
+// ---- keyboard: j and k move through the covers, ? shows the keys, Escape closes them, typing is left alone
+{
+  const p = await run({ keys: true });
+  const press = (key, target = p.body) => { const ev = {}; for (const f of p.docListeners.keydown ?? []) f({ key, target, preventDefault() { ev.prevented = true; } }); return ev; };
+  const at = () => p.doc.activeElement?.attrs.id;
+  press("j"); must(at() === "c0", "j goes to the first kit");
+  press("j"); press("j"); must(at() === "c2", "j goes on to the next kits");
+  press("j"); must(at() === "c2", "j stops at the last kit");
+  press("k"); must(at() === "c1", "k goes back");
+  const typed = press("j", Object.assign(new El("input"), { tagName: "INPUT" })); must(at() === "c1" && typed.prevented !== true, "keys are ignored while typing in a field");
+  press("?"); must(!p.ids.keys.hasAttribute("hidden") && p.ids["keys-open"].getAttribute("aria-expanded") === "true", "? shows the list of keys");
+  press("Escape"); must(p.ids.keys.hasAttribute("hidden"), "Escape closes it");
 }
 
 // ---- the kits list: filter, show, sort, clear
