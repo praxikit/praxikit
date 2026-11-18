@@ -920,3 +920,7 @@ td.res-pass {
   justify-self: center;
 }
 }
+
+/* a listed kit's page: how to install */
+.howto p { max-width: 62ch; }
+.howto .btn { margin-top: var(--s1); }

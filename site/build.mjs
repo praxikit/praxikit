@@ -1017,6 +1017,17 @@ function healthSection(l) {
 <p class="muted">GitHub facts as of the last daily check: ${esc(fmtStars(m.stars))} stars, last push in the week of ${esc(m.pushed)}.</p></section>`;
 }
 
+const HOWTO = {
+  mcp: "This is an MCP server. Add it to your agent's MCP settings; the author's README has the exact entry and any keys it needs.",
+  skill: "This is a skill. The author's README says where to put it, usually your agent's skills folder.",
+  plugin: "This is a plugin. The author's README says how to install it.",
+  agent: "This is a set of agents. The author's README says where to put them.",
+  hook: "This is a hook. The author's README says how to enable it, and what it runs.",
+};
+function howtoSection(l) {
+  return `<section class="howto" id="install"><h2>How to install</h2><p>${esc(HOWTO[l.kind] ?? "Follow the install steps in the author's README.")} It is not in the Praxikit marketplace, so Praxikit does not install it for you.</p><p><a class="btn ghost" href="${esc(l.url)}#readme" rel="noopener noreferrer">Open the README on GitHub</a></p></section>`;
+}
+
 function listingPage(l, all) {
   const d = driftOf(l), h = healthOf(l);
   const related = all.filter((x) => x.url !== l.url && tagsOf(x).some((t) => tagsOf(l).includes(t))).slice(0, 4);
@@ -1031,6 +1042,7 @@ function listingPage(l, all) {
 <p class="lead">${esc(l.why)}</p>
 ${signals(l)}${tagChips(l, "../../")}
 ${labelSection(l, d)}
+${howtoSection(l)}
 ${l.pick ? `<section><h2>How I use it</h2><p class="pick-note big">${esc(l.note)}</p><p class="muted">This is one of the owner's picks: a kit made by someone else that they use themselves.</p></section>` : `<section><h2>Why it is listed</h2><p>${esc(sourceWord(l))}. It was scanned automatically and read by a person before it was listed. Listing is not an endorsement.</p></section>`}
 ${healthSection(l)}
 <section><h2>What the review covers</h2>
@@ -1089,6 +1101,17 @@ function typeNav(kits, up, current) {
 const recCard = (r, up = "./") => extCard(r, up);
 const releaseList = (items, up) => items.map(({ k, e, date, v }) => `<li><div class="feed-meta"><a href="${up}k/${esc(k.name)}/">${esc(k.name)} ${esc(v)}</a>${date ? `<time datetime="${esc(date)}">${esc(date)}</time>` : ""}</div><p>${md(short(e.bullets[0] ?? ""))}</p></li>`).join("");
 
+/** The two steps that install a kit built here, in Claude Code, with the first built kit as the example. Listed kits are installed from their author's repository. */
+function installPanel(example) {
+  const add = "/plugin marketplace add praxikit/praxikit", one = example?.install?.at(-1) ?? "";
+  return `<div class="install-panel" id="install"><p class="label">Install a kit built here</p>
+<ol class="install-steps">
+<li><span class="step-label">Add the marketplace, once</span>${copyCmd(add)}</li>
+${one ? `<li><span class="step-label">Install a kit, for example ${esc(example.name)}</span>${copyCmd(one)}</li>` : ""}
+</ol>
+<p class="muted">Type these in Claude Code. Cursor and other agents: open the kit's page for its steps. Kits by other people are installed from their author's repository; each page links to it.</p></div>`;
+}
+
 function homePage(kits, picks) {
   const featured = kits.slice(0, 3);
   const rows = GROUPS.map((g) => { const n = inGroup(kits, g).length; return `<li><a class="type-row" href="kits/${g.id}/"><span><strong>${esc(g.label)}</strong><span class="muted">${esc(g.blurb)}</span></span><span class="count-line">${n ? plural(n, "kit") : "None yet"}</span></a></li>`; }).join("");
@@ -1114,7 +1137,7 @@ function homePage(kits, picks) {
 <h1>Pick a kit. Read the label.</h1>
 <p class="lead">Kits are plugins, skills and MCP servers that give AI coding agents new abilities. Each one here was scanned, then read by a person. Its page shows the commit that was read and what the check found.</p>
 <p class="actions"><a class="btn" href="kits/">Browse ${kits.length} kits</a><a class="btn ghost" href="submit/">Submit a kit</a></p>
-<div class="hero-install"><span class="label">Add the marketplace in Claude Code</span>${install(["/plugin marketplace add praxikit/praxikit"])}</div>
+${installPanel(builtKits[0])}
 </div>
 ${stack ? `<div class="stack" aria-label="Some kits">${stack}</div>` : ""}
 </div></section>

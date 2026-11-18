@@ -75,6 +75,7 @@ must(htmlFiles.length === 24, `expected 23 earlier pages plus the removal log = 
 }
 {
   const home0 = readFileSync(join(out, "index.html"), "utf8");
+  must(home0.includes("Install a kit built here") && home0.includes('class="install-steps"') && (home0.match(/data-copy/g) || []).length >= 1, "the home page shows the install steps for kits built here, each with a copy button");
   must(home0.includes('<p class="credit">') && home0.includes("Built with") && home0.includes('href="https://github.com/royal-programmer" rel="noopener noreferrer"') && home0.includes('<a target="_blank" href="https://github.com/royal-programmer"') && home0.includes("(Ratul Roy)") && home0.includes("Search  (Ctrl K)"), "the footer carries a small credit with a safe link to the maker, and the search box names its shortcut");
   must(existsSync(join(out, "fonts", "bricolage-grotesque.woff2")) && existsSync(join(out, "fonts", "OFL.txt")) && home0.includes('rel="preload" href="./fonts/bricolage-grotesque.woff2"') && readFileSync(join(out, "style.css"), "utf8").includes("@font-face"), "the heading font ships with its licence, from this site, and is preloaded");
   must(!home0.includes('class="eyebrow"') && !home0.includes('class="stats"') && !home0.includes('class="trust"') && home0.includes('class="stack"') && home0.includes("Start here") && (home0.includes("Read at") || home0.includes("Changed since review")),"the home page leads with covers and shelves of real listings (what was read, at which commit) and has no eyebrow, stats row or icon cards");
@@ -101,6 +102,7 @@ must(idx.includes('href="./l/o-rec/"') && /<a target="_blank" class="icon-act" h
 must(!idx.includes('class="details"') && !idx.includes(">Details<") && !idx.includes("View details"), "cards have no action row: the whole card opens its page");
 const skillsPage = readFileSync(join(out, "kits/skills/index.html"), "utf8");
 const commHtml = readFileSync(join(out, "l/o-comm/index.html"), "utf8"), recHtml = readFileSync(join(out, "l/o-rec/index.html"), "utf8");
+must(recHtml.includes("How to install") && recHtml.includes("not in the Praxikit marketplace") && recHtml.includes("#readme"), "a listed kit says how to install it and that it is not in the marketplace");
 must(recHtml.includes("What the check found") && recHtml.includes("42 files read") && recHtml.includes("Look closer") && recHtml.includes("3 lines &amp; more") && recHtml.includes("does not mean the kit is unsafe"), "a listing page shows what the check found, escaped, with the plain meaning of the words");
 must(commHtml.includes("What the check found") && commHtml.includes("were not saved for this listing yet"), "a listing without the record says so instead of hiding the section");
 must(skillsPage.includes('href="../../l/o-comm/"') && skillsPage.includes('data-src="listed"') && !skillsPage.includes('class="cflag pick"') && skillsPage.includes("by someone"), "a community listing shows on its type page as a listed kit, linking to its own page");
