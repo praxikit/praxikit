@@ -439,6 +439,7 @@ const SITE_JS = `
   if (keysOpen) keysOpen.addEventListener("click", function () { toggleKeys(true); });
   if (keysClose) keysClose.addEventListener("click", function () { toggleKeys(false); if (keysOpen && keysOpen.focus) keysOpen.focus(); });
   document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === "/") { e.preventDefault(); toggleKeys(); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "Escape" && keysBox && !keysBox.hasAttribute("hidden")) { toggleKeys(false); return; }
     if (typing(e.target)) return;
@@ -713,9 +714,18 @@ const SITE_JS = `
     });
     box.addEventListener("keydown", function (e) { if (e.key === "Escape") { sug.hidden = true; box.blur(); } });
     document.addEventListener("click", function (e) { if (!box.parentNode.contains(e.target)) sug.hidden = true; });
+    if (/Mac|iPhone|iPad/.test(navigator.platform || "")) box.placeholder = "Search  (Cmd K)";
     document.addEventListener("keydown", function (e) {
-      var t = e.target && e.target.tagName;
-      if (e.key === "/" && t !== "INPUT" && t !== "TEXTAREA" && t !== "SELECT") { e.preventDefault(); box.focus(); }
+      var t = e.target && e.target.tagName, meta = e.ctrlKey || e.metaKey;
+      if (meta && !e.altKey && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        var top = document.querySelector("header.top"), mt = document.getElementById("menu-toggle");
+        if (top) top.setAttribute("data-open", "");
+        if (mt) mt.setAttribute("aria-expanded", "true");
+        box.focus(); if (box.select) box.select();
+        return;
+      }
+      if (e.key === "/" && !meta && t !== "INPUT" && t !== "TEXTAREA" && t !== "SELECT") { e.preventDefault(); box.focus(); }
     });
   }
   var results = document.getElementById("results");
@@ -773,7 +783,7 @@ ${head}
 <a class="skip" href="#main">Skip to content</a>
 <header class="top"><div class="wrap bar">
 <a class="brand" href="${up}" aria-label="Praxikit home">${LOGO}<span>Praxikit</span></a>
-<form class="site-search" role="search" action="${up}search/" method="get"><label class="vh" for="site-q">Search the catalogue</label><input id="site-q" name="q" type="search" placeholder="Search  ( / )" autocomplete="off" spellcheck="false" maxlength="100"></form>
+<form class="site-search" role="search" action="${up}search/" method="get"><label class="vh" for="site-q">Search the catalogue</label><input id="site-q" name="q" type="search" placeholder="Search  (Ctrl K)" autocomplete="off" spellcheck="false" maxlength="100"></form>
 <nav aria-label="Main" id="site-nav">${APP ? `<a class="admin-tab" href="${esc(APP)}/admin" data-nav data-admin-tab>Admin</a>` : ""}<a href="${up}kits/"${cur("kits")}>Kits</a>${APP ? `<a href="${esc(APP)}/contributors" data-nav>Contributors</a><a href="${esc(APP)}/requests" data-nav>Requests</a>` : ""}<a href="${up}submit/"${cur("submit")}>Submit</a>${APP ? `<a href="${esc(APP)}/collection" data-nav>My collection</a>` : ""}
 <button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false" title="Toggle dark mode"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg><span class="icon-label">Light or dark</span></button></nav>
 <div class="acct" id="acct">${APP ? `<a class="signin" href="${esc(APP)}/auth/login?mode=user">Sign in</a>` : ""}</div>
@@ -782,8 +792,8 @@ ${head}
 <main id="main">
 ${body}
 </main>
-<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>A catalogue of kits for AI coding agents.<br>Free, open source, MIT licence.</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}about/">About</a>${APP ? `<a href="${esc(APP)}/contributors">Contributors</a>` : ""}<a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a><button type="button" class="linklike" id="keys-open" aria-expanded="false" aria-controls="keys">Keyboard shortcuts</button></div></div></footer>
-<div class="keys" id="keys" role="dialog" aria-labelledby="keys-h" hidden><div class="keys-in"><h2 id="keys-h">Keyboard shortcuts</h2><dl><dt><kbd>/</kbd></dt><dd>Search</dd><dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next and previous kit (or row in a list)</dd><dt><kbd>Enter</kbd></dt><dd>Open the kit in focus</dd><dt><kbd>s</kbd></dt><dd>Save the kit in focus (when signed in)</dd><dt><kbd>?</kbd></dt><dd>Show or hide this list</dd><dt><kbd>Esc</kbd></dt><dd>Close this list</dd></dl><p><button type="button" id="keys-close">Close</button></p></div></div>
+<footer class="foot"><div class="wrap foot-in"><div><strong>Praxikit</strong><p>A catalogue of kits for AI coding agents.<br>Free, open source, MIT licence.</p><p class="credit">© ${esc(TODAY.slice(0, 4))} Praxikit. Built with <svg class="heart" viewBox="0 0 24 24" width="14" height="14" role="img" aria-label="love"><path d="M12 20.5C7 17 3 13.6 3 9.4 3 6.8 5 5 7.3 5c1.7 0 3.5 1 4.7 2.9C13.2 6 15 5 16.7 5 19 5 21 6.8 21 9.4c0 4.2-4 7.6-9 11.1z" fill="currentColor"/></svg> by <a href="https://github.com/royal-programmer" rel="noopener noreferrer">royal-programmer</a> (Ratul Roy)</p></div><div class="foot-links"><a href="${esc(REPO)}" rel="noopener noreferrer">Source</a><a href="${up}about/">About</a>${APP ? `<a href="${esc(APP)}/contributors">Contributors</a>` : ""}<a href="${up}policy/">Policy</a><a href="${up}feed.xml">Release feed</a><a href="${up}versions.json">versions.json</a><a href="${up}submit/">Submit a kit</a><a href="${up}privacy/">Privacy</a><button type="button" class="linklike" id="keys-open" aria-expanded="false" aria-controls="keys">Keyboard shortcuts</button></div></div></footer>
+<div class="keys" id="keys" role="dialog" aria-labelledby="keys-h" hidden><div class="keys-in"><h2 id="keys-h">Keyboard shortcuts</h2><dl><dt><kbd>Ctrl</kbd> <kbd>K</kbd></dt><dd>Search (Cmd K on a Mac)</dd><dt><kbd>/</kbd></dt><dd>Search</dd><dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next and previous kit (or row in a list)</dd><dt><kbd>Enter</kbd></dt><dd>Open the kit in focus</dd><dt><kbd>s</kbd></dt><dd>Save the kit in focus (when signed in)</dd><dt><kbd>Ctrl</kbd> <kbd>/</kbd></dt><dd>Show or hide this list (Cmd / on a Mac)</dd><dt><kbd>?</kbd></dt><dd>Show or hide this list</dd><dt><kbd>Esc</kbd></dt><dd>Close this list</dd></dl><p><button type="button" id="keys-close">Close</button></p></div></div>
 <script src="${up}site.js?v=${hashStr(SITE_JS)}" defer data-site></script>
 </body>
 </html>

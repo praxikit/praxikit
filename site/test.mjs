@@ -75,6 +75,7 @@ must(htmlFiles.length === 24, `expected 23 earlier pages plus the removal log = 
 }
 {
   const home0 = readFileSync(join(out, "index.html"), "utf8");
+  must(home0.includes('<p class="credit">') && home0.includes("Built with") && home0.includes('href="https://github.com/royal-programmer" rel="noopener noreferrer"') && home0.includes('<a target="_blank" href="https://github.com/royal-programmer"') && home0.includes("(Ratul Roy)") && home0.includes("Search  (Ctrl K)"), "the footer carries a small credit with a safe link to the maker, and the search box names its shortcut");
   must(existsSync(join(out, "fonts", "bricolage-grotesque.woff2")) && existsSync(join(out, "fonts", "OFL.txt")) && home0.includes('rel="preload" href="./fonts/bricolage-grotesque.woff2"') && readFileSync(join(out, "style.css"), "utf8").includes("@font-face"), "the heading font ships with its licence, from this site, and is preloaded");
   must(!home0.includes('class="eyebrow"') && !home0.includes('class="stats"') && !home0.includes('class="trust"') && home0.includes('class="stack"') && home0.includes("Start here") && (home0.includes("Read at") || home0.includes("Changed since review")),"the home page leads with covers and shelves of real listings (what was read, at which commit) and has no eyebrow, stats row or icon cards");
   must(!/border-(left|right):\s*[2-9]px solid var\(--(warn|spark|accent|bad)\)/.test(readFileSync(join(out, "style.css"), "utf8")), "no coloured stripe on the side of a callout or card");

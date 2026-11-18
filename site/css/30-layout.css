@@ -649,3 +649,30 @@ main {
 .kit-head {
   margin-bottom: var(--s7);
 }
+
+/* the footer: the credit is small but present; the shortcuts button reads as one of the links */
+.foot-in .credit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1) var(--s1);
+  margin: var(--s3) 0 0;
+  font-size: var(--fs-xs);
+}
+.foot-in .credit a { color: var(--muted); }
+.foot-in .credit a:hover { color: var(--accent); }
+.foot-in .heart { color: var(--k-template); flex: none; }
+.foot-links .linklike {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--muted);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 400;
+  cursor: pointer;
+}
+.foot-links .linklike:hover { color: var(--accent); }

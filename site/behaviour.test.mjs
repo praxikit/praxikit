@@ -43,6 +43,7 @@ async function run({ cachedMe = null, hint = false, me = null, saved = [], dark 
   const root = new El("html"), body = new El("body");
   body.attrs = { "data-root": "/", "data-app": "https://praxikit.com" };
   for (const id of ["theme", "menu-toggle", "acct", "site-q"]) ids[id] = new El(id === "site-q" ? "input" : "button");
+  ids["site-q"].focus = () => { doc.activeElement = ids["site-q"]; }; ids["site-q"].select = () => { ids["site-q"].selected = true; };
   const coverEls = keys ? [0, 1, 2].map((i) => { const c = new El("a"); c.focus = () => { doc.activeElement = c; }; c.scrollIntoView = () => {}; c.attrs.id = "c" + i; return c; }) : [];
   if (keys) { ids.keys = new El("div"); ids.keys.attrs.hidden = ""; ids["keys-open"] = new El("button"); ids["keys-close"] = new El("button"); ids["keys-close"].focus = () => { doc.activeElement = ids["keys-close"]; }; }
   ids["site-q"].value = ""; ids["site-q"].parentNode = new El("form");
@@ -173,7 +174,7 @@ async function run({ cachedMe = null, hint = false, me = null, saved = [], dark 
 // ---- keyboard: j and k move through the covers, ? shows the keys, Escape closes them, typing is left alone
 {
   const p = await run({ keys: true });
-  const press = (key, target = p.body) => { const ev = {}; for (const f of p.docListeners.keydown ?? []) f({ key, target, preventDefault() { ev.prevented = true; } }); return ev; };
+  const press = (key, target = p.body, extra = {}) => { const ev = {}; for (const f of p.docListeners.keydown ?? []) f({ key, target, ...extra, preventDefault() { ev.prevented = true; } }); return ev; };
   const at = () => p.doc.activeElement?.attrs.id;
   press("j"); must(at() === "c0", "j goes to the first kit");
   press("j"); press("j"); must(at() === "c2", "j goes on to the next kits");
@@ -182,6 +183,13 @@ async function run({ cachedMe = null, hint = false, me = null, saved = [], dark 
   const typed = press("j", Object.assign(new El("input"), { tagName: "INPUT" })); must(at() === "c1" && typed.prevented !== true, "keys are ignored while typing in a field");
   press("?"); must(!p.ids.keys.hasAttribute("hidden") && p.ids["keys-open"].getAttribute("aria-expanded") === "true", "? shows the list of keys");
   press("Escape"); must(p.ids.keys.hasAttribute("hidden"), "Escape closes it");
+  const inField = Object.assign(new El("input"), { tagName: "INPUT" });
+  const k1 = press("/", inField, { ctrlKey: true }); must(!p.ids.keys.hasAttribute("hidden") && k1.prevented === true, "Ctrl and / shows the keys, even from inside a field");
+  press("/", inField, { metaKey: true }); must(p.ids.keys.hasAttribute("hidden"), "Cmd and / hides them again");
+  const ck = press("k", inField, { ctrlKey: true });
+  must(ck.prevented === true && p.doc.activeElement === p.ids["site-q"] && p.ids["site-q"].selected === true && p.header.hasAttribute("data-open"), "Ctrl and K goes to search, even from inside a field, and opens the phone menu where search lives");
+  const mk = press("K", p.body, { metaKey: true }); must(mk.prevented === true, "Cmd and K does the same on a Mac");
+  press("/", p.body); must(p.doc.activeElement === p.ids["site-q"], "the plain / key still goes to search");
 }
 
 // ---- the kits list: filter, show, sort, clear
