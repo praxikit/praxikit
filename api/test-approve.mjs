@@ -43,9 +43,11 @@ const REPOS = {
   "alice/nolicence": { body: repoBody("alice", "nolicence", { license: null }), tree: ["SKILL.md"], readme: "A repository with no licence, so the quick check fails for it." },
   "alice/xss": { body: repoBody("alice", "xss"), tree: ["SKILL.md"], readme: "A repository used to check that approved card text is shown escaped." },
   "alice/handread": { body: repoBody("alice", "handread"), tree: ["SKILL.md"], readme: "A large repository that the automatic scan cannot read, approved by hand." },
+  "alice/handmove": { body: repoBody("alice", "handmove"), tree: ["SKILL.md"], readme: "A large repository that gets new commits while the maintainer reads it." },
   "alice/handfail": { body: repoBody("alice", "handfail"), tree: ["SKILL.md"], readme: "A repository whose scan fails, which must never be approved by hand." },
   "alice/reject": { body: repoBody("alice", "reject"), tree: ["SKILL.md"], readme: "A repository that will be rejected with a reason the submitter sees." },
 };
+const HEAD = {}; // repository -> its newest commit, when it differs from SHA
 let LISTED = []; // repository urls in the fake live catalogue
 let RUNS = [];
 let dispatchMode = "ok";
@@ -84,7 +86,7 @@ globalThis.fetch = async (input, init = {}) => {
   const repo = REPOS[`${m[1]}/${m[2]}`.toLowerCase()], rest = m[3] ?? "";
   if (!repo) return json({ message: "Not Found" }, 404);
   if (rest === "") return json(repo.body);
-  if (rest.startsWith("/commits/")) return json({ sha: SHA });
+  if (rest.startsWith("/commits/")) return json({ sha: HEAD[`${m[1]}/${m[2]}`.toLowerCase()] ?? SHA });
   if (rest.startsWith("/git/trees/")) return json({ tree: repo.tree.map((path) => ({ path })), truncated: false });
   if (rest === "/readme") return json({ path: "README.md", encoding: "base64", content: Buffer.from(repo.readme).toString("base64") });
   return json({}, 404);
@@ -360,12 +362,28 @@ must(byKey("alice/direct") && (await submit(dave, "https://github.com/alice/seco
   const n = dispatches.length;
   must((await act(owner, id, "approve", approveForm({ by_hand: "yes" }))).headers.get("Location").endsWith("?m=needread") && dispatches.length === n && byKey("alice/handread").status === "pending", "approving by hand without ticking that you read it is refused");
   must((await act(owner, id, "approve", approveForm({ hand_read: "yes" }))).headers.get("Location").endsWith("?m=needscan") && dispatches.length === n, "the read-it box alone is not enough: the by-hand flag must come from the form for this case");
-  const ok = await act(owner, id, "approve", approveForm({ by_hand: "yes", hand_read: "yes", name: "Hand read" }));
+  const ok = await act(owner, id, "approve", approveForm({ by_hand: "yes", hand_read: "yes", commit: hr.commit_sha, name: "Hand read" }));
   const d = dispatches.at(-1)?.body.inputs;
   must(ok.headers.get("Location").endsWith("?m=approved") && dispatches.length === n + 1 && d.expected_commit === "hand:" + hr.commit_sha.slice(0, 12) && !("by_hand" in d), "approved by hand: the publish job is told, and pinned to the commit the app read");
   D1.raw.prepare("UPDATE submissions SET publish_state = 'blocked' WHERE id = ?").run(id);
   await act(owner, id, "retry");
   must(dispatches.at(-1).body.inputs.expected_commit === "hand:" + hr.commit_sha.slice(0, 12), "retrying a by-hand approval keeps it read-by-hand and pinned to the same commit");
+  // the repository moves while the maintainer reads it: the newest commit is shown, and the old one cannot be pinned
+  {
+    await submit(dave, "https://github.com/alice/handmove");
+    const mv = byKey("alice/handmove");
+    await runScan(mv.id, { label: "needs-manual-review", commit: "none" });
+    const NEWER = "c".repeat(40);
+    HEAD["alice/handmove"] = NEWER;
+    const k = dispatches.length;
+    const stale = await act(owner, mv.id, "approve", approveForm({ by_hand: "yes", hand_read: "yes", commit: mv.commit_sha }));
+    must(stale.headers.get("Location").endsWith("?m=moved") && dispatches.length === k && byKey("alice/handmove").commit_sha === NEWER && byKey("alice/handmove").status === "pending", "if the repository moved after the commit was shown, the approval is refused, nothing is published, and the newest commit is stored");
+    const shownNow = await (await call("/admin/submissions/" + mv.id, { cookies: owner })).text();
+    must(shownNow.includes(NEWER.slice(0, 12)) && shownNow.includes('name="commit" value="' + NEWER + '"'), "the page now shows the newest commit and sends it with the approval");
+    const fresh = await act(owner, mv.id, "approve", approveForm({ by_hand: "yes", hand_read: "yes", commit: NEWER, name: "Moved kit" }));
+    must(fresh.headers.get("Location").endsWith("?m=approved") && dispatches.at(-1).body.inputs.expected_commit === "hand:" + NEWER.slice(0, 12), "approving the newest commit works, and the publish job is pinned to exactly that commit");
+  }
+
   // a scan that ran and failed can never be approved by hand
   await submit(dave, "https://github.com/alice/handfail");
   const f2 = byKey("alice/handfail");

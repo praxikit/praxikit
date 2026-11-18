@@ -59,6 +59,20 @@ async function gh(env, path, extraHeaders) {
 }
 
 /** Everything the review needs, from public GitHub data. Throws UserError with a message safe to show. */
+/** The newest commit on the default branch, or "" when it cannot be read. Two small calls; used to keep "the commit you read" and "the commit that is pinned" the same. */
+export async function latestCommit(env, repo) {
+  try {
+    const r = await gh(env, `/repos/${repo.owner}/${repo.repo}`);
+    if (!r.ok) return "";
+    const branch = String((await r.json()).default_branch ?? "");
+    if (!/^[A-Za-z0-9._/-]{1,100}$/.test(branch)) return "";
+    const c = await gh(env, `/repos/${repo.owner}/${repo.repo}/commits/${encodeURIComponent(branch)}`);
+    if (!c.ok) return "";
+    const sha = String((await c.json()).sha ?? "");
+    return /^[0-9a-f]{40}$/.test(sha) ? sha : "";
+  } catch { return ""; }
+}
+
 export async function fetchRepoInfo(env, repo) {
   const r = await gh(env, `/repos/${repo.owner}/${repo.repo}`);
   if (r.status === 404) throw new UserError("That repository was not found, or it is private. Only public repositories can be submitted.");

@@ -15,7 +15,7 @@
  */
 import { signToken, verifyToken, randomToken, safeEqual, parseCookies, cookie, hintCookie } from "./lib/crypto.mjs";
 import { authorizeUrl, exchangeCode, getUser, decideRole, decideRoleByLogin } from "./lib/github.mjs";
-import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, fetchListings, precheck, UserError } from "./lib/repo.mjs";
+import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, fetchListings, precheck, UserError, latestCommit } from "./lib/repo.mjs";
 import { storeFor } from "./lib/store.mjs";
 import { parseTags } from "./lib/tags.mjs";
 import { dispatchApprove, dispatchEdit, dispatchRemove, dispatchScan, syncPublishing, syncScans, publishingConfigured } from "./lib/publish.mjs";
@@ -134,6 +134,21 @@ function gate(request, env, s) {
   if (!sameOrigin(request, env)) return send(messagePage("Refused", "That request did not come from this site."), { status: 403 });
   if (!fresh(s)) return send(signInPage("For safety, sign in again to confirm this action (your sign-in is older than 30 minutes)."), { status: 401 });
   return null;
+}
+
+/**
+ * For a repository the automatic checks could not read, the maintainer reads it by hand and the listing is pinned to one commit.
+ * So the commit on the page must be the newest one when the page is drawn, and again when the approval arrives: if the repository
+ * moved in between, the stored commit is updated and the maintainer is asked to read the new one, instead of the publish job failing later.
+ */
+async function refreshCommit(env, store, row) {
+  if (!row || row.status !== "pending" || row.scan_state !== "done" || row.scan_label !== "needs-manual-review") return row;
+  const repo = parseRepo(row.repo_url);
+  if (!repo) return row;
+  const latest = await latestCommit(env, repo);
+  if (!latest || latest === row.commit_sha) return row;
+  try { await store.setCommit(row.id, latest); } catch { return row; }
+  return { ...row, commit_sha: latest };
 }
 
 /** Start the publish job for an approved row and record whether GitHub accepted it. Returns "dispatched" or "blocked". */
@@ -562,14 +577,20 @@ async function approveRoute(request, env, s, id) {
   const pick = f.get("pick") === "yes", pickNote = pick ? oneLine(f.get("pick_note"), 300) : "";
   const tags = parseTags(oneLine(f.get("tags"), 400)).join(",");
   if (!name || name.length > 80 || !KINDS.includes(kind) || !text || text.length > 400 || (pick && (!pickNote || pickNote.length > 200))) return back(base, "bad");
-  const row = await store.get(id);
+  let row = await store.get(id);
   if (!row || row.status !== "pending") return back(base, "already");
   // approving needs the full checks to have run, on a commit we can pin the listing to. The one exception: a repository the checks could not read
   // (too large) may be approved by hand, pinned to the commit the app read when it was submitted. A failed scan can never be approved this way.
   const asked = f.get("by_hand") === "yes";
   const byHand = asked && row.scan_state === "done" && row.scan_label === "needs-manual-review" && /^[0-9a-f]{40}$/.test(String(row.commit_sha ?? ""));
   if (asked && !byHand) return back(base, "needscan");
-  if (byHand) { if (f.get("hand_read") !== "yes") return back(base, "needread"); }
+  if (byHand) {
+    if (f.get("hand_read") !== "yes") return back(base, "needread");
+    // the commit the maintainer was shown must still be the newest one; if not, show the new one
+    const shown = String(f.get("commit") ?? "");
+    row = await refreshCommit(env, store, row);
+    if (shown !== row.commit_sha) return back(base, "moved");
+  }
   else {
     if (row.scan_state !== "done" || !/^[0-9a-f]{12}$/.test(String(row.scan_commit)) || !["no-flags-found", "checks-flagged"].includes(row.scan_label)) return back(base, "needscan");
     if (row.scan_label === "checks-flagged" && f.get("read") !== "yes") return back(base, "needread");
@@ -752,7 +773,7 @@ async function route(request, env) {
     if (s.role !== "admin") return send(messagePage("No access", "Only maintainers can see submissions.", false), { status: 403 });
     const store = storeFor(env);
     if (store) { try { await syncPublishing(env, store, listed(env)); await syncScans(env, store); } catch { /* the page still works without a refresh */ } }
-    const row = store ? await store.get(Number(detail[1])) : null;
+    const row = store ? await refreshCommit(env, store, await store.get(Number(detail[1]))) : null;
     return row ? send(detailPage({ session: s, s: row, flash: flashOf(url), canPublish: publishingConfigured(env) })) : send(messagePage("Not found", "There is no such submission.", false), { status: 404 });
   }
 

@@ -177,6 +177,7 @@ export const FLASH = {
   failed: "Approved, but GitHub would not start the publish job. You can try again from this page.",
   direct: "Saved, and since you are a maintainer it is being published now (after the usual scan).",
   needscan: "Run the full checks first. Approving is only possible after they have run and found nothing that blocks it.",
+  moved: "The repository has new commits since you were shown it. This page now shows the newest commit: read that one, then approve again.",
   needread: "Tick the box to confirm you have opened and read the full report: this one has things to look at.",
   scanning: "The checks are already running. Reload in a minute.",
   scanstarted: "The full checks have started on GitHub. Reload in a minute or two.",
@@ -266,7 +267,7 @@ ${scanned || byHand ? "" : '<p class="muted">Approving unlocks after the full ch
 <label class="check"><input type="checkbox" name="pick" value="yes"> I use this kit (list it as one of my picks)</label>
 <label for="pick_note">How I use it <span class="hint">(one line, up to 200 characters; needed if you ticked the box above, and shown on the card)</span></label><input id="pick_note" name="pick_note" type="text" maxlength="200">
 ${flagged ? '<label class="check"><input type="checkbox" name="read" value="yes" required> I have opened and read the full report above</label>' : ""}
-${byHand ? `<input type="hidden" name="by_hand" value="yes"><label class="check"><input type="checkbox" name="hand_read" value="yes" required> I have read <a href="${esc(commitUrl)}" rel="noopener noreferrer">this repository at commit <code>${esc(String(s.commit_sha).slice(0, 12))}</code></a> myself. It was not scanned, and the listing will say so.</label>` : ""}
+${byHand ? `<input type="hidden" name="by_hand" value="yes"><input type="hidden" name="commit" value="${esc(String(s.commit_sha))}"><label class="check"><input type="checkbox" name="hand_read" value="yes" required> I have read <a href="${esc(commitUrl)}" rel="noopener noreferrer">this repository at commit <code>${esc(String(s.commit_sha).slice(0, 12))}</code></a> myself. It was not scanned, and the listing will say so.</label>` : ""}
 <p><button type="submit"${approveOk ? "" : " disabled"}>Approve and publish</button> <span class="muted">It is listed at the commit that was checked. If the repository changes first, publishing stops and the checks must be run again.</span></p>
 </form>
 <form method="post" action="/admin/submissions/${Number(s.id)}/reject">
@@ -278,7 +279,7 @@ ${byHand ? `<input type="hidden" name="by_hand" value="yes"><label class="check"
 ${s.status === "approved" ? `<dt>Listed as</dt><dd>${esc(s.final_name)} (${esc(s.final_kind)}): ${esc(s.final_text)}</dd>${s.final_pick ? `<dt>My pick</dt><dd>${esc(s.final_note)}</dd>` : ""}${s.final_tags ? `<dt>Tags</dt><dd>${esc(s.final_tags.split(",").join(", "))}</dd>` : ""}<dt>Publishing</dt><dd>${esc(PUBLISH[s.publish_state] ?? s.publish_state)}${s.publish_note ? `<br><span class="muted">${esc(s.publish_note)}</span>` : ""}</dd>${s.scan_commit ? `<dt>Checks read at</dt><dd><code>${esc(s.scan_commit)}</code> (${esc(s.scan_label)})</dd>` : ""}` : ""}
 ${s.status === "rejected" ? `<dt>Reason</dt><dd>${esc(s.decision_note)}</dd>` : ""}</dl>
 ${s.status === "approved" && s.publish_state === "blocked" ? `<form method="post" action="/admin/submissions/${Number(s.id)}/retry"><p><button type="submit"${canPublish ? "" : " disabled"}>Try publishing again</button></p></form>
-<form method="post" action="/admin/submissions/${Number(s.id)}/reopen"><p><button class="ghost" type="submit">Back to review</button> <span class="muted">Run the full checks, read them, and approve with the report in front of you.</span></p></form>` : ""}`;
+<form method="post" action="/admin/submissions/${Number(s.id)}/reopen"><p><button class="ghost" type="submit">Back to review</button> <span class="muted">If the repository changed after you read it, publishing stops. Go back to review, read the newest commit, and approve again.</span></p></form>` : ""}`;
   return page(`${s.name} — Praxikit admin`, `${nav(session)}
 <p class="muted"><a href="/admin">All submissions</a></p>
 <h1>${esc(s.name)} <span class="badge${s.precheck_status === "fail" ? " bad" : s.precheck_status === "flag" ? " warn" : ""}">${status(s.precheck_status)}</span></h1>

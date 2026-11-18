@@ -33,6 +33,7 @@ export function d1Store(db) {
       const r = await db.prepare("UPDATE submissions SET status = 'rejected', decided_by = ?, decided_at = ?, decision_note = ? WHERE id = ? AND status = 'pending'").bind(by, at, note, id).run();
       return Number(r.meta?.changes) === 1;
     },
+    async setCommit(id, sha) { await db.prepare("UPDATE submissions SET commit_sha = ? WHERE id = ? AND status = 'pending'").bind(sha, id).run(); },
     async setPublish(id, state, note = "") { await db.prepare("UPDATE submissions SET publish_state = ?, publish_note = ? WHERE id = ? AND status = 'approved'").bind(state, note, id).run(); },
     /** A blocked publish can be tried again; this flips it back and reports whether it was blocked. */
     async retry(id) {
