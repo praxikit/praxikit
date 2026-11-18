@@ -791,3 +791,22 @@ td.res-pass { color: var(--accent); }
 kbd { font: 600 var(--fs-xs) var(--mono); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; background: var(--bg2); color: var(--fg); }
 .checklabel h2, .checklabel h3 { color: var(--fg); }
 .card:has(.cover:focus-visible) .cap .byline { color: var(--accent); }
+
+/* ===== Shelf: review fixes ===== */
+/* the title sits above the health seal, so it never breaks inside a word */
+.cover .cn { overflow-wrap: break-word; hyphens: manual; }
+.cover:has(.seal) .cn, .cover .seal ~ .cn { right: 14px; bottom: 60px; }
+.stack .cover:has(.seal) .cn { bottom: 50px; right: 10px; }
+/* the stack keeps its width when the page is a single column, and overlaps less so no title is hidden */
+.stack { width: min(520px, 100%); margin-inline: auto; }
+.stack .cover { margin-left: -4%; }
+.stack .cover:nth-child(1) { margin-left: 0; }
+@media (min-width: 960px) { .stack { margin-inline: 0; width: 100%; max-width: 560px; justify-self: center; } }
+/* a built kit's own page: the cover beside the title */
+.kit-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s5) var(--s6); align-items: end; }
+@media (min-width: 720px) { .kit-head { grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); } }
+.kit-cover .cover { max-width: 210px; }
+.kit-info h1 { margin-bottom: var(--s3); }
+.kit-info .lead { margin-bottom: var(--s4); }
+.kit-info .actions { margin-bottom: 0; }
+.kit-head { margin-bottom: var(--s7); }

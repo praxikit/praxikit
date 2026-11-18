@@ -952,7 +952,7 @@ ${coverLink({ href: page, kind: l.kind, name: l.name, flags, health: h ? h.score
 ${l.pick ? `<p class="pick-note">${esc(l.note)}</p>` : ""}
 ${tagChips(l, up, 3)}
 ${APP ? `<p class="stat" data-stat="${esc(l.url)}" hidden></p>` : ""}
-<div class="cap-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>${d.warn ? esc(d.short) : "Read at"} <code>${esc(l.commit.slice(0, 7))}</code></span></span><span class="card-tools">${repoLink(l.url, `Open ${l.name} on GitHub`)}${saveLink(l.url, l.name)}</span></div>
+<div class="cap-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>Read at <code>${esc(l.commit.slice(0, 7))}</code></span></span><span class="card-tools">${repoLink(l.url, `Open ${l.name} on GitHub`)}${saveLink(l.url, l.name)}</span></div>
 </div>
 </li>`;
 }
@@ -1226,11 +1226,13 @@ function kitPage(k) {
   const log = k.changelog.map((e, i) => `<li class="log-item"><div class="log-head"><h3>${esc(e.head)}</h3>${i === 0 ? '<span class="kind">Latest</span>' : ""}</div><ul>${e.bullets.map((b) => `<li>${md(b)}</li>`).join("")}</ul></li>`).join("");
   const latest = dateOf(k.changelog[0]?.head);
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../../kits/">All kits</a> / ${esc(kindOf(k))}</p>
+<div class="kit-head"><div class="kit-cover">${coverLink({ kind: k.kind, name: k.name, builtMark: true, plain: true })}</div><div class="kit-info">
 <h1>${esc(k.name)}</h1>
 <p class="meta-line">${badge(k)}${latest ? `<span>released ${esc(latest)}</span>` : ""}<span>${k.collections.map((c) => `<a href="../../c/${slug(c)}/">${esc(c)}</a>`).join(", ")}</span></p>
 <p class="lead">${esc(k.promise)}</p>
 ${tagChips(k, "../../")}
 ${APP ? `<p class="actions">${saveLink(`k/${k.name}/`, k.name, true)}</p>` : ""}
+</div></div>
 <div class="two">
 <div class="main-col">
 ${previewBlock(k)}
@@ -1385,7 +1387,7 @@ function buildSearchIndex(kits, listings, tagMap) {
     for (const sk of k.adds.skills) out.push({ t: k.kind === "plugin" ? `/${k.name}:${sk.name}` : sk.name, k: "skill", u: `k/${k.name}/`, d: short(sk.description), g: "" });
     for (const ag of k.adds.agents) out.push({ t: ag.name, k: "skill", u: `k/${k.name}/`, d: short(ag.description), g: "" });
   }
-  for (const l of listings) out.push({ t: l.name, k: l.pick ? "pick" : "listed", u: l.url, p: lpath(l), ext: 1, d: [l.pick ? `How I use it: ${l.note}` : "", l.why].filter(Boolean).join(" "), g: tagsOf(l).join(" ") });
+  for (const l of listings) out.push({ t: l.name, k: l.pick ? "pick" : "listed", u: l.url, p: lpath(l), ext: 1, d: [l.pick ? l.note : "", l.why].filter(Boolean).join(" "), g: tagsOf(l).join(" ") });
   for (const [t, l] of sortedTags(tagMap)) out.push({ t: `#${t}`, k: "tag", u: `tags/${t}/`, d: plural(l.length, "kit"), g: t });
   for (const [t, u, d] of [["Kits", "kits/", "Every kit, by type"], ["My picks", "kits/?show=pick", "Kits the owner uses, with a note on how"], ["Contributors", "/contributors", "People who put kits forward, ranked"], ["Requests", "/requests", "Ask for a kit, or build one someone needs"], ["Submit a kit", "submit/", "Submit a public GitHub repository"], ["About", "about/", "Why Praxikit exists and how it is run"], ["Policy", "policy/", "What a listing means, reports and removals"], ["Privacy", "privacy/", "What is kept about you if you sign in"], ["Tags", "tags/", "Browse by tag"], ["Release feed", "feed.xml", "Subscribe to new versions"]]) out.push({ t, k: "page", u, d, g: "" });
   return out;
