@@ -585,7 +585,7 @@ const SITE_JS = `
     loadCom();
   }
 
-  [].slice.call(document.querySelectorAll("[data-nav]")).forEach(function (a) { if (a.pathname && location.pathname.indexOf(a.pathname) === 0) a.setAttribute("aria-current", "page"); });
+  [].slice.call(document.querySelectorAll("[data-nav]")).forEach(function (a) { if (a.pathname && (location.pathname.indexOf(a.pathname) === 0 || (a.dataset.also && location.pathname.indexOf(a.dataset.also) === 0))) a.setAttribute("aria-current", "page"); });
   var tgl = document.getElementById("theme");
   if (tgl) tgl.addEventListener("click", function () {
     var cur = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
@@ -789,7 +789,7 @@ ${head}
 <header class="top"><div class="wrap bar">
 <a class="brand" href="${up}" aria-label="Praxikit home">${LOGO}<span>Praxikit</span></a>
 <form class="site-search" role="search" action="${up}search/" method="get"><label class="vh" for="site-q">Search the catalogue</label><input id="site-q" name="q" type="search" placeholder="Search  (Ctrl K)" autocomplete="off" spellcheck="false" maxlength="100"></form>
-<nav aria-label="Main" id="site-nav">${APP ? `<a class="admin-tab" href="${esc(APP)}/admin" data-nav data-admin-tab>Admin</a>` : ""}<a href="${up}kits/"${cur("kits")}>Kits</a>${APP ? `<a href="${esc(APP)}/contributors" data-nav>Contributors</a><a href="${esc(APP)}/requests" data-nav>Requests</a>` : ""}<a href="${up}submit/"${cur("submit")}>Submit</a>${APP ? `<a href="${esc(APP)}/collection" data-nav>My collection</a>` : ""}
+<nav aria-label="Main" id="site-nav">${APP ? `<a class="admin-tab" href="${esc(APP)}/admin" data-nav data-admin-tab>Admin</a>` : ""}<a href="${up}kits/"${cur("kits")}>Kits</a>${APP ? `<a href="${esc(APP)}/contributors" data-nav data-also="/requests">Community</a>` : ""}<a href="${up}submit/"${cur("submit")}>Submit</a>${APP ? `<a href="${esc(APP)}/collection" data-nav>My collection</a>` : ""}
 <button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false" title="Toggle dark mode"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg><span class="icon-label">Light or dark</span></button></nav>
 <div class="acct" id="acct">${APP ? `<a class="signin" href="${esc(APP)}/auth/login?mode=user">Sign in</a>` : ""}</div>
 <button class="icon-btn menu-toggle" id="menu-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="site-nav"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>

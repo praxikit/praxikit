@@ -2,7 +2,7 @@
  * Contributors: people who put a kit forward that is now listed. Counting is by listings that are live right now, never by
  * submissions sent, so sending a lot earns nothing. A person is shown publicly unless they chose to hide their name.
  */
-import { esc, page, nav } from "./html.mjs";
+import { esc, page, nav, communityTabs } from "./html.mjs";
 
 export const BADGES = [
   { id: "first", name: "First listing", blurb: "Put forward a kit that is now listed.", test: (c) => c.count >= 1 },
@@ -71,7 +71,7 @@ export function contributorsPage({ session, rows }) {
   const list = rows.length
     ? `<ol class="lb-list">${rows.map((r) => `<li><span class="rank">${Number(r.rank)}</span><img src="${avatar(r.id)}" alt="" width="44" height="44"><div class="who">${loginLink(r)}<ul class="badge-row">${chips(r)}</ul></div><span class="score">${Number(r.count)}</span></li>`).join("")}</ol>`
     : `<div class="empty lb-empty"><p><strong>Nobody is on the board yet.</strong> Put a kit forward and be the first. <a href="/submit/">Submit a kit</a>.</p></div>`;
-  return page("Contributors — Praxikit", `${nav(session)}<h1>Contributors</h1>
+  return page("Contributors — Praxikit", `${nav(session)}<h1>Contributors</h1>${communityTabs("contributors")}
 <p class="lead">The people who put kits forward. The score is how many of their kits are listed in the catalogue right now, so sending a lot earns nothing and quality is what counts.${rows.length ? ` <strong>${rows.length}</strong> ${rows.length === 1 ? "person" : "people"}, <strong>${total}</strong> ${kits(total)}.` : ""}</p>
 <section class="lb" aria-label="Leaderboard"><h2 class="lb-title">Leaderboard</h2>${podium}${list}</section>
 <p class="muted">Want to be here? <a href="/submit/">Submit a kit</a>. Your GitHub username is shown on the kits you put forward; you can hide it any time in <a href="/settings">Settings</a>.</p>`);

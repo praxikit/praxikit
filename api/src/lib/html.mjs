@@ -126,6 +126,8 @@ export const page = (title, rawBody) => { const body = newTab(wrapTables(rawBody
 
 // the site header already shows who is signed in, so pages no longer draw their own bar
 export const nav = () => "";
+/** The two community pages share one nav entry (Community); this strip moves between them. */
+export const communityTabs = (current) => `<nav class="adm-tabs" aria-label="Community"><a href="/contributors"${current === "contributors" ? ' aria-current="page"' : ""}>Contributors</a><a href="/requests"${current === "requests" ? ' aria-current="page"' : ""}>Requests</a></nav>`;
 
 export const signInPage = (note = "", opts = {}) => {
   const q = (k, v) => (v ? `&${k}=${encodeURIComponent(v)}` : "");

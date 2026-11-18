@@ -2,7 +2,7 @@
  * Kit requests: people say what kit they wish existed, others press "I need this too", and anyone can build it and submit it.
  * A request is plain text with no links. A person's first request is read by a maintainer before it appears.
  */
-import { esc, page, nav } from "./html.mjs";
+import { esc, page, nav, communityTabs } from "./html.mjs";
 import { LINKISH } from "./community.mjs";
 
 export const REQUESTS = { perDay: 3, needsPerHour: 60, titleMin: 8, titleMax: 100, bodyMax: 500 };
@@ -51,7 +51,7 @@ export function requestsPage({ session, open, solved, mine, needed, catalogue, f
 <p class="muted">One or two sentences is plenty. No links. A maintainer reads your first request before it appears.</p>
 <p><button type="submit" class="btn">Post my request</button></p></form>`
     : `<div class="listing"><h2>Ask for a kit</h2><p>Sign in with GitHub to ask for a kit, or to press <em>I need this too</em> on someone else's.</p><p><a class="btn" href="/auth/login?mode=user&return=%2Frequests">Sign in with GitHub</a></p></div>`;
-  return page("Kit requests — Praxikit", `${nav(session)}<h1>Kit requests</h1>
+  return page("Kit requests — Praxikit", `${nav(session)}<h1>Kit requests</h1>${communityTabs("requests")}
 <p class="lead">Is there a kit you wish existed? Ask for it here. Others press <strong>I need this too</strong>, so the most wanted ones rise to the top. Anyone can build one and <a href="/submit/">submit it</a>. When a listed kit answers a request, it is marked <strong>Solved</strong>.</p>
 ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${error ? `<p class="note">${esc(error)}</p>` : ""}
 ${form}
