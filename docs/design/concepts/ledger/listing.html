@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Praxikit · Ledger · Postgres MCP Pro</title><style>@font-face{font-family:"Bricolage Grotesque";src:url("../fonts/bricolage-grotesque.woff2") format("woff2");font-weight:200 800;font-display:swap}
+
+:root{--bg:#f8f9fb;--ink:#0d1117;--mut:#586274;--rule:#d5dae2;--rule2:#0d1117;--sig:#d63a1b;--card:#fff;--mono:ui-monospace,"Cascadia Code",Consolas,monospace;--disp:"Bricolage Grotesque",system-ui,sans-serif}
+*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}.w{width:min(1180px,100% - 48px);margin-inline:auto}
+header.top{border-bottom:2px solid var(--rule2)}header.top .w{display:flex;align-items:center;justify-content:space-between;height:64px}
+.brand{font:700 1.35rem/1 var(--disp);letter-spacing:-.03em;text-decoration:none}.brand i{display:inline-block;width:.7em;height:.7em;background:var(--sig);margin-right:.35em;border-radius:2px}
+nav a{margin-left:28px;text-decoration:none;font-size:.95rem;color:var(--mut)}nav a:hover,nav a[aria-current]{color:var(--ink)}nav a[aria-current]{border-bottom:2px solid var(--sig);padding-bottom:4px}
+h1{font:700 clamp(2.6rem,1.2rem + 5vw,5.6rem)/.98 var(--disp);letter-spacing:-.045em;margin:0 0 24px;max-width:13ch}
+h2{font:650 1.5rem/1.15 var(--disp);letter-spacing:-.02em;margin:0 0 16px}
+.lead{font-size:1.2rem;color:var(--mut);max-width:44ch;margin:0 0 32px}
+.hero{padding:72px 0 40px}
+.stamp{display:inline-block;border:2px solid var(--sig);color:var(--sig);padding:4px 12px;font:700 .8rem/1.2 var(--mono);letter-spacing:.14em;text-transform:uppercase;transform:rotate(-3deg);border-radius:4px}
+table.ledger{width:100%;border-collapse:collapse;font-size:.95rem}
+.ledger th{font:600 .72rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mut);text-align:left;padding:10px 12px 10px 0;border-bottom:2px solid var(--rule2)}
+.ledger td{padding:14px 12px 14px 0;border-bottom:1px solid var(--rule);vertical-align:baseline}
+.ledger tr:hover td{background:#eef1f6}.ledger td.n{font:.8rem var(--mono);color:var(--mut);width:48px}.ledger td.name{font-weight:650}.ledger td.name small{display:block;font-weight:400;color:var(--mut);font-size:.82rem}
+.ledger td.m,.ledger th.m{font-family:var(--mono);font-size:.85rem}.ledger .num{text-align:right}
+.h{display:inline-flex;align-items:center;gap:8px;font:600 .85rem var(--mono)}.h b{display:inline-block;width:46px;height:6px;background:var(--rule);border-radius:3px;position:relative;overflow:hidden}.h b::after{content:"";position:absolute;inset:0 auto 0 0;width:var(--w);background:var(--ink)}
+.cmd{display:flex;gap:16px;align-items:center;justify-content:space-between;margin:28px 0 0;padding:14px 18px;border:1px solid var(--rule2);font:.9rem var(--mono);background:var(--card)}.cmd button{font:600 .8rem var(--mono);border:1px solid var(--ink);background:var(--ink);color:#fff;padding:8px 14px;border-radius:2px;cursor:pointer}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:2px solid var(--rule2);margin-top:72px}
+.cols>div{padding:28px 28px 28px 0;border-right:1px solid var(--rule)}.cols>div+div{padding-left:28px}.cols>div:last-child{border-right:0}.cols p{color:var(--mut);margin:8px 0 0}.cols .no{font:.8rem var(--mono);color:var(--sig)}
+footer{border-top:2px solid var(--rule2);margin-top:96px;padding:28px 0 56px;color:var(--mut);font-size:.9rem}
+.btn{display:inline-block;background:var(--ink);color:#fff;padding:12px 20px;border-radius:2px;text-decoration:none;font-weight:600}.btn.o{background:transparent;color:var(--ink);border:1px solid var(--ink);margin-left:8px}
+.rail{display:grid;grid-template-columns:220px 1fr;gap:48px;padding:48px 0}.rail aside h3{font:600 .72rem var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}.rail aside ul{list-style:none;padding:0;margin:0 0 28px}.rail aside li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--rule);font-size:.95rem}.rail aside li.on{font-weight:700}
+.rail aside li span{font-family:var(--mono);color:var(--mut)}
+.doc{width:min(760px,100% - 48px);margin:56px auto 0}.doc .crumb{font:.8rem var(--mono);color:var(--mut)}
+.receipt{border:2px solid var(--rule2);background:var(--card);padding:32px 36px;position:relative;margin:32px 0}.receipt .stamp{position:absolute;right:28px;top:-16px;background:var(--bg)}
+.receipt dl{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:0}.receipt dt,.receipt dd{padding:10px 0;border-bottom:1px dotted #9aa3b2;margin:0}.receipt dt{color:var(--mut);padding-right:24px;font-size:.9rem}.receipt dd{font-family:var(--mono);font-size:.92rem}
+.sig{display:flex;justify-content:space-between;margin-top:40px;font:.85rem var(--mono);color:var(--mut)}.sig div{border-top:1px solid var(--ink);padding-top:8px;min-width:220px}
+.res{font-weight:700}.res.flag{color:var(--sig)}
+@media(max-width:820px){.cols{grid-template-columns:1fr}.cols>div{border-right:0;border-bottom:1px solid var(--rule);padding-left:0!important}.rail{grid-template-columns:1fr}.ledger .hide{display:none}.receipt{padding:22px}}
+</style></head>
+<body><header class="top"><div class="w"><a class="brand" href="index.html"><i></i>Praxikit</a><nav><a href="index.html">Ledger</a><a href="kits.html" aria-current=page>All kits</a><a href="#">Submit</a><a href="#">Sign in</a></nav></div></header>
+<main class="doc"><div class="crumb"><a href="kits.html">All kits</a> / MCP config</div><h1 style="font-size:3.6rem;margin-top:12px">Postgres MCP Pro</h1><p class="lead">Lets an agent explore a Postgres database: read-only queries, schema browsing, index advice and query-plan checks.</p>
+<div class="receipt"><span class="stamp">Read · 2026-11-17</span><dl><dt>Commit read</dt><dd>15c8e33</dd><dt>Read by</dt><dd>royal-programmer, on 2026-11-17</dd><dt>Automatic check</dt><dd>things for a person to look at</dd><dt>Licence</dt><dd>MIT</dd><dt>Health score</dt><dd>75 of 100</dd><dt>Stars</dt><dd>3.5k</dd><dt>Made by</dt><dd>crystaldba, not built by Praxikit</dd></dl>
+<div class="sig"><div>Read by · royal-programmer</div><div>Commit · 15c8e33</div></div></div>
+<h2>What the check found</h2><table class="ledger"><thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead><tbody><tr><td>Recognisable kit contents</td><td class="res flag">Look closer</td><td style="color:var(--mut)">No plugin manifest, SKILL.md, .mcp.json or agent rules file found. A person needs to check what this is.</td></tr><tr><td>Licence</td><td class="res pass">Pass</td><td style="color:var(--mut)"></td></tr><tr><td>Secret-like strings</td><td class="res pass">Pass</td><td style="color:var(--mut)"></td></tr><tr><td>Runs automatically</td><td class="res pass">Pass</td><td style="color:var(--mut)"></td></tr><tr><td>Network access in code</td><td class="res flag">Look closer</td><td style="color:var(--mut)">2 line s in code that look like network access:</td></tr><tr><td>Runs other programs or code</td><td class="res pass">Pass</td><td style="color:var(--mut)"></td></tr><tr><td>Commands in agent instructions</td><td class="res pass">Pass</td><td style="color:var(--mut)"></td></tr><tr><td>Binaries, hidden instructions, obfuscation</td><td class="res pass">Pass</td><td style="color:var(--mut)"></td></tr></tbody></table>
+<div class="cmd"><span>/plugin marketplace add praxikit/praxikit</span><button>Copy</button></div><p style="margin-top:12px"><a class="btn" href="#">View on GitHub</a><a class="btn o" href="#">Save</a></p></main><footer><div class="w">Praxikit · every kit read before it is listed · Free and open source (MIT) · <a href="#">Policy</a> · <a href="#">Removal log</a></div></footer></body></html>
