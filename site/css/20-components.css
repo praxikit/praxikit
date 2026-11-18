@@ -1252,3 +1252,27 @@ textarea {
   right: 14px;
   bottom: 60px;
 }
+
+/* Touch and spacing, from the layout audit (site/dev/layout-audit.js): checkboxes are big enough to hit, disclosure rows are a full control tall,
+   and buttons that sit side by side are always a clear gap apart. */
+input[type="checkbox"], input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  accent-color: var(--accent);
+}
+.ck-paste > summary, .listing > summary {
+  min-height: var(--control);
+  padding-block: var(--s2);
+  cursor: pointer;
+}
+:is(p, form, div, td):has(> :is(button, .btn) ~ :is(button, .btn, a)) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+}
+label.check {
+  min-height: var(--control);
+  cursor: pointer;
+}

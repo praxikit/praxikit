@@ -4,7 +4,7 @@
 // profile, settings, collection, boards) to site/dist/_app/<name>.html so they can be looked at in a browser.
 //   node site/build.mjs && node api/dev-render.mjs     then serve site/dist and open /_app/admin.html
 // Nothing here is deployed: site/dist is rebuilt from scratch by site/build.mjs, which removes _app.
-import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, readdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { dirname, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -99,4 +99,6 @@ for (const [name, path, as] of pages) {
   writeFileSync(join(out, `${name}.html`), text);
   console.log(String(res.status).padEnd(4), name.padEnd(24), path, `(${text.length} bytes)`);
 }
+// the browser-side development tools (site/dev) are served next to the pages, so they can be loaded with fetch + eval
+for (const f of readdirSync(join(here, "..", "site", "dev"))) writeFileSync(join(out, f), readFileSync(join(here, "..", "site", "dev", f)));
 writeFileSync(join(out, "index.html"), `<!doctype html><meta charset="utf-8"><title>App pages</title><link rel="stylesheet" href="/style.css"><body style="padding:24px"><h1>App pages</h1><ul>${pages.map(([n]) => `<li><a href="${n}.html">${n}</a></li>`).join("")}</ul>`);
