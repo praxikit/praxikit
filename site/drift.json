@@ -1,8 +1,8 @@
 {
-  "https://github.com/54yyyu/zotero-mcp": "same",
-  "https://github.com/addyosmani/agent-skills": "same",
+  "https://github.com/54yyyu/zotero-mcp": "review",
+  "https://github.com/addyosmani/agent-skills": "review",
   "https://github.com/anthropics/claude-plugins-official": "newer",
-  "https://github.com/blader/humanizer": "same",
+  "https://github.com/blader/humanizer": "newer",
   "https://github.com/brave/brave-search-mcp-server": "newer",
   "https://github.com/ckreiling/mcp-server-docker": "same",
   "https://github.com/cloudflare/mcp-server-cloudflare": "same",

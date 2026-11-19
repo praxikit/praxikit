@@ -2,7 +2,7 @@
   "https://github.com/54yyyu/zotero-mcp": {
     "stars": 6000,
     "licence": "MIT",
-    "pushed": "2026-11-12",
+    "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/addyosmani/agent-skills": {
@@ -12,25 +12,25 @@
     "archived": false
   },
   "https://github.com/anthropics/claude-plugins-official": {
-    "stars": 47600,
+    "stars": 47700,
     "licence": "Apache-2.0",
-    "pushed": "2026-11-12",
+    "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/blader/humanizer": {
-    "stars": 70700,
+    "stars": 71100,
     "licence": "MIT",
-    "pushed": "2026-11-05",
+    "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/brave/brave-search-mcp-server": {
     "stars": 1600,
     "licence": "MIT",
-    "pushed": "2026-11-12",
+    "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/ckreiling/mcp-server-docker": {
-    "stars": 758,
+    "stars": 759,
     "licence": "GPL-3.0",
     "pushed": "2026-08-06",
     "archived": false
@@ -42,13 +42,13 @@
     "archived": false
   },
   "https://github.com/cloudflare/security-audit-skill": {
-    "stars": 75100,
+    "stars": 75700,
     "licence": "MIT",
     "pushed": "2026-09-10",
     "archived": false
   },
   "https://github.com/coreyhaines31/marketingskills": {
-    "stars": 61200,
+    "stars": 61400,
     "licence": "MIT",
     "pushed": "2026-11-12",
     "archived": false
@@ -68,11 +68,11 @@
   "https://github.com/github/github-mcp-server": {
     "stars": 34600,
     "licence": "MIT",
-    "pushed": "2026-11-12",
+    "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/GLips/Figma-Context-MCP": {
-    "stars": 16200,
+    "stars": 16300,
     "licence": "MIT",
     "pushed": "2026-11-12",
     "archived": false
@@ -80,11 +80,11 @@
   "https://github.com/hashicorp/terraform-mcp-server": {
     "stars": 1600,
     "licence": "MPL-2.0",
-    "pushed": "2026-11-12",
+    "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/hustcc/mcp-mermaid": {
-    "stars": 651,
+    "stars": 652,
     "licence": "MIT",
     "pushed": "2026-05-14",
     "archived": false
@@ -108,7 +108,7 @@
     "archived": false
   },
   "https://github.com/microsoft/playwright-mcp": {
-    "stars": 39800,
+    "stars": 39900,
     "licence": "Apache-2.0",
     "pushed": "2026-11-12",
     "archived": false
@@ -120,13 +120,13 @@
     "archived": false
   },
   "https://github.com/obra/superpowers": {
-    "stars": 320000,
+    "stars": 322000,
     "licence": "MIT",
     "pushed": "2026-10-29",
     "archived": false
   },
   "https://github.com/obsidianmd/obsidian-skills": {
-    "stars": 53100,
+    "stars": 53200,
     "licence": "MIT",
     "pushed": "2026-11-12",
     "archived": false
@@ -140,17 +140,17 @@
   "https://github.com/supabase/mcp": {
     "stars": 3000,
     "licence": "Apache-2.0",
-    "pushed": "2026-11-12",
+    "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/upstash/context7": {
     "stars": 65100,
     "licence": "MIT",
-    "pushed": "2026-11-12",
+    "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/VoltAgent/awesome-claude-code-subagents": {
-    "stars": 26600,
+    "stars": 26700,
     "licence": "MIT",
     "pushed": "2026-10-29",
     "archived": false
