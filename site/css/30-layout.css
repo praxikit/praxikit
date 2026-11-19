@@ -500,7 +500,7 @@ main {
   white-space: nowrap;
 }
 @media (min-width: 1041px) {
-.acct {
+html[data-in] .acct {
   min-width: 168px;
   justify-content: flex-end;
 }
