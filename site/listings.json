@@ -1413,5 +1413,30 @@
         }
       ]
     }
+  },
+  {
+    "name": "video-shotcraft",
+    "url": "https://github.com/Vincentwei1021/video-shotcraft",
+    "author": "Vincentwei1021",
+    "why": "▶ Browse all 150 shots in the Gallery · 🎬 Watch the Showcase",
+    "kind": "plugin",
+    "source": "recommended",
+    "added": "2026-11-19",
+    "commit": "075b548c2405a07b77129eb448b0b504fc60dea3",
+    "checks": "needs-manual-review",
+    "tags": [
+      "agent-skills",
+      "ai-agents",
+      "ai-video",
+      "claude-code",
+      "claude-code-skills",
+      "claude-skills",
+      "codex",
+      "motion-design",
+      "motion-graphics",
+      "product-video",
+      "promo-video",
+      "remotion"
+    ]
   }
 ]
