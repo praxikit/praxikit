@@ -12,13 +12,13 @@
     "archived": false
   },
   "https://github.com/anthropics/claude-plugins-official": {
-    "stars": 47700,
+    "stars": 47800,
     "licence": "Apache-2.0",
     "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/blader/humanizer": {
-    "stars": 71200,
+    "stars": 71500,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
@@ -30,7 +30,7 @@
     "archived": false
   },
   "https://github.com/ckreiling/mcp-server-docker": {
-    "stars": 759,
+    "stars": 760,
     "licence": "GPL-3.0",
     "pushed": "2026-08-06",
     "archived": false
@@ -42,13 +42,13 @@
     "archived": false
   },
   "https://github.com/cloudflare/security-audit-skill": {
-    "stars": 75800,
+    "stars": 76100,
     "licence": "MIT",
     "pushed": "2026-09-10",
     "archived": false
   },
   "https://github.com/coreyhaines31/marketingskills": {
-    "stars": 61500,
+    "stars": 61600,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
@@ -120,19 +120,19 @@
     "archived": false
   },
   "https://github.com/obra/superpowers": {
-    "stars": 322000,
+    "stars": 323000,
     "licence": "MIT",
     "pushed": "2026-10-29",
     "archived": false
   },
   "https://github.com/obsidianmd/obsidian-skills": {
-    "stars": 53200,
+    "stars": 53300,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/OthmanAdi/planning-with-files": {
-    "stars": 28100,
+    "stars": 28200,
     "licence": "MIT",
     "pushed": "2026-11-05",
     "archived": false
@@ -144,13 +144,13 @@
     "archived": false
   },
   "https://github.com/upstash/context7": {
-    "stars": 65100,
+    "stars": 65200,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/Vincentwei1021/video-shotcraft": {
-    "stars": 21700,
+    "stars": 21800,
     "licence": "Apache-2.0",
     "pushed": "2026-11-19",
     "archived": false
@@ -164,7 +164,7 @@
   "https://github.com/voska/hass-mcp": {
     "stars": 353,
     "licence": "MIT",
-    "pushed": "2026-10-29",
+    "pushed": "2026-11-19",
     "archived": false
   }
 }
