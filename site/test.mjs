@@ -78,10 +78,10 @@ must(htmlFiles.length === 28, `expected 23 earlier pages plus the removal log an
 }
 {
   const home0 = readFileSync(join(out, "index.html"), "utf8");
-  must(home0.includes("Install a kit built here") && home0.includes('class="install-steps"') && (home0.match(/data-copy/g) || []).length >= 1, "the home page shows the install steps for kits built here, each with a copy button");
+  must(!home0.includes("Install a kit built here") && !home0.includes("install-steps") && home0.includes("Built by Praxikit") && home0.includes("Browse all ") && home0.includes("<span class=\"ct\">Plugin</span>"), "the home page has no install section, a Built by Praxikit row, and a stack of kinds");
   must(home0.includes('<p class="credit">') && home0.includes("Built with") && home0.includes('href="https://github.com/royal-programmer" rel="noopener noreferrer"') && home0.includes('<a target="_blank" href="https://github.com/royal-programmer"') && home0.includes("(Ratul Roy)") && home0.includes("Search  (Ctrl K)"), "the footer carries a small credit with a safe link to the maker, and the search box names its shortcut");
   must(existsSync(join(out, "fonts", "bricolage-grotesque.woff2")) && existsSync(join(out, "fonts", "OFL.txt")) && home0.includes('rel="preload" href="./fonts/bricolage-grotesque.woff2"') && readFileSync(join(out, "style.css"), "utf8").includes("@font-face"), "the heading font ships with its licence, from this site, and is preloaded");
-  must(!home0.includes('class="eyebrow"') && !home0.includes('class="stats"') && !home0.includes('class="trust"') && home0.includes('class="stack"') && home0.includes("Start here") && (home0.includes("Read at") || home0.includes("Needs re-review")),"the home page leads with covers and shelves of real listings (what was read, at which commit) and has no eyebrow, stats row or icon cards");
+  must(!home0.includes('class="eyebrow"') && !home0.includes('class="stats"') && !home0.includes('class="trust"') && home0.includes('class="stack"') && home0.includes("Built by Praxikit") && (home0.includes("Read at") || home0.includes("Needs re-review")),"the home page leads with covers and shelves of real listings (what was read, at which commit) and has no eyebrow, stats row or icon cards");
   must(!/border-(left|right):\s*[2-9]px solid var\(--(warn|spark|accent|bad)\)/.test(readFileSync(join(out, "style.css"), "utf8")), "no coloured stripe on the side of a callout or card");
 }
 {
@@ -145,7 +145,7 @@ const feed = readFileSync(join(out, "feed.xml"), "utf8");
 must(feed.startsWith("<?xml") && feed.includes("<entry>") && !feed.includes("<script>alert") && !feed.includes("<img src=x") && feed.includes("&lt;script&gt;"), "feed.xml missing, not escaped, or empty");
 must(idx.includes('rel="alternate" type="application/atom+xml"'), "feed link missing from the page head");
 const upd = readFileSync(join(out, "k/evil/index.html"), "utf8");
-must(upd.includes("data-ck-paste") && upd.includes("claude plugin list") && /data-checker="[^"]*1.2.3/.test(upd), "the paste-to-detect update checker is on each kit page");
+must(!upd.includes("data-ck-paste") && !upd.includes("data-checker") && upd.includes("/plugin marketplace update praxikit") && upd.includes("/reload-plugins"), "a built kit page gives the update command and no longer carries the paste-to-detect checker");
 const sub = readFileSync(join(out, "submit/index.html"), "utf8");
 must(!sub.includes("template=suggest-kit.yml") && !sub.includes("template=recommend.yml"), "submitting is the form on the site; the old issue forms are gone");
 // routes: the home page shows a few kits and links on to pages instead of holding everything
@@ -168,7 +168,7 @@ const kp = readFileSync(join(out, "k/evil/index.html"), "utf8");
 must(kp.includes('role="tablist"') && kp.includes('role="tabpanel"'), "install tabs missing on a kit with installBy");
 must(kp.includes("What you'll see") && kp.includes("What it does on your machine"), "preview or access sections missing");
 must(kp.includes("<code>x.mjs</code>") && kp.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "hooks list or escaped matcher missing");
-must(/data-checker="[^"]*1\.2\.3/.test(kp), "update checker data missing for the evil kit");
+must(!kp.includes("data-checker"), "no update checker data on a kit page");
 must(kp.includes('id="trust"') && kp.includes("not a security audit") && /class="(pass|fail)"/.test(kp), "build checks panel missing on the kit page");
 must(kp.includes('class="fail"'), "a failing check (no LICENSE in the fixture) must be shown as failing, not hidden");
 const versions = JSON.parse(readFileSync(join(out, "versions.json"), "utf8"));

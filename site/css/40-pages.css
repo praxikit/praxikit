@@ -53,70 +53,6 @@
   font-size: var(--fs-sm);
   color: var(--muted);
 }
-.checker {
-  max-width: 760px;
-}
-.ck-paste {
-  margin: 0 0 14px;
-  font-size: var(--fs-sm);
-}
-.ck-paste summary {
-  cursor: pointer;
-  color: var(--accent);
-  font-weight: 600;
-}
-.ck-paste textarea {
-  width: 100%;
-  font: .88rem var(--mono);
-  resize: vertical;
-}
-.ck-row {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-.ck-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  flex: 1;
-  min-width: 150px;
-}
-.ck-field select {
-  font-size: var(--fs-sm);
-}
-.ck-out {
-  margin-top: 14px;
-}
-.ck-out[hidden] {
-  display: none;
-}
-.ck-ok, .ck-new {
-  margin: 0 0 8px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-weight: 600;
-}
-.ck-ok {
-  background: var(--accent-bg);
-  color: var(--accent);
-}
-.ck-new {
-  background: var(--warn-bg);
-  color: var(--warn);
-}
-.ck-out h4 {
-  margin: 12px 0 2px;
-  font-size: var(--fs-sm);
-}
-.ck-out ul {
-  margin: .2rem 0;
-  padding-left: 1.1rem;
-  color: var(--muted);
-  font-size: var(--fs-sm);
-}
 .ck-title {
   margin: 1.4rem 0 .5rem;
   font-size: var(--fs-md);
@@ -961,3 +897,6 @@ td.res-pass {
 .skel { list-style: none; height: 2.6rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg2), var(--line), var(--bg2)); background-size: 200% 100%; animation: skel 1.4s ease-in-out infinite; margin: var(--s2) 0; }
 @keyframes skel { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 @media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
+
+/* in the hero stack the next cover overlaps the left side of the one behind it, so the last cover keeps its name on the right */
+.stack .cover:nth-child(3) .cn { text-align: right; margin-left: auto; }

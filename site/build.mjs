@@ -254,79 +254,6 @@ const SITE_JS = `
     box.querySelector("[role=tablist]").hidden = false;
     show(0);
   });
-  document.querySelectorAll("[data-checker]").forEach(function (box) {
-    var data; try { data = JSON.parse(box.getAttribute("data-checker")); } catch (e) { return; }
-    var kitSel = box.querySelector("[data-ck-kit]"), verSel = box.querySelector("[data-ck-ver]"), out = box.querySelector("[data-ck-out]"), upd = box.querySelector("[data-ck-update]");
-    var paste = box.querySelector("[data-ck-paste]"), pasteMsg = box.querySelector("[data-ck-pastemsg]");
-    function kitName() { return kitSel ? kitSel.value : box.getAttribute("data-kit"); }
-    function kit() { return data[kitName()]; }
-    function line(parent, tag, text, cls) { var e = document.createElement(tag); e.textContent = text; if (cls) e.className = cls; parent.appendChild(e); return e; }
-    function fill() {
-      var k = kit(); verSel.textContent = "";
-      line(verSel, "option", "Choose your version").value = "";
-      if (!k) return;
-      k.versions.forEach(function (v) { line(verSel, "option", "v" + v.v + (v.date ? " (" + v.date + ")" : "")).value = v.v; });
-      line(verSel, "option", "Older, or I don't know").value = "older";
-      render();
-    }
-    function render() {
-      out.textContent = ""; upd.hidden = true;
-      var k = kit(); if (!k || !verSel.value) { out.hidden = true; return; }
-      out.hidden = false;
-      var idx = verSel.value === "older" ? k.versions.length : k.versions.findIndex(function (v) { return v.v === verSel.value; });
-      if (idx === 0) { line(out, "p", "Up to date: v" + k.versions[0].v + " is the latest.", "ck-ok"); return; }
-      line(out, "p", "v" + k.versions[0].v + " is available" + (idx < k.versions.length ? ", you have v" + verSel.value + ". " + idx + (idx === 1 ? " release" : " releases") + " since:" : ". Everything since the first release:"), "ck-new");
-      k.versions.slice(0, idx).forEach(function (v) {
-        line(out, "h4", "v" + v.v + (v.date ? "  " + v.date : ""));
-        var ul = document.createElement("ul"); v.notes.forEach(function (n) { line(ul, "li", n); }); out.appendChild(ul);
-      });
-      upd.hidden = false;
-    }
-    // "claude plugin list" prints "<name>@<marketplace>" then "Version: x.y.z"; find it without a regular expression
-    function versionIn(text, name) {
-      var at = text.indexOf(name + "@"); if (at < 0) return "";
-      var vi = text.indexOf("Version:", at); if (vi < 0) return "";
-      var rest = text.slice(vi + 8).trim(), v = "";
-      for (var i = 0; i < rest.length; i++) { var c = rest.charAt(i); if ((c >= "0" && c <= "9") || c === ".") v += c; else break; }
-      return v;
-    }
-    function fromPaste() {
-      var text = paste.value; pasteMsg.textContent = "";
-      if (!text.trim()) return;
-      var names = Object.keys(data), hit = "", ver = "";
-      // "claude plugin list --json" prints an array of { id: "name@marketplace", version, ... }
-      try {
-        var arr = JSON.parse(text);
-        if (Array.isArray(arr)) arr.forEach(function (it) {
-          if (hit || !it || typeof it.id !== "string" || typeof it.version !== "string") return;
-          var nm = it.id.split("@")[0];
-          if (data[nm]) { hit = nm; ver = it.version; }
-        });
-      } catch (e) {}
-      for (var i = 0; !hit && i < names.length; i++) { var v = versionIn(text, names[i]); if (v) { hit = names[i]; ver = v; } }
-      if (!hit) { pasteMsg.textContent = "Could not find a Praxikit kit in that text."; return; }
-      if (kitSel) kitSel.value = hit;
-      fill();
-      var known = data[hit].versions.some(function (x) { return x.v === ver; });
-      verSel.value = known ? ver : "older";
-      pasteMsg.textContent = known ? "Found " + hit + " v" + ver + "." : "Found " + hit + " v" + ver + ", which is not in this changelog, so showing everything.";
-      render();
-    }
-    if (kitSel) kitSel.addEventListener("change", fill);
-    verSel.addEventListener("change", render);
-    if (paste) paste.addEventListener("input", fromPaste);
-    fill();
-    // a link such as ?kit=keel&v=0.5.0 (printed by /keel:status) fills the form
-    try {
-      var qs = new URLSearchParams(location.search), qk = qs.get("kit"), qv = qs.get("v");
-      if (qk && data[qk] && (!box.getAttribute("data-kit") || box.getAttribute("data-kit") === qk)) {
-        if (kitSel) kitSel.value = qk;
-        fill();
-        verSel.value = qv && data[qk].versions.some(function (x) { return x.v === qv; }) ? qv : "older";
-        render();
-      }
-    } catch (e) {}
-  });
   // ---- menu button (small screens)
   var mt = document.getElementById("menu-toggle"), hdr = document.querySelector("header.top");
   if (mt && hdr) mt.addEventListener("click", function () {
@@ -815,24 +742,6 @@ ${body}
 
 const copyCmd = (c) => `<div class="cmd"><code>${esc(c)}</code><button type="button" data-copy>Copy</button></div>`;
 const install = (cmds) => cmds.map(copyCmd).join("\n");
-// version history for the "am I up to date" checker; newest first, as in the changelog
-const historyOf = (k) => k.changelog.map((e) => ({ v: e.head.split(/\s+/)[0], date: dateOf(e.head), notes: e.bullets.map((b) => b.replace(/`/g, "")) })).filter((h) => /^\d+\.\d+\.\d+$/.test(h.v));
-const checkerData = (kits) => Object.fromEntries(kits.map((k) => [k.name, { versions: historyOf(k) }]).filter(([, v]) => v.versions.length));
-function checker(kits, only) {
-  const data = checkerData(kits);
-  const names = Object.keys(data);
-  if (!names.length || (only && !data[only])) return "";
-  const kitSelect = only ? "" : `<label class="ck-field"><span>Kit</span><select data-ck-kit>${names.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("")}</select></label>`;
-  return `<div class="checker" data-checker="${esc(JSON.stringify(data))}"${only ? ` data-kit="${esc(only)}"` : ""}>
-<details class="ck-paste"><summary>Fill this in for me</summary>
-<p class="muted">A web page cannot see what is installed on your machine, so paste the output of <code>claude plugin list</code> (or <code>claude plugin list --json</code>) and the version is picked for you. The text stays in your browser.</p>
-<textarea data-ck-paste rows="4" spellcheck="false" aria-label="Output of claude plugin list" placeholder="keel@praxikit&#10;  Version: 0.5.0"></textarea>
-<p class="muted" data-ck-pastemsg aria-live="polite"></p></details>
-<div class="ck-row">${kitSelect}<label class="ck-field"><span>Version you have</span><select data-ck-ver></select></label></div>
-<div class="ck-out" data-ck-out hidden aria-live="polite"></div>
-<div data-ck-update hidden><p class="muted">Update with:</p>${copyCmd("/plugin marketplace update praxikit")}<p class="muted">then <code>/reload-plugins</code>.</p></div>
-</div>`;
-}
 const badge = (k) => `<span class="kind own">Built by Praxikit</span><span class="kind">${esc(kindOf(k))}</span><span class="ver">v${esc(k.version)}</span>`;
 
 // "same" | "newer" | "review" | "unreachable" per listing url, written daily by the listing-drift workflow; unknown values are ignored. An older file may say "changed": that means "review".
@@ -1131,15 +1040,6 @@ const recCard = (r, up = "./") => extCard(r, up);
 const releaseList = (items, up) => items.map(({ k, e, date, v }) => `<li><div class="feed-meta"><a href="${up}k/${esc(k.name)}/">${esc(k.name)} ${esc(v)}</a>${date ? `<time datetime="${esc(date)}">${esc(date)}</time>` : ""}</div><p>${md(short(e.bullets[0] ?? ""))}</p></li>`).join("");
 
 /** The two steps that install a kit built here, in Claude Code, with the first built kit as the example. Listed kits are installed from their author's repository. */
-function installPanel(example) {
-  const add = "/plugin marketplace add praxikit/praxikit", one = example?.install?.at(-1) ?? "";
-  return `<div class="install-panel" id="install"><p class="label">Install a kit built here</p>
-<ol class="install-steps">
-<li><span class="step-label">Add the marketplace, once</span>${copyCmd(add)}</li>
-${one ? `<li><span class="step-label">Install a kit, for example ${esc(example.name)}</span>${copyCmd(one)}</li>` : ""}
-</ol>
-<p class="muted">Type these in Claude Code. Cursor and other agents: open the kit's page for its steps. Kits by other people are installed from their author's repository; each page links to it.</p></div>`;
-}
 
 function homePage(kits, picks) {
   const featured = kits.slice(0, 3);
@@ -1152,12 +1052,13 @@ function homePage(kits, picks) {
   const builtKits = kits.filter((k) => !k.ext);
   const listed = kits.filter((k) => k.ext);
   const newest = listed.slice().sort((x, y) => String(y.added).localeCompare(String(x.added)) || x.name.localeCompare(y.name)).slice(0, 8);
-  const start = [...builtKits, ...picks].slice(0, 6);
-  const bestHealth = listed.slice().sort((x, y) => (healthOf(y)?.score ?? 0) - (healthOf(x)?.score ?? 0))[0];
-  const stackItems = [builtKits[0], picks[0], bestHealth].filter((x, i, arr) => x && arr.findIndex((y) => y && y.name === x.name) === i);
-  const stack = stackItems.map((x) => (x.url
-    ? coverLink({ href: `${lpath(x)}`, kind: x.kind, name: x.name, health: healthOf(x)?.score ?? null })
-    : coverLink({ href: `k/${x.name}/`, kind: x.kind, name: x.name, builtMark: true }))).join("");
+  const start = builtKits.slice(0, 6);
+  // three covers, one per kind: the shape of the catalogue, not three particular kits
+  const KIND_STACK = [["plugins", "plugin", "plugins", "plugin"], ["mcp", "mcp", "MCP configs", "MCP config"], ["skills", "skill", "skills", "skill"]];
+  const stack = KIND_STACK.map(([id, kind, many, one]) => {
+    const g = GROUPS.find((x) => x.id === id), n = g ? inGroup(kits, g).length : 0;
+    return n ? coverLink({ href: `kits/${id}/`, kind, name: `${n} ${n === 1 ? one : many}` }) : "";
+  }).join("");
   const shelfRow = (list) => `<ul class="cards shelf">${list.map((k) => (k.url ? extCard(k, "./") : card(k, "./"))).join("")}</ul>`;
   const typeChips = GROUPS.map((g) => { const n = inGroup(kits, g).length; return `<li><a class="chip-link" href="kits/${g.id}/">${esc(g.label)} <span class="count">${n}</span></a></li>`; }).join("");
   const body = `
@@ -1167,14 +1068,12 @@ function homePage(kits, picks) {
 <p class="lead">Plugins, skills and MCP servers for AI coding agents. Each one was scanned, then read by a person, and its page shows what was read and what the check found.</p>
 <form class="hero-search" role="search" action="search/" method="get"><label class="vh" for="hero-q">Search every kit</label><input id="hero-q" name="q" type="search" placeholder="What do you want your agent to do?" autocomplete="off" spellcheck="false" maxlength="100"><button class="btn" type="submit">Search</button></form>
 ${topTags.length ? `<p class="try">Try <span class="vh">searching for</span></p><ul class="chiprow try-row" aria-label="Searches to try">${topTags.slice(0, 6).map(([t]) => `<li><a class="chip-link" href="search/?q=${encodeURIComponent(t)}">${esc(t)}</a></li>`).join("")}</ul>` : ""}
-<p class="actions"><a class="btn ghost" href="kits/">Browse ${kits.length} kits</a><a class="btn ghost" href="submit/">Submit a kit</a></p>
+<p class="actions"><a class="btn ghost" href="kits/">Browse all ${kits.length} kits</a><a class="btn ghost" href="submit/">Submit a kit</a></p>
 </div>
 ${stack ? `<div class="stack" aria-label="Some kits">${stack}</div>` : ""}
 </div></section>
 
-${start.length ? `<section class="wrap sec"><div class="sec-head"><h2>Start here</h2><a class="viewall" href="kits/">All kits</a></div>${shelfRow(start)}</section>` : ""}
-
-<section class="wrap sec" id="install-here">${installPanel(builtKits[0])}</section>
+${start.length ? `<section class="wrap sec"><div class="sec-head"><h2>Built by Praxikit</h2><a class="viewall" href="kits/">All kits</a></div>${shelfRow(start)}</section>` : ""}
 
 <section class="wrap sec"><div class="sec-head"><h2>Recently listed</h2><a class="viewall" href="kits/?sort=new">All ${plural(kits.length, "kit")}</a></div>${shelfRow(newest)}
 <ul class="chiprow" aria-label="Browse by type">${typeChips}</ul></section>
@@ -1312,7 +1211,7 @@ ${trustBlock(k)}
 <section><h2>Changelog</h2>${log ? `<ol class="log">${log}</ol>` : '<p class="muted">No changelog.</p>'}</section>
 </div>
 <aside class="side"><div class="panel"><h2>Install</h2>${installBlock(k)}<p class="muted">Update later (Claude Code):</p>${copyCmd("/plugin marketplace update praxikit")}<p class="muted">then <code>/reload-plugins</code>.</p>
-${checker([k], k.name) ? `<h2 class="ck-title">Am I up to date?</h2>${checker([k], k.name)}` : ""}
+<h2 class="ck-title">Update</h2><p class="muted">Already installed? Update with:</p>${copyCmd("/plugin marketplace update praxikit")}<p class="muted">then <code>/reload-plugins</code>. What changed in each release is in the changelog above.</p>
 <p class="side-links"><a href="${esc(REPO)}/tree/main/kits/${esc(k.name)}" rel="noopener noreferrer">Source on GitHub</a></p></div></aside>
 </div>
 ${communityBlock(`k/${k.name}/`)}</div>`;
@@ -1405,7 +1304,7 @@ function aboutPage() {
 <ol class="plain-steps">
 <li><strong>Find one.</strong> Search for what you want your agent to do, or browse by type. You do not need to know the name of a kit.</li>
 <li><strong>Read the label.</strong> Every kit page shows <em>Check facts</em>: the commit a person read, the date, and what the automatic check found, such as network calls or commands that run on their own.</li>
-<li><strong>Install it.</strong> Kits built here install from the Praxikit marketplace in two commands. Kits by other people install from their author's repository, and the page links to it with the steps.</li>
+<li><strong>Install it.</strong> Kits built by Praxikit install from the Praxikit marketplace: add it once with <code>/plugin marketplace add praxikit/praxikit</code>, then each kit's page gives its own install command. Kits by other people install from their author's repository, and the page links to it with the steps.</li>
 <li><strong>Save it.</strong> Sign in with GitHub to keep a collection of kits and see when one has been updated.</li>
 </ol>
 

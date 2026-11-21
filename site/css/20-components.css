@@ -447,9 +447,6 @@ input::placeholder, textarea::placeholder {
 .tag .count {
   opacity: .7;
 }
-[data-ck-update][hidden] {
-  display: none;
-}
 .count {
   font-size: var(--fs-xs);
   font-weight: 650;
@@ -1261,7 +1258,7 @@ input[type="checkbox"], input[type="radio"] {
   flex: none;
   accent-color: var(--accent);
 }
-.ck-paste > summary, .listing > summary {
+.listing > summary {
   min-height: var(--control);
   padding-block: var(--s2);
   cursor: pointer;
@@ -1276,16 +1273,6 @@ label.check {
   min-height: var(--control);
   cursor: pointer;
 }
-
-/* numbered steps with a copyable command each (home, a kit's page): the numbers are real, one comes after the other */
-.install-panel { margin: 0 0 var(--s5); max-width: 560px; }
-.install-panel > .label { margin: 0 0 var(--s3); }
-.install-steps { list-style: none; counter-reset: step; margin: 0 0 var(--s3); padding: 0; display: grid; gap: var(--s4); }
-.install-steps > li { counter-increment: step; position: relative; padding-left: var(--s7); }
-.install-steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-fg); font: 700 var(--fs-sm) var(--display); }
-.install-steps .step-label { display: block; margin: 0 0 var(--s2); padding-top: 4px; font-weight: 650; }
-.install-steps .cmd { margin: 0; }
-.install-panel > .muted { margin: 0; max-width: 52ch; }
 
 /* a warning on a card sits under the name; the account chip keeps its shape when the avatar is missing */
 .cap-warn { margin: 0; }
