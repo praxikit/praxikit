@@ -594,6 +594,14 @@ const SITE_JS = `
     tgl.setAttribute("aria-pressed", String(next === "dark"));
     try { localStorage.setItem("praxikit-theme", next); } catch (e) {}
   });
+  // the saved theme is the one source: apply it again when a page comes back from the back/forward cache or another tab changes it
+  function syncTheme() {
+    var t = null; try { t = localStorage.getItem("praxikit-theme"); } catch (e) {}
+    if (t === "light" || t === "dark") root.setAttribute("data-theme", t); else root.removeAttribute("data-theme");
+    if (tgl) tgl.setAttribute("aria-pressed", String((root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark"));
+  }
+  window.addEventListener("pageshow", function (e) { if (e.persisted) syncTheme(); });
+  window.addEventListener("storage", function (e) { if (e.key === "praxikit-theme") syncTheme(); });
   // ---- copy an install line from a card
   document.querySelectorAll("[data-copy-text]").forEach(function (b) {
     b.addEventListener("click", function (e) {

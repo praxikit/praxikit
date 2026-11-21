@@ -89,21 +89,34 @@ async function run({ cachedMe = null, hint = false, me = null, saved = [], dark 
     if (String(url) === "/collection/toggle") return { ok: true, json: async () => ({ saved: !saved.includes("k/keel/") }) };
     return { ok: false, json: async () => [] };
   };
+  const winListeners = {};
   const loc = { origin: "https://praxikit.com", pathname: "/k/keel/", search, href: "https://praxikit.com/k/keel/" };
   const ctx = vm.createContext({
     document: doc, location: loc, _unused: { origin: "https://praxikit.com", pathname: "/kits/", search, href: "https://praxikit.com/" },
     matchMedia: () => ({ matches: dark }), localStorage: { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = v; }, removeItem: (k) => { delete store[k]; } },
+    window: { addEventListener: (t, f) => (winListeners[t] ??= []).push(f) },
     fetch: fetchStub, URLSearchParams, Promise, setTimeout, clearTimeout, console, String, Array, Object, Number, JSON, encodeURIComponent, decodeURIComponent, Math, Date, RegExp, Error,
     navigator: { clipboard: { writeText: async () => {} } }, history: { replaceState() {} },
   });
   let threw = null;
   try { vm.runInContext(code, ctx); } catch (e) { threw = e; }
   await new Promise((r) => setTimeout(r, 30));
-  return { signinLink, threw, list, stats, loc, calls, root, body, header, nav, ids, btn, label, store, doc, docListeners, click: (el) => { const ev = {}; for (const f of docListeners.click ?? []) f({ target: el, preventDefault() { ev.prevented = true; } }); return ev; } };
+  return { winListeners, signinLink, threw, list, stats, loc, calls, root, body, header, nav, ids, btn, label, store, doc, docListeners, click: (el) => { const ev = {}; for (const f of docListeners.click ?? []) f({ target: el, preventDefault() { ev.prevented = true; } }); return ev; } };
 }
 
 // ---- the theme button
 {
+  // the saved theme wins when a page comes back from the back/forward cache (bug: dark stayed after going back)
+  {
+    const q = await run({ dark: false });
+    q.ids.theme.fire("click");
+    q.store["praxikit-theme"] = "light";
+    for (const f of q.winListeners.pageshow ?? []) f({ persisted: true });
+    must(q.root.getAttribute("data-theme") === "light" && q.ids.theme.getAttribute("aria-pressed") === "false", "a page restored from the back/forward cache takes the saved theme");
+    q.store["praxikit-theme"] = "dark";
+    for (const f of q.winListeners.storage ?? []) f({ key: "praxikit-theme" });
+    must(q.root.getAttribute("data-theme") === "dark", "a theme change in another tab is applied here");
+  }
   const p = await run({ dark: false });
   must(!p.threw, `the script loads without an error: ${p.threw?.message}`);
   p.ids.theme.fire("click");
