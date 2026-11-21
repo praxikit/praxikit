@@ -1040,9 +1040,22 @@ function howtoSection(l) {
   return `<section class="howto" id="install"><h2>How to install</h2><p>${esc(HOWTO[l.kind] ?? "Follow the install steps in the author's README.")} It is not in the Praxikit marketplace, so Praxikit does not install it for you.</p><p><a class="btn ghost" href="${esc(l.url)}#readme" rel="noopener noreferrer">Open the README on GitHub</a></p></section>`;
 }
 
+/** What the kit can touch, in four plain lines, from the saved check results. Nothing is shown for a listing without them. */
+const TOUCH = [["autorun", "Starts by itself (hooks, install scripts)"], ["network", "Talks to the network from code"], ["exec", "Starts other programs"], ["instructions", "Tells the agent to run commands"]];
+function touchSection(l) {
+  const f = l.found; if (!f) return "";
+  const rows = TOUCH.map(([id, label]) => { const c = f.checks.find((x) => x.id === id); return c ? `<li class="touch-${c.status === "pass" ? "no" : "yes"}"><span>${esc(label)}</span><strong>${c.status === "pass" ? "Not found" : "Found, look closer"}</strong></li>` : ""; }).join("");
+  return rows ? `<section class="touch" aria-labelledby="touch-h"><h2 id="touch-h">What it can touch</h2><ul>${rows}</ul><p class="muted">From the automatic check, which matches patterns in the files it read. <a href="#found">All the check facts</a>. Not found is not a promise.</p></section>` : "";
+}
 function listingPage(l, all) {
   const d = driftOf(l), h = healthOf(l);
-  const related = all.filter((x) => x.url !== l.url && tagsOf(x).some((t) => tagsOf(l).includes(t))).slice(0, 4);
+  const byAuthor = all.filter((x) => x.url !== l.url && x.ext && x.author === l.author).slice(0, 4);
+  const taken = new Set([l.url, ...byAuthor.map((x) => x.url)]);
+  const mine = tagsOf(l);
+  const related = all.filter((x) => !(x.url && taken.has(x.url)))
+    .map((x) => ({ x, n: tagsOf(x).filter((t) => mine.includes(t)).length + (x.kind === l.kind ? 0.5 : 0) }))
+    .filter((r) => r.n >= 1)
+    .sort((p, q) => q.n - p.n || String(p.x.name).localeCompare(String(q.x.name))).slice(0, 4).map((r) => r.x);
   const flags = `${l.pick ? '<span class="cflag pick">My pick</span>' : ""}${isNew(l.added, TODAY) ? '<span class="cflag fresh">New</span>' : ""}`;
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../../">Home</a> / <a href="../../kits/">Kits</a> / ${esc(KIND_LABEL[l.kind] ?? l.kind)}</p>
 <div class="prod">
@@ -1053,6 +1066,8 @@ function listingPage(l, all) {
 <p class="meta-line">${d.badge}<span>by ${esc(l.author)}, not built by Praxikit · ${esc(KIND_LABEL[l.kind] ?? l.kind)}</span></p>
 <p class="lead">${esc(l.why)}</p>
 ${signals(l)}${tagChips(l, "../../")}
+<p class="asof">This report describes commit <a href="${esc(`${l.url}/commit/${l.commit}`)}" rel="noopener noreferrer"><code>${esc(l.commit.slice(0, 7))}</code></a>, read on ${esc(l.added)}. Praxikit does not cover changes made to the repository after that commit.</p>
+${touchSection(l)}
 ${labelSection(l, d)}
 ${howtoSection(l)}
 ${l.pick ? `<section><h2>Why I picked it</h2><p class="pick-note big">${esc(l.note)}</p><p class="muted">This is one of the owner's picks: a kit made by someone else that they use themselves.</p></section>` : `<section><h2>Why it is listed</h2><p>${esc(sourceWord(l))}. It was scanned automatically and read by a person before it was listed. Listing is not an endorsement.</p></section>`}
@@ -1060,7 +1075,8 @@ ${healthSection(l)}
 <section><h2>What the review covers</h2>
 <p>The automatic check reads the repository without running or installing anything and reports its licence, secret-like strings, code that runs automatically, network access, binaries and hidden instructions. A person then reads the report. It never says a kit is safe: read the code before you give it access to anything that matters. <a href="../../policy/">How listings work</a>.</p></section>
 </div></div>
-${related.length ? `<section class="sec-inner"><h2>More like this</h2><ul class="cards">${related.map((r) => card(r, "../../")).join("")}</ul></section>` : ""}
+${byAuthor.length ? `<section class="sec-inner"><h2>More from ${esc(l.author)}</h2><ul class="cards">${byAuthor.map((r) => card(r, "../../")).join("")}</ul></section>` : ""}
+${related.length ? `<section class="sec-inner"><h2>Similar kits you may like</h2><ul class="cards">${related.map((r) => card(r, "../../")).join("")}</ul></section>` : ""}
 ${communityBlock(l.url)}</div>`;
   return page({ title: `${l.name} — Praxikit`, depth: 2, body, canonical: `${HOME_URL}${lpath(l)}`, description: l.why,
     ld: { "@context": "https://schema.org", "@type": "SoftwareSourceCode", name: l.name, description: l.why, codeRepository: l.url, author: { "@type": "Person", name: l.author }, url: `${HOME_URL}${lpath(l)}` } });
