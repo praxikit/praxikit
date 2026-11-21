@@ -67,6 +67,11 @@ for (const p of ["/kits/", "/k/keel/", "/tags/", "/search/", "/submit/", "/priva
 must((await (await call("/.well-known/security.txt")).text()).includes("Contact: https://github.com/praxikit/praxikit/security/advisories/new"), "security.txt is served from the standard address");
 must(r.headers.get("Cross-Origin-Opener-Policy") === "same-origin", "site pages carry the same opener policy as the app");
 for (const p of ["/site.js", "/boot.js", "/style.css", "/search-index.json", "/versions.json", "/feed.xml", "/sitemap.xml", "/robots.txt", "/logo.svg"]) must((await call(p)).status === 200, `${p} is served`);
+{
+  const pageR = await call("/kits/"), cssR = await call("/style.css"), notFound = await call("/no-such-page/"), appR = await call("/admin"), jsonR = await call("/versions.json");
+  must(/max-age=120/.test(pageR.headers.get("Cache-Control") ?? "") && /stale-while-revalidate/.test(pageR.headers.get("Cache-Control") ?? "") && /max-age=120/.test(cssR.headers.get("Cache-Control") ?? ""), "static pages and styles are kept by the browser for two minutes, so a page that was fetched ahead opens at once");
+  must(!/max-age=120/.test(notFound.headers.get("Cache-Control") ?? "") && !/max-age=120/.test(appR.headers.get("Cache-Control") ?? "") && !/max-age=120/.test(jsonR.headers.get("Cache-Control") ?? ""), "a missing page, the signed-in app and data files are not cached that way");
+}
 must((await (await call("/robots.txt")).text()).includes("Disallow: /admin") && (await (await call("/sitemap.xml")).text()).includes("https://praxikit.com/kits/"), "robots and the sitemap use the real address");
 must(!(await (await call("/sitemap.xml")).text()).includes("/admin") && !(await (await call("/sitemap.xml")).text()).includes("app-shell"), "the sitemap lists no account or admin pages");
 r = await call("/nothing-here/");

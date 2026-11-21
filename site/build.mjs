@@ -529,6 +529,34 @@ const SITE_JS = `
   }
   window.addEventListener("pageshow", function (e) { if (e.persisted) syncTheme(); });
   window.addEventListener("storage", function (e) { if (e.key === "praxikit-theme") syncTheme(); });
+  // ---- feeling fast: a thin bar on the way to another page, and a quiet head start on the page you are about to open
+  (function () {
+    var bar = document.createElement("div"); bar.className = "navbar"; bar.setAttribute("aria-hidden", "true"); document.body.appendChild(bar);
+    document.addEventListener("click", function (e) {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      var a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+      if (!a || a.target === "_blank" || a.hasAttribute("download") || a.origin !== location.origin) return;
+      if (a.pathname === location.pathname && a.search === location.search) return;
+      bar.className = "navbar run";
+    });
+    window.addEventListener("pageshow", function () { bar.className = "navbar"; });
+    var conn = navigator.connection, thrifty = conn && (conn.saveData || conn.effectiveType === "2g" || conn.effectiveType === "slow-2g");
+    if (thrifty || typeof fetch !== "function") return;
+    var done = {}, active = 0, wait = null, last = null;
+    function warm(a) {
+      if (!a || a.origin !== location.origin || a.target === "_blank" || a.hasAttribute("download") || a.hash && a.pathname === location.pathname) return;
+      if (a.pathname.indexOf("/api/") === 0 || a.pathname.indexOf("/auth/") === 0 || a.pathname.indexOf("/admin") === 0 || a.pathname.indexOf("/account/") === 0 || a.pathname.indexOf("/collection/") === 0) return;
+      var key = a.pathname + a.search; if (done[key] || key === location.pathname + location.search || active >= 2) return;
+      done[key] = 1; active++;
+      fetch(a.href, { credentials: "same-origin", priority: "low" }).then(function (r) { return r.text(); }).catch(function () {}).then(function () { active--; });
+    }
+    function link(e) { return e.target && e.target.closest ? e.target.closest("a[href]") : null; }
+    // after the pointer rests on a link for a moment: sweeping across a grid warms nothing
+    document.addEventListener("mouseover", function (e) { var a = link(e); if (!a || a === last) return; last = a; clearTimeout(wait); wait = setTimeout(function () { warm(a); }, 140); });
+    document.addEventListener("mouseout", function (e) { var a = link(e); if (a && a === last) { clearTimeout(wait); last = null; } });
+    document.addEventListener("focusin", function (e) { var a = link(e); if (a) warm(a); });
+    document.addEventListener("touchstart", function (e) { var a = link(e); if (a) warm(a); }, { passive: true });
+  })();
   // ---- copy an install line from a card
   document.querySelectorAll("[data-copy-text]").forEach(function (b) {
     b.addEventListener("click", function (e) {
@@ -1473,6 +1501,16 @@ mkdirSync(OUT, { recursive: true });
 // The stylesheet is five files, written to one, in this order. Three cascade layers, so that what must lose, loses: the tokens, then the base (rules for bare elements:
 // headings, text, links), then "site" (the three files after it: components, layout, pages) where specificity decides as usual and file order breaks ties, then the app's own rules
 // (api/src/lib/html.mjs) as the last layer. A later layer wins over an earlier one whatever the selectors, so never move a rule to a later layer to make it stronger.
+// outside the layers: the page transition rule must be top level, and the progress bar has to win over everything
+const NAV_CSS = [
+  "/* a quick fade between pages, where the browser supports it and motion is welcome */",
+  "@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .16s; } }",
+  "/* the thin bar at the top while another page loads */",
+  ".navbar { position: fixed; top: 0; left: 0; width: 100%; height: 3px; background: var(--accent); transform: scaleX(0); transform-origin: left; opacity: 0; pointer-events: none; z-index: 1000; }",
+  ".navbar.run { opacity: 1; animation: navbar 8s cubic-bezier(.1, .7, .2, 1) forwards; }",
+  "@keyframes navbar { from { transform: scaleX(0); } to { transform: scaleX(.92); } }",
+  "@media (prefers-reduced-motion: reduce) { .navbar.run { animation: none; transform: scaleX(.6); } }",
+].join(String.fromCharCode(10));
 const SITE_FILES = ["20-components", "30-layout", "40-pages"], read = (f) => readFileSync(join(here, "css", f + ".css"), "utf8");
 const block = (name, css) => [`@layer ${name} {`, css, "}"].join(String.fromCharCode(10));
 writeFileSync(join(OUT, "style.css"), ["@layer tokens, base, site, app;", block("tokens", read("00-tokens")), block("base", read("10-base")), block("site", SITE_FILES.map(read).join(String.fromCharCode(10)))].join(String.fromCharCode(10) + String.fromCharCode(10)));
@@ -1518,5 +1556,5 @@ write("app-shell.html", page({ title: "@@TITLE@@", depth: 0, abs: true, body: "<
   write(".well-known/security.txt", ["Contact: https://github.com/praxikit/praxikit/security/advisories/new", `Expires: ${new Date(Date.now() + 365 * 86400_000).toISOString().replace(/\.\d+Z$/, "Z")}`, "Preferred-Languages: en", `Policy: ${HOME_URL}policy/#report`, `Canonical: ${HOME_URL}.well-known/security.txt`, ""].join("\n"));
 write("robots.txt", ["User-agent: *", "Allow: /", "Disallow: /admin", "Disallow: /auth/", "Disallow: /api/", "Disallow: /collection", "Disallow: /account/", "Disallow: /profile", "Disallow: /settings", "Disallow: /app-shell.html", `Sitemap: ${HOME_URL}sitemap.xml`, ""].join("\n"));
 }
-appendFileSync(join(OUT, "style.css"), ["", "/* cover colours, generated by the build (one class per colour in use) */", ...[...COVER_COLOURS].sort().map((c) => `.cv${c.slice(1)}{--c:${c}}`), ""].join(String.fromCharCode(10)));
+appendFileSync(join(OUT, "style.css"), ["", NAV_CSS, "", "/* cover colours, generated by the build (one class per colour in use) */", ...[...COVER_COLOURS].sort().map((c) => `.cv${c.slice(1)}{--c:${c}}`), ""].join(String.fromCharCode(10)));
 console.log(`built ${kits.length} kit(s), ${listings.length} listing(s) (${picks.length} picks) -> ${OUT}`);

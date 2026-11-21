@@ -76,6 +76,8 @@ async function serveSite(request, env) {
   const r = await env.ASSETS.fetch(request);
   const h = new Headers(r.headers);
   for (const [k, v] of Object.entries(SITE_HEADERS)) h.set(k, v);
+  const type = String(h.get("Content-Type") ?? "");
+  if (r.status === 200 && (type.startsWith("text/html") || type.startsWith("text/css") || type.includes("javascript"))) h.set("Cache-Control", "public, max-age=120, stale-while-revalidate=86400");
   return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
 }
 

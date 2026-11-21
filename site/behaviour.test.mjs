@@ -128,6 +128,39 @@ async function run({ cachedMe = null, hint = false, me = null, saved = [], dark 
   must(d.root.getAttribute("data-theme") === "light", "on a dark system the first press goes to light");
 }
 
+// ---- feeling fast: a bar on the way to another page, and a prefetch only for a link the pointer rests on
+{
+  const p = await run({ dark: false });
+  const bar = p.body.children.find((c) => String(c.className).startsWith("navbar"));
+  must(!!bar && bar.className === "navbar", "the progress bar exists and starts idle");
+  const anchor = (path, over = {}) => { const a = { origin: "https://praxikit.com", pathname: path, search: "", hash: "", href: "https://praxikit.com" + path, target: "", hasAttribute: () => false, ...over }; a.closest = () => a; return a; };
+  const click = (a, ev = {}) => { for (const f of p.docListeners.click ?? []) f({ target: a, button: 0, defaultPrevented: false, ...ev }); };
+  click(anchor("/kits/"));
+  must(bar.className === "navbar run", "clicking a link to another page starts the bar");
+  for (const f of p.winListeners.pageshow ?? []) f({});
+  must(bar.className === "navbar", "coming back to a page clears it");
+  click(anchor("/x/", { origin: "https://evil.example" })); click(anchor("/x/", { target: "_blank" })); click(anchor("/x/"), { metaKey: true }); click(anchor("/k/keel/", { pathname: "/k/keel/" }), {});
+  const was = bar.className; bar.className = "navbar";
+  click(anchor("/k/keel/"), { button: 1 }); click(anchor("/k/keel/"), { defaultPrevented: true });
+  must(bar.className === "navbar", "an external link, a new tab, a modified click, a middle click or a handled click does not start the bar");
+  const over = (a) => { for (const f of p.docListeners.mouseover ?? []) f({ target: a }); }, out = (a) => { for (const f of p.docListeners.mouseout ?? []) f({ target: a }); };
+  const before = p.calls.length, sweep = [anchor("/l/a/"), anchor("/l/b/"), anchor("/l/c/")];
+  for (const a of sweep) { over(a); out(a); }
+  await new Promise((r) => setTimeout(r, 220));
+  must(p.calls.length === before, "sweeping the pointer across links warms nothing");
+  const rest = anchor("/l/rest/"); over(rest);
+  await new Promise((r) => setTimeout(r, 220));
+  must(p.calls.slice(before).some(([u]) => u === "https://praxikit.com/l/rest/"), "a link the pointer rests on is fetched ahead of the click");
+  const n = p.calls.length; over(rest); out(rest); over(rest);
+  await new Promise((r) => setTimeout(r, 220));
+  must(p.calls.length === n, "the same page is never fetched twice");
+  const n2 = p.calls.length;
+  for (const path of ["/admin/updates", "/api/me", "/auth/login", "/collection/save", "/account/export"]) { const a = anchor(path); over(a); await new Promise((r) => setTimeout(r, 190)); out(a); }
+  must(p.calls.length === n2, "account, admin, sign-in and API addresses are never fetched ahead");
+  for (const f of p.docListeners.touchstart ?? []) f({ target: anchor("/l/touch/") });
+  must(p.calls.some(([u]) => u === "https://praxikit.com/l/touch/"), "a touch warms the page at once");
+}
+
 // ---- the menu button (small screens)
 {
   const p = await run({});
