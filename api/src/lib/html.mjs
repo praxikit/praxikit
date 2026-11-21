@@ -167,6 +167,23 @@ ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${error ? `<p class="note">${es
 const REMOVE_OPTIONS = [["malicious", "Malicious"], ["secret", "Exposed secret"], ["licence", "Licence problem"], ["misleading", "Misleading"], ["unmaintained", "Unmaintained"], ["owner-request", "Owner asked"], ["other", "Other"]];
 
 /** The live listings, each with an edit form and a remove form. Everything shown is escaped. */
+/** Listings whose repository changed after they were read. A maintainer reads what changed, then updates one at a time; quiet changes update by themselves. */
+export function updatesPage({ session, rows, quiet, error, flash, canPublish }) {
+  const row = (r) => `<li class="update"><div><strong>${esc(r.name)}</strong> <span class="muted">${esc(r.kind)} · read at <code>${esc(r.commit.slice(0, 7))}</code>${r.latest ? ` · newest <code>${esc(r.latest.slice(0, 7))}</code>` : ""}</span></div>
+${r.latest ? `<p><a href="${esc(r.url)}/compare/${esc(r.commit)}...${esc(r.latest)}" rel="noopener noreferrer">Read what changed on GitHub</a></p>
+<form method="post" action="/admin/updates/refresh"><input type="hidden" name="url" value="${esc(r.url)}"><input type="hidden" name="commit" value="${esc(r.latest)}">
+<label class="check"><input type="checkbox" name="read" value="yes" required> I read what changed since <code>${esc(r.commit.slice(0, 7))}</code>, including the files that run code</label>
+<p><button type="submit"${canPublish ? "" : " disabled"}>Update to <code>${esc(r.latest.slice(0, 7))}</code></button></p></form>` : '<p class="muted">The newest commit could not be read just now. Try again in a minute.</p>'}</li>`;
+  return page("Updates — Praxikit", `${nav(session)}
+<h1>Updates</h1>
+<nav class="adm-tabs" aria-label="Maintainer areas"><a href="/admin">Submissions</a><a href="/admin/updates" aria-current="page">Updates${rows.length ? ` <span class="n">${rows.length}</span>` : ""}</a><a href="/admin/listings">Live listings</a></nav>
+${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${error ? `<p class="note">${esc(error)}</p>` : ""}
+<p class="muted">Kits whose repository changed in files that run code (hooks, plugin or MCP configuration, install scripts, manifests that change scripts). Read the changes on GitHub, tick the box, and update: the listing keeps its wording and records the new commit, a fresh check and today's date. Needs a sign-in from the last 30 minutes.</p>
+${rows.length ? `<ul class="updates">${rows.map(row).join("")}</ul>` : "<p>Nothing needs reading right now.</p>"}
+<h2>Quiet changes</h2>
+<p class="muted">${quiet ? `${Number(quiet)} listed kit${quiet === 1 ? " has" : "s have"} newer commits that touch nothing that runs code. When the automatic check is clean, the daily job moves them to the newest commit and the page says only the scan read it.` : "No kit has quiet changes waiting."}</p>`);
+}
+
 export function listingsPage({ session, listings, error, flash, canPublish }) {
   const item = (l) => `<details class="listing"><summary><strong>${esc(l.name)}</strong> <span class="muted">${esc(l.kind)} · ${l.pick ? "my pick" : esc(l.source)} · ${esc(l.checks)}</span></summary>
 <p class="muted"><a href="${esc(l.url)}" rel="noopener noreferrer">${esc(l.url)}</a> · reviewed at <code>${esc(l.commit.slice(0, 7))}</code>. What was reviewed does not change here; to change that, run the checks again from a new submission.</p>
@@ -203,6 +220,8 @@ export const FLASH = {
   direct: "Saved, and since you are a maintainer it is being published now (after the usual scan).",
   needscan: "Run the full checks first. Approving is only possible after they have run and found nothing that blocks it.",
   moved: "The repository has new commits since you were shown it. This page now shows the newest commit: read that one, then approve again.",
+  updating: "Update started. The job scans the newest commit and the site redeploys; this list changes in a minute or two.",
+  movedupdate: "The repository moved again since you were shown it. The list now shows the newest commit: read what changed, then update.",
   needread: "Tick the box to confirm you have opened and read the full report: this one has things to look at.",
   scanning: "The checks are already running. Reload in a minute.",
   scanstarted: "The full checks have started on GitHub. Reload in a minute or two.",
@@ -242,13 +261,13 @@ export function ago(iso, now = Date.now()) {
   return d <= 0 ? "today" : d === 1 ? "yesterday" : d < 60 ? `${d} days ago` : String(iso).slice(0, 10);
 }
 
-export function adminPage({ session, env, queueError, noteCount = 0, requestCount = 0, subs, recent, flash }) {
+export function adminPage({ session, env, queueError, noteCount = 0, requestCount = 0, updateCount = 0, subs, recent, flash }) {
   const via = session.via === "owner" ? `an owner of ${esc(env.ORG)}` : `a member of ${esc(env.ORG)}/${esc(env.TEAM)}`;
   const subRows = (subs ?? []).map((s) => `<tr><td><a class="row-link" href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a><br><span class="muted">${esc(s.owner)}</span></td><td>${esc(s.kind_guess || "?")}</td><td>${esc(s.source)}</td><td>${esc(s.license || "none")}</td><td>${status(s.precheck_status)}</td><td>${chip(scanChip(s))}</td><td>${esc(s.submitted_by)}</td><td title="${esc(String(s.created_at).slice(0, 10))}">${esc(ago(s.created_at))}</td></tr>`).join("");
   const recentRows = (recent ?? []).map((s) => `<tr><td><a class="row-link" href="/admin/submissions/${Number(s.id)}">${esc(s.name)}</a></td><td>${chip([s.status, s.status === "approved" ? "ok" : "muted"])}</td><td>${esc(s.status === "approved" ? (PUBLISH[s.publish_state] ?? s.publish_state) : s.status === "rejected" ? s.decision_note : "")}</td><td>${esc(s.decided_by)}</td><td title="${esc(String(s.decided_at).slice(0, 10))}">${esc(ago(s.decided_at))}</td></tr>`).join("");
   return page("Admin — Praxikit", `${nav(session)}
 <h1>Catalogue admin</h1>
-<nav class="adm-tabs" aria-label="Maintainer areas"><a href="/admin" aria-current="page">Submissions${subs ? ` <span class="n">${subs.length}</span>` : ""}</a><a href="/admin/notes">Notes${noteCount ? ` <span class="n">${Number(noteCount)}</span>` : ""}</a><a href="/admin/requests">Requests${requestCount ? ` <span class="n">${Number(requestCount)}</span>` : ""}</a><a href="/admin/listings">Live listings</a></nav>
+<nav class="adm-tabs" aria-label="Maintainer areas"><a href="/admin" aria-current="page">Submissions${subs ? ` <span class="n">${subs.length}</span>` : ""}</a><a href="/admin/notes">Notes${noteCount ? ` <span class="n">${Number(noteCount)}</span>` : ""}</a><a href="/admin/requests">Requests${requestCount ? ` <span class="n">${Number(requestCount)}</span>` : ""}</a><a href="/admin/updates">Updates${updateCount ? ` <span class="n">${Number(updateCount)}</span>` : ""}</a><a href="/admin/listings">Live listings</a></nav>
 <p class="muted">You can maintain the catalogue because you are ${via}. Keys: <kbd>j</kbd> and <kbd>k</kbd> move down and up the list, <kbd>Enter</kbd> opens.</p>
 ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
 ${subs ? `<h2>New submissions (${subs.length})</h2>${subRows ? `<table class="queue" data-rows><thead><tr><th>Repository</th><th>Type</th><th>As</th><th>Licence</th><th>Quick check</th><th>Full checks</th><th>By</th><th>Opened</th></tr></thead><tbody>${subRows}</tbody></table><p class="muted">Open one to approve or reject it.</p>` : '<p class="muted">Nothing is waiting.</p>'}` : ""}

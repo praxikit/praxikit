@@ -73,6 +73,29 @@ export function entryFromDispatch(env, scan, today) {
 }
 
 /**
+ * A listing refreshed to the repository's newest commit. Everything a person wrote (name, text, tags, pick) and the date it was added stay as they were.
+ * reader "person": a maintainer read the changes and chose to update. reader "scan": a quiet update, only for a clean automatic check, and the
+ * last commit a person read is kept so the page can say so.
+ */
+export function entryFromRefresh(existing, scan, today, { expect = "", requireClean = false, reader = "person" } = {}) {
+  if (scan.refusal) return blocked("the repository could not be scanned, so there is no commit to pin the listing to", scan.refusal.text);
+  const sha = String(scan.sha ?? "");
+  if (expect && !/^[0-9a-f]{7,40}$/.test(expect)) return blocked("the commit the maintainer was shown is not valid", scan.text ?? "");
+  if (expect && !sha.startsWith(expect)) return blocked("the repository changed after the page was drawn. Open the updates again and read the newest changes", scan.text);
+  if (sha === existing.commit) return blocked("it is already at the newest commit", scan.text);
+  if (scan.label === "checks-failed") return blocked("the automatic checks failed on the newest commit", scan.text);
+  if (requireClean && scan.label !== "no-flags-found") return blocked("the automatic check found things for a person to read", scan.text);
+  const { reader: _r, readCommit: _c, read: _d, found: _f, ...rest } = existing;
+  const entry = {
+    ...rest, commit: sha, checks: scan.label ?? "needs-manual-review", ...(scan.found ? { found: scan.found } : {}), read: today,
+    ...(reader === "scan" ? { reader: "scan", readCommit: existing.reader === "scan" ? existing.readCommit : existing.commit } : {}),
+  };
+  const problems = validateListing(entry);
+  if (problems.length) return blocked(`the entry is not valid (${problems.join("; ")})`, scan.text);
+  return { ok: true, entry, comment: scan.text, label: scan.label };
+}
+
+/**
  * Returns the list with the entry added; refuses a repository that is already listed, unless
  * `replace` is true, in which case the existing entry is replaced in place (a re-review).
  */
@@ -249,6 +272,41 @@ function main() {
     writeFileSync(join(dir, "status.txt"), result.ok ? "ok\n" : "blocked\n");
     if (result.ok) writeFileSync(join(dir, "entry.json"), JSON.stringify(result.entry, null, 2) + "\n");
     console.log(result.ok ? `ok: ${result.entry.name}` : `blocked: ${result.reason}`);
+    return;
+  }
+
+  if (cmd === "refresh") {
+    // One listing, to its repository's newest commit. --expect pins the commit the maintainer was shown; --quiet is the automatic kind (clean checks only)
+    const url = arg("--url"), listFile = arg("--file"), dir = arg("--out-dir");
+    if (!url || !listFile || !dir) { console.error("refresh needs --url, --file and --out-dir"); process.exit(2); }
+    mkdirSync(dir, { recursive: true });
+    const list = JSON.parse(readFileSync(listFile, "utf8"));
+    const existing = list.find((x) => sameRepo(x.url, url));
+    if (!existing) { console.error("that repository is not listed"); process.exit(4); }
+    const quiet = process.argv.includes("--quiet");
+    const result = entryFromRefresh(existing, scanUrl(existing.url, ""), today, { expect: clean(arg("--expect"), 40).toLowerCase(), requireClean: quiet, reader: quiet ? "scan" : "person" });
+    writeFileSync(join(dir, "comment.md"), result.comment.startsWith(MARKER) ? result.comment : `${MARKER}\n${result.comment}`);
+    writeFileSync(join(dir, "status.txt"), result.ok ? "ok\n" : "blocked\n");
+    if (result.ok) writeFileSync(join(dir, "entry.json"), JSON.stringify(result.entry, null, 2) + "\n");
+    console.log(result.ok ? `ok: ${result.entry.name} to ${result.entry.commit.slice(0, 7)}` : `blocked: ${result.reason}`);
+    return;
+  }
+
+  if (cmd === "quiet-update") {
+    // The daily job: kits whose newer commits touch nothing that runs code move to the newest commit by themselves, but only when the automatic check
+    // is clean. Nothing else changes. At most a few per run, so one bad day cannot rewrite the catalogue.
+    const listFile = arg("--file"), driftFile = arg("--drift");
+    if (!listFile || !driftFile) { console.error("quiet-update needs --file and --drift"); process.exit(2); }
+    const list = JSON.parse(readFileSync(listFile, "utf8")), drift = JSON.parse(readFileSync(driftFile, "utf8"));
+    let n = 0; const done = [];
+    const next = list.map((l) => {
+      if (n >= 6 || drift[l.url] !== "newer") return l;
+      let r; try { r = entryFromRefresh(l, scanUrl(l.url, ""), today, { requireClean: true, reader: "scan" }); } catch { return l; }
+      if (!r.ok) { console.log(`kept ${l.name}: ${r.reason}`); return l; }
+      n++; done.push(l.name); return r.entry;
+    });
+    if (n) writeFileSync(listFile, JSON.stringify(next, null, 2) + "\n");
+    console.log(`quietly updated ${n}${n ? ": " + done.join(", ") : ""}`);
     return;
   }
 

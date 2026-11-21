@@ -39,6 +39,8 @@ async function dispatchWorkflow(env, file, inputs) {
 }
 /** Changes the wording of a live listing (the workflow never touches what was reviewed). */
 export const dispatchEdit = (env, e) => dispatchWorkflow(env, "edit-listing.yml", { url: e.url, name: e.name, why: e.why, tags: e.tags, note: e.note, decided_by: e.by });
+/** Moves a live listing to its repository's newest commit, after a maintainer read what changed. The job stops if the repository moved again. */
+export const dispatchUpdate = (env, e) => dispatchWorkflow(env, "update-listing.yml", { url: e.url, expect_commit: String(e.commit).slice(0, 12) });
 /** Takes a live listing down and records it in the public log. */
 export const dispatchRemove = (env, e) => dispatchWorkflow(env, "remove-listing.yml", { url: e.url, reason: e.reason, note: e.note });
 

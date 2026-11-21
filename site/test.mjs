@@ -30,6 +30,7 @@ put("site/metrics.json", JSON.stringify({ "https://github.com/o/rec": { stars: 6
 put("site/listings.json", JSON.stringify([
   { name: XSS, url: "https://github.com/o/rec", author: XSS, why: XSS, kind: "mcp", source: "recommended", added: "2026-11-14", commit: SHA, checks: "no-flags-found", pick: true, note: XSS, found: { files: 42, checks: [{ id: "network", status: "flag", note: "3 lines & more" }, { id: "shape", status: "pass", note: "" }] } },
   { name: "Community " + XSS, url: "https://github.com/o/comm", author: "someone", why: XSS, kind: "skill", source: "community", added: "2026-11-14", commit: SHA, checks: "checks-flagged", issue: 5 },
+  { name: "Scanned only", url: "https://github.com/o/scanned", author: "someone", why: "Updated by the scan.", kind: "skill", source: "community", added: "2026-11-10", commit: "c".repeat(40), checks: "no-flags-found", read: "2026-11-19", reader: "scan", readCommit: SHA },
   { name: "Newer commits", url: "https://github.com/o/newer", author: "someone", why: "Has newer commits.", kind: "skill", source: "community", added: "2026-11-14", commit: SHA, checks: "no-flags-found" },
 ]));
 
@@ -50,7 +51,7 @@ const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 }
 
 
-must(htmlFiles.length === 25, `expected 23 earlier pages plus the removal log and one more listing = 25 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 26, `expected 23 earlier pages plus the removal log and two more listings = 26 html files, got ${htmlFiles.length}`);
 {
   // the stylesheet: five source files, assembled into three cascade layers (the app adds a fourth); only the generated cover colours sit outside a layer
   const css = readFileSync(join(out, "style.css"), "utf8"), rows = css.split(String.fromCharCode(10));
@@ -116,6 +117,11 @@ must(skillsPage.includes("Repository not reachable") && !skillsPage.includes("Ne
 {
   const newerPage = readFileSync(join(out, "l", "o-newer", "index.html"), "utf8");
   must(newerPage.includes("Newer commits since it was read") && newerPage.includes("none touch files that run code") && !newerPage.includes("Needs re-review") && !newerPage.includes('class="cflag warn"') && newerPage.includes('href="https://github.com/o/newer/compare/' + SHA + '...HEAD"'), "a listing with newer commits that touch nothing that runs is told quietly, with a link to the comparison, and gets no warning");
+}
+{
+  const sc = readFileSync(join(out, "l", "o-scanned", "index.html"), "utf8");
+  must(sc.includes("scanned automatically on 2026-11-19") && sc.includes("A person last read commit") && sc.includes("<code>aaaaaaa</code>") && sc.includes("Commit scanned") && sc.includes("Last read by a person") && !sc.includes("Commit read"), "a listing updated by the scan alone says so, and names the commit a person last read");
+  must(readFileSync(join(out, "kits", "skills", "index.html"), "utf8").includes("Scanned at <code>ccccccc</code>"), "its card says Scanned at, not Read at");
 }
 const picksHtml = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
 must(picksHtml.includes("l/o-rec/") && picksHtml.includes("My pick") && !picksHtml.includes('class="pick-note"') && readFileSync(join(out, "l", "o-rec", "index.html"), "utf8").includes("Why I picked it") && !existsSync(join(out, "picks")) && !existsSync(join(out, "updates")), "picks live on the kits page with the owner's note, and there are no separate Picks or Updates pages");

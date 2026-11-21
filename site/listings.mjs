@@ -35,7 +35,12 @@ export function validateListing(l) {
     const okRow = (c) => c && typeof c === "object" && FOUND_IDS.includes(c.id) && ["pass", "flag", "fail"].includes(c.status) && typeof c.note === "string" && c.note.length <= 160 && !/[\u0000-\u001f<>]/.test(c.note);
     if (!(f && typeof f === "object" && Number.isInteger(f.files) && f.files >= 0 && f.files < 1e7 && Array.isArray(f.checks) && f.checks.length >= 1 && f.checks.length <= 12 && f.checks.every(okRow) && new Set(f.checks.map((c) => c.id)).size === f.checks.length)) e.push("found must list each check once, with its result and a short plain note");
   }
-  const known = new Set(["name", "url", "author", "why", "kind", "source", "added", "commit", "checks", "issue", "pick", "note", "tags", "found"]);
+  // who read the pinned commit: a person (the default), or the automatic check alone after a quiet update; then readCommit is the last one a person read
+  if (l.read !== undefined && !(typeof l.read === "string" && /^\d{4}-\d{2}-\d{2}$/.test(l.read))) e.push("read must be YYYY-MM-DD");
+  if (l.reader !== undefined && !["person", "scan"].includes(l.reader)) e.push("reader must be person or scan");
+  if (l.readCommit !== undefined && !(l.reader === "scan" && typeof l.readCommit === "string" && /^[0-9a-f]{40}$/.test(l.readCommit))) e.push("readCommit is the 40-character commit a person read, and only goes with reader scan");
+  if (l.reader === "scan" && l.readCommit === undefined) e.push("a listing read by the automatic check alone must say which commit a person last read");
+  const known = new Set(["name", "url", "author", "why", "kind", "source", "added", "commit", "checks", "issue", "pick", "note", "tags", "found", "read", "reader", "readCommit"]);
   for (const k of Object.keys(l)) if (!known.has(k)) e.push(`unknown field ${String(k).slice(0, 30)}`);
   return e;
 }

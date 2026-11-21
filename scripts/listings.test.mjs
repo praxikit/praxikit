@@ -7,7 +7,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseIssue } from "./check-submission.mjs";
-import { entryFromIssue, entryFromDispatch, appendListing, clean, computeDrift, editListing, computeMetrics, roundStars, weekOf, byHandScan, touchesRunning, newlyNeedingReview } from "./listings.mjs";
+import { entryFromIssue, entryFromDispatch, appendListing, clean, computeDrift, editListing, computeMetrics, roundStars, weekOf, byHandScan, touchesRunning, newlyNeedingReview, entryFromRefresh } from "./listings.mjs";
 import { validateListing, healthScore, isNew, fmtStars, validMetric } from "../site/listings.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -188,6 +188,27 @@ must(p.status === 3 && JSON.parse(readFileSync(list, "utf8")).length === 1, "an 
   must(touchesRunning(["README.md", "hooks/x.json", "scripts/install.sh", "docs/installation.md", "skills/a/SKILL.md", ".claude-plugin/plugin.json", "src/app.ts"]).join() === "hooks/x.json,scripts/install.sh,.claude-plugin/plugin.json", "files that run code are named by what they are, not by a word in the name");
   const names = newlyNeedingReview([{ ...good, url: U("a"), name: "A" }, { ...good, url: U("b"), name: "B" }, { ...good, url: U("c"), name: "C" }, { ...good, url: U("d"), name: "D" }], { [U("a")]: "same", [U("b")]: "review", [U("c")]: "changed" }, { [U("a")]: "review", [U("b")]: "review", [U("c")]: "review", [U("d")]: "newer" });
   must(names.join() === "A", "the owner is told only about kits that newly need re-review (a kit already waiting, or a legacy 'changed', is not told again)");
+}
+
+// ---- refreshing a listing to the newest commit: a person's wording stays, the commit, checks and date move, and a quiet update says who read what
+{
+  const NEW = "b".repeat(40), mine = { ...good, pick: true, note: "I use it daily.", tags: ["alpha"], added: "2026-10-01" };
+  const scanNew = { ...scanOk, sha: NEW, found: { files: 3, checks: [{ id: "licence", status: "pass", note: "" }] } };
+  const a = entryFromRefresh(mine, scanNew, "2026-11-20", { expect: NEW.slice(0, 12) });
+  must(a.ok && a.entry.commit === NEW && a.entry.read === "2026-11-20" && a.entry.added === "2026-10-01" && a.entry.pick === true && a.entry.note === "I use it daily." && a.entry.tags[0] === "alpha" && !a.entry.reader, "a maintainer's update moves the commit and date and keeps the wording, the pick and the added date");
+  const q = entryFromRefresh(mine, scanNew, "2026-11-20", { requireClean: true, reader: "scan" });
+  must(q.ok && q.entry.reader === "scan" && q.entry.readCommit === SHA && validateListing(q.entry).length === 0, "a quiet update records that only the scan read it, and the commit a person last read");
+  const q2 = entryFromRefresh(q.entry, { ...scanNew, sha: "c".repeat(40) }, "2026-11-21", { requireClean: true, reader: "scan" });
+  must(q2.ok && q2.entry.readCommit === SHA, "a second quiet update keeps the commit a person read, not the one the scan read");
+  const p = entryFromRefresh(q.entry, { ...scanNew, sha: "d".repeat(40) }, "2026-11-22", { expect: "d".repeat(12) });
+  must(p.ok && !p.entry.reader && !p.entry.readCommit, "a person reading it again turns it back to read by a person");
+  must(!entryFromRefresh(mine, { ...scanNew, label: "checks-flagged" }, "2026-11-20", { requireClean: true, reader: "scan" }).ok, "a quiet update needs a clean check");
+  must(entryFromRefresh(mine, { ...scanNew, label: "checks-flagged" }, "2026-11-20", {}).ok, "a person may update past a flagged check, having read it");
+  must(!entryFromRefresh(mine, { ...scanNew, label: "checks-failed" }, "2026-11-20", {}).ok, "failed checks cannot be updated past");
+  must(!entryFromRefresh(mine, scanNew, "2026-11-20", { expect: "c".repeat(12) }).ok, "the repository moved after the page was drawn: refused");
+  must(!entryFromRefresh(mine, scanOk, "2026-11-20", {}).ok, "already at the newest commit: nothing to do");
+  must(!entryFromRefresh(mine, { refusal: { text: "too large" } }, "2026-11-20", {}).ok, "an unreadable repository is refused");
+  must(validateListing({ ...good, reader: "scan" }).length > 0 && validateListing({ ...good, readCommit: SHA }).length > 0 && validateListing({ ...good, read: "today" }).length > 0, "reader scan needs a readCommit, a readCommit needs reader scan, and read is a date");
 }
 
 // ---- the workflow linter we pin allows at most 10 inputs on a manually started workflow; count them here so the limit shows up before CI does

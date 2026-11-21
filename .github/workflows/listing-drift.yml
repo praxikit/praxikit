@@ -11,7 +11,7 @@ permissions: {}
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     concurrency:
       group: listings
       cancel-in-progress: false
@@ -31,19 +31,22 @@ jobs:
         run: |
           cp site/drift.json "$RUNNER_TEMP/drift-before.json" 2>/dev/null || echo '{}' > "$RUNNER_TEMP/drift-before.json"
           node scripts/listings.mjs drift --file site/listings.json --out site/drift.json | tee -a "$GITHUB_STEP_SUMMARY"
+          # kits whose newer commits touch nothing that runs code, and whose automatic check is clean, move to the newest commit by themselves
+          node scripts/listings.mjs quiet-update --file site/listings.json --drift site/drift.json | tee -a "$GITHUB_STEP_SUMMARY"
+          if ! git diff --quiet -- site/listings.json; then node scripts/listings.mjs drift --file site/listings.json --out site/drift.json | tee -a "$GITHUB_STEP_SUMMARY"; fi
           NEWS=$(node scripts/listings.mjs drift-news --file site/listings.json --before "$RUNNER_TEMP/drift-before.json" --after site/drift.json | paste -sd, -)
           if [ -n "$NEWS" ]; then
             echo "Newly needing re-review: $NEWS" | tee -a "$GITHUB_STEP_SUMMARY"
-            if [ -n "$NTFY_TOPIC" ]; then curl -s -m 10 -H "Title: Kits need re-review" -H "Tags: eyes" -d "Newly needing re-review: $NEWS. Read the new commits, then run Add listing with replace." "https://ntfy.sh/$NTFY_TOPIC" > /dev/null || true; fi
+            if [ -n "$NTFY_TOPIC" ]; then curl -s -m 10 -H "Title: Kits need re-review" -H "Tags: eyes" -d "Newly needing re-review: $NEWS. Open Admin, Updates, read the changes, then update." "https://ntfy.sh/$NTFY_TOPIC" > /dev/null || true; fi
           fi
           node scripts/listings.mjs metrics --file site/listings.json --out site/metrics.json | tee -a "$GITHUB_STEP_SUMMARY"
-          if git diff --quiet -- site/drift.json site/metrics.json; then
+          if git diff --quiet -- site/drift.json site/metrics.json site/listings.json; then
             echo "No status changed." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add site/drift.json site/metrics.json
+          git add site/drift.json site/metrics.json site/listings.json
           git commit -m "listings: update review statuses and GitHub facts"
           git pull --rebase origin main
           git push origin HEAD:main

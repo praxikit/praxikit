@@ -18,13 +18,13 @@ import { authorizeUrl, exchangeCode, getUser, decideRole, decideRoleByLogin } fr
 import { parseRepo, fetchRepoInfo, isAuthor, alreadyListed, fetchListings, precheck, UserError, latestCommit } from "./lib/repo.mjs";
 import { storeFor } from "./lib/store.mjs";
 import { parseTags } from "./lib/tags.mjs";
-import { dispatchApprove, dispatchEdit, dispatchRemove, dispatchScan, syncPublishing, syncScans, publishingConfigured } from "./lib/publish.mjs";
+import { dispatchApprove, dispatchEdit, dispatchRemove, dispatchUpdate, dispatchScan, syncPublishing, syncScans, publishingConfigured } from "./lib/publish.mjs";
 import { notifyOwner, rememberContext } from "./lib/notify.mjs";
 import { COMMUNITY, cleanNote, notesAdminPage } from "./lib/community.mjs";
 import { REQUESTS, cleanRequest, FLASH_REQUESTS, requestsPage, requestsAdminPage } from "./lib/requests.mjs";
 import { boardFor, contributionsFor, contributorsPage, contributorProfilePage } from "./lib/contributors.mjs";
 import { cleanItem, cleanLabel, fetchCatalogue, LIMITS, FLASH_ACCOUNT, savePage, collectionPage, profilePage, settingsPage } from "./lib/account.mjs";
-import { CSS, setShell, signInPage, messagePage, listingsPage, adminPage, submitPage, minePage, detailPage, FLASH } from "./lib/html.mjs";
+import { CSS, setShell, signInPage, messagePage, listingsPage, updatesPage, adminPage, submitPage, minePage, detailPage, FLASH } from "./lib/html.mjs";
 
 const SESSION_COOKIE = "__Host-praxikit-session";
 const STATE_COOKIE = "__Host-praxikit-state";
@@ -212,6 +212,27 @@ async function submit(request, env, session) {
     return send("", { status: 303, location: "/profile?ok=held" });
   }
   return send("", { status: 303, location: "/profile?ok=1" });
+}
+
+/** The review status of every listing (review, newer, same, unreachable), from the site's own drift.json. Empty if it cannot be read. */
+async function driftOf(env, request) {
+  try { const r = await env.ASSETS.fetch(new Request(new URL("/drift.json", request.url))); const j = r.ok ? await r.json() : {}; return j && typeof j === "object" && !Array.isArray(j) ? j : {}; } catch { return {}; }
+}
+
+/** A maintainer read what changed and moves one listing to the newest commit. The commit on the page must still be the newest one. */
+async function updateRoute(request, env, s) {
+  const stop = gate(request, env, s); if (stop) return stop;
+  const base = "/admin/updates";
+  if (!publishingConfigured(env)) return back(base, "nopublish");
+  let f; try { f = await request.formData(); } catch { return back(base, "bad"); }
+  const url = cleanRepo(f.get("url")), shown = String(f.get("commit") ?? "");
+  if (f.get("read") !== "yes") return back(base, "needread");
+  if (!url || !/^[0-9a-f]{40}$/.test(shown)) return back(base, "gone");
+  let live; try { live = await fetchListings(env); } catch { return back(base, "unread"); }
+  if (!live.some((l) => l.url === url)) return back(base, "gone");
+  const latest = await latestCommit(env, parseRepo(url));
+  if (!latest || latest !== shown) return back(base, "movedupdate");
+  try { await dispatchUpdate(env, { url, commit: latest }); return back(base, "updating"); } catch { return back(base, "joberr"); }
 }
 
 const REMOVE_REASONS = ["malicious", "secret", "licence", "misleading", "unmaintained", "owner-request", "other"];
@@ -748,13 +769,29 @@ async function route(request, env) {
     if (s.role !== "admin") return send(messagePage("No access", `You are signed in as @${s.sub}, but only owners of ${env.ORG} and members of ${env.ORG}/${env.TEAM} can maintain the catalogue. If you are one of them, sign in again with organisation access. Ask an owner to add you to the team, then sign in again.`, false, { href: "/auth/login", text: "Sign in with organisation access" }), { status: 403 });
     let queueError = "", subs = null;
     const store = storeFor(env);
-    let recent = [], noteCount = 0, requestCount = 0;
+    let recent = [], noteCount = 0, requestCount = 0, updateCount = 0;
     if (store) {
       try { noteCount = await store.notesToReviewCount(); requestCount = await store.requestsToReviewCount(); } catch { /* the count is a convenience */ }
+      if (env.ASSETS) updateCount = Object.values(await driftOf(env, request)).filter((v) => v === "review").length;
       try { await syncPublishing(env, store, listed(env)); await syncScans(env, store); subs = await store.pending(); recent = await store.recent(); } catch { queueError = queueError || "The submissions database could not be read just now."; }
     }
-    return send(adminPage({ session: s, env, queueError, noteCount, requestCount, subs, recent, flash: flashOf(url) }));
+    return send(adminPage({ session: s, env, queueError, noteCount, requestCount, updateCount, subs, recent, flash: flashOf(url) }));
   }
+
+  if (path === "/admin/updates" && method === "GET") {
+    const s = await sessionOf(request, env);
+    if (!s) return send(signInPage("", { return: hereOf(request) }));
+    if (s.role !== "admin") return send(messagePage("No access", "Only maintainers can manage listings.", false), { status: 403 });
+    let rows = [], quiet = 0, error = "";
+    try {
+      const live = await fetchListings(env), drift = await driftOf(env, request);
+      const need = live.filter((l) => drift[l.url] === "review").slice(0, 12);
+      quiet = live.filter((l) => drift[l.url] === "newer").length;
+      rows = await Promise.all(need.map(async (l) => ({ ...l, latest: await latestCommit(env, parseRepo(l.url)) })));
+    } catch (e) { error = e instanceof UserError ? e.message : "The updates could not be loaded."; }
+    return send(updatesPage({ session: s, rows, quiet, error, flash: flashOf(url), canPublish: publishingConfigured(env) }));
+  }
+  if (path === "/admin/updates/refresh" && method === "POST") return updateRoute(request, env, await sessionOf(request, env));
 
   if (path === "/admin/listings" && method === "GET") {
     const s = await sessionOf(request, env);

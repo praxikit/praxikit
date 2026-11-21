@@ -1,0 +1,86 @@
+name: update-listing
+# A maintainer read what changed in a listed repository and updated its listing to the newest commit (started from the admin Updates page, or by hand).
+# The repository is scanned again at that commit; the listing keeps its wording, and records the new commit, the new check results and the date.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Repository link of a kit that is already listed
+        required: true
+        type: string
+      expect_commit:
+        description: The newest commit the maintainer was shown (at least 7 characters); the update stops if the repository moved since
+        required: true
+        type: string
+permissions: {}
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    outputs:
+      status: ${{ steps.refresh.outputs.status }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - id: refresh
+        env:
+          IN_URL: ${{ inputs.url }}
+          IN_EXPECT: ${{ inputs.expect_commit }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          node scripts/listings.mjs refresh --url "$IN_URL" --expect "$IN_EXPECT" --file site/listings.json --out-dir "$RUNNER_TEMP/listing"
+          echo "status=$(cat "$RUNNER_TEMP/listing/status.txt")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: listing
+          path: ${{ runner.temp }}/listing
+          retention-days: 3
+
+  publish:
+    needs: scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    concurrency:
+      group: listings
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: listing
+          path: ${{ runner.temp }}/listing
+      - name: Update, or show why not
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          STATUS: ${{ needs.scan.outputs.status }}
+          DIR: ${{ runner.temp }}/listing
+        run: |
+          cat "$DIR/comment.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$STATUS" != "ok" ]; then
+            echo "Not updated. The reason is in the job summary."
+            exit 1
+          fi
+          node scripts/listings.mjs publish --entry "$DIR/entry.json" --file site/listings.json --replace
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/listings.json
+          git commit -m "listings: update to the newest commit after a maintainer read the changes (Update listing workflow)"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh workflow run listing-drift.yml --ref main
+          gh workflow run deploy.yml --ref main
+          echo "Updated. The site is redeploying." >> "$GITHUB_STEP_SUMMARY"

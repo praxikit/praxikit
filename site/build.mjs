@@ -909,7 +909,8 @@ const driftOf = (l) => {
     : st === "unreachable" ? { state: st, badge: '<span class="kind warn">Repository not reachable</span>', short: "Repository not reachable", warn: true, note: " It may have been removed or made private." }
       : { state: "same", badge: "", short: "", warn: false, note: "" };
 };
-const receiptText = (l) => `Read by a person at commit ${l.commit.slice(0, 7)}; ${CHECK_WORDS[l.checks] ?? l.checks}. Installs follow the author's latest version, which can differ.`;
+const byScan = (l) => l.reader === "scan";
+const receiptText = (l) => byScan(l) ? `Scanned automatically at commit ${l.commit.slice(0, 7)} on ${l.read}; a person last read ${l.readCommit.slice(0, 7)}. Installs follow the author's latest version, which can differ.` : `Read by a person at commit ${l.commit.slice(0, 7)}; ${CHECK_WORDS[l.checks] ?? l.checks}. Installs follow the author's latest version, which can differ.`;
 const sourceWord = (l) => { const w = SOURCE_LABEL[l.source] ?? ""; return w ? w[0].toUpperCase() + w.slice(1) : ""; };
 
 const REPOICON = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v14H7.5A2.5 2.5 0 0 0 5 19.5z"/><path d="M5 19.5A2.5 2.5 0 0 0 7.5 22H19v-5"/><path d="M9 7h6"/></svg>';
@@ -979,7 +980,7 @@ ${coverLink({ href: page, kind: l.kind, name: l.name, flags, health: h ? h.score
 <div class="cap-top"><p class="byline">by ${esc(l.author)}${starLine(l) ? ` · ${starLine(l)}` : ""}</p>${saveLink(l.url, l.name)}</div>
 ${d.warn ? `<p class="cap-warn">${d.badge}</p>` : ""}<p class="promise">${esc(l.why)}</p>
 ${tagChips(l, up, 2)}
-<div class="cap-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>Read at <code>${esc(l.commit.slice(0, 7))}</code></span></span></div>
+<div class="cap-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>${byScan(l) ? "Scanned at" : "Read at"} <code>${esc(l.commit.slice(0, 7))}</code></span></span></div>
 </div>
 </li>`;
 }
@@ -1010,11 +1011,11 @@ function labelSection(l, d) {
   const commitUrl = `${l.url}/commit/${l.commit}`;
   const row = (name, value, cls = "") => `<div class="lrow${cls}"><span>${name}</span><span>${value}</span></div>`;
   const checks = f
-    ? `<h3>What the check found</h3>${f.checks.map((c) => `<div class="lrow res-${esc(c.status)}"><span>${esc(FOUND_TITLES[c.id] ?? c.id)}${c.note ? `<small>${esc(c.note)}</small>` : ""}</span><span>${esc(FOUND_WORDS[c.status] ?? c.status)}</span></div>`).join("")}<p class="lfoot">${esc(String(f.files))} files read at commit <code>${esc(l.commit.slice(0, 7))}</code>, then read by a person before it was listed on ${esc(l.added)}. <strong>Look closer</strong> means a pattern turned up that a human has to judge, such as network calls in code. It does not mean the kit is unsafe, and <strong>Pass</strong> does not mean it is safe.</p>`
+    ? `<h3>What the check found</h3>${f.checks.map((c) => `<div class="lrow res-${esc(c.status)}"><span>${esc(FOUND_TITLES[c.id] ?? c.id)}${c.note ? `<small>${esc(c.note)}</small>` : ""}</span><span>${esc(FOUND_WORDS[c.status] ?? c.status)}</span></div>`).join("")}<p class="lfoot">${esc(String(f.files))} files read at commit <code>${esc(l.commit.slice(0, 7))}</code>, ${byScan(l) ? `scanned automatically on ${esc(l.read)}. A person last read commit <code>${esc(l.readCommit.slice(0, 7))}</code>, and nobody has read what changed since: the new commits touched nothing that runs code, and the check is clean.` : `then read by a person ${l.read ? `on ${esc(l.read)}` : `before it was listed on ${esc(l.added)}`}.`} <strong>Look closer</strong> means a pattern turned up that a human has to judge, such as network calls in code. It does not mean the kit is unsafe, and <strong>Pass</strong> does not mean it is safe.</p>`
     : `<h3>What the check found</h3><p class="lfoot">An automatic check read this repository before it was listed, and a person read the result (${esc(CHECK_WORDS[l.checks] ?? l.checks)}). The detailed results were not saved for this listing yet.</p>`;
   return `<section class="checklabel" id="found"><h2>Check facts</h2>
-${row("Commit read", `<a href="${esc(commitUrl)}" rel="noopener noreferrer"><code>${esc(l.commit.slice(0, 7))}</code></a>`, " big")}${h ? row("Health score", `${h.score} / 100`, " big") : ""}
-${row("Status", d.warn ? `<strong>${esc(d.short)}</strong>` : d.quiet ? esc(d.short) : "Unchanged since it was read")}${row("Listed on", esc(l.added))}${row("Put forward by", `<span data-credit="${esc(sourceWord(l))}">${esc(sourceWord(l))}</span>`)}
+${row(byScan(l) ? "Commit scanned" : "Commit read", `<a href="${esc(commitUrl)}" rel="noopener noreferrer"><code>${esc(l.commit.slice(0, 7))}</code></a>`, " big")}${byScan(l) ? row("Last read by a person", `<a href="${esc(`${l.url}/commit/${l.readCommit}`)}" rel="noopener noreferrer"><code>${esc(l.readCommit.slice(0, 7))}</code></a>`) : ""}${h ? row("Health score", `${h.score} / 100`, " big") : ""}
+${row("Status", d.warn ? `<strong>${esc(d.short)}</strong>` : d.quiet ? esc(d.short) : "Unchanged since it was read")}${row("Listed on", esc(l.added))}${l.read ? row(byScan(l) ? "Scanned on" : "Read again on", esc(l.read)) : ""}${row("Put forward by", `<span data-credit="${esc(sourceWord(l))}">${esc(sourceWord(l))}</span>`)}
 ${d.warn || d.quiet ? `<p class="lfoot">${d.note.trim()}</p>` : ""}${checks}
 <p class="lfoot">Installs follow the author's latest version, which can differ from the commit that was read. A daily check marks the listing if the repository moves on. <a href="../../policy/#report">Report a problem with this listing</a></p></section>`;
 }
@@ -1066,7 +1067,7 @@ function listingPage(l, all) {
 <p class="meta-line">${d.badge}<span>by ${esc(l.author)}, not built by Praxikit · ${esc(KIND_LABEL[l.kind] ?? l.kind)}</span></p>
 <p class="lead">${esc(l.why)}</p>
 ${signals(l)}${tagChips(l, "../../")}
-<p class="asof">This report describes commit <a href="${esc(`${l.url}/commit/${l.commit}`)}" rel="noopener noreferrer"><code>${esc(l.commit.slice(0, 7))}</code></a>, read on ${esc(l.added)}. Praxikit does not cover changes made to the repository after that commit.</p>
+<p class="asof">This report describes commit <a href="${esc(`${l.url}/commit/${l.commit}`)}" rel="noopener noreferrer"><code>${esc(l.commit.slice(0, 7))}</code></a>, ${byScan(l) ? `scanned automatically on ${esc(l.read)}. A person last read commit <a href="${esc(`${l.url}/commit/${l.readCommit}`)}" rel="noopener noreferrer"><code>${esc(l.readCommit.slice(0, 7))}</code></a>.` : `read on ${esc(l.read ?? l.added)}.`} Praxikit does not cover changes made to the repository after that commit.</p>
 ${touchSection(l)}
 ${labelSection(l, d)}
 ${howtoSection(l)}
@@ -1503,6 +1504,8 @@ const block = (name, css) => [`@layer ${name} {`, css, "}"].join(String.fromChar
 writeFileSync(join(OUT, "style.css"), ["@layer tokens, base, site, app;", block("tokens", read("00-tokens")), block("base", read("10-base")), block("site", SITE_FILES.map(read).join(String.fromCharCode(10)))].join(String.fromCharCode(10) + String.fromCharCode(10)));
 mkdirSync(join(OUT, "fonts"), { recursive: true });
 for (const f of readdirSync(join(here, "fonts"))) copyFileSync(join(here, "fonts", f), join(OUT, "fonts", f));
+// the review status of every listing, for the admin Updates page (public facts: a repository link and one of four words)
+writeFileSync(join(OUT, "drift.json"), JSON.stringify(DRIFT));
 write("index.html", homePage(items, picks));
 write("kits/index.html", kitsPage(items, null));
 for (const g of GROUPS) write(`kits/${g.id}/index.html`, kitsPage(items, g));

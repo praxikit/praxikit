@@ -101,17 +101,56 @@ dispatchMode = "refuse";
 r = await post("edit", edit);
 must(loc(r).endsWith("m=joberr"), "a refused job is reported as not started");
 dispatchMode = "ok"; dispatches.length = 0;
-const saved = LISTINGS; LISTINGS = null;
+const saved = LISTINGS, realFetch = globalThis.fetch; LISTINGS = null;
 globalThis.fetch = ((orig) => async (i, n) => (String(i.url ?? i).endsWith("listings.json") ? json({}, 500) : orig(i, n)))(globalThis.fetch);
 must(loc(await post("edit", edit)).endsWith("m=unread") && dispatches.length === 0, "if the live listings cannot be read, nothing starts");
 const errPage = await (await call("/admin/listings", { cookies: admin })).text();
 must(errPage.includes("could not be read") && !errPage.includes(DISPATCH), "the page explains it without leaking anything");
-LISTINGS = saved;
+LISTINGS = saved; globalThis.fetch = realFetch;
 
 // ---- publishing not connected
 const off = { ...env, GITHUB_DISPATCH_TOKEN: "REPLACE_ME" };
 const rr = await worker.fetch(new Request("https://admin.example.dev/admin/listings/edit", { method: "POST", headers: new Headers({ Cookie: `__Host-praxikit-session=${admin["__Host-praxikit-session"]}`, Origin: OK, "Content-Type": "application/x-www-form-urlencoded" }), body: new URLSearchParams(edit).toString() }), off);
 must(loc(rr).endsWith("m=nopublish"), "without a dispatch token the edit is refused with a clear message");
+
+// ---- the Updates page: listings whose repository changed in files that run code; a maintainer reads and updates one at a time
+{
+  const NEWEST = "c".repeat(40);
+  const PW = "https://github.com/microsoft/playwright-mcp";
+  let newest = NEWEST;
+  const inner = globalThis.fetch;
+  globalThis.fetch = async (input, init = {}) => {
+    const u = new URL(typeof input === "string" ? input : input.url);
+    if (u.origin === "https://api.github.com" && u.pathname === "/repos/microsoft/playwright-mcp") return json({ default_branch: "main" });
+    if (u.origin === "https://api.github.com" && u.pathname === "/repos/microsoft/playwright-mcp/commits/main") return newest ? json({ sha: newest }) : json({}, 500);
+    return inner(input, init);
+  };
+  const envU = { ...env, ASSETS: { fetch: async (req) => (new URL(req.url).pathname === "/drift.json" ? json({ [PW]: "review", "https://github.com/o/evil": "newer" }) : new Response("", { status: 404 })) } };
+  const callU = (path, { method = "GET", cookies = {}, origin, form } = {}) => {
+    const headers = new Headers(); const c = Object.entries(cookies).map(([k, v]) => k + "=" + v).join("; "); if (c) headers.set("Cookie", c); if (origin) headers.set("Origin", origin);
+    const init = { method, headers }; if (form) { headers.set("Content-Type", "application/x-www-form-urlencoded"); init.body = new URLSearchParams(form).toString(); }
+    return worker.fetch(new Request("https://admin.example.dev" + path, init), envU);
+  };
+  const before = dispatches.length;
+  must(!(await (await callU("/admin/updates")).text()).includes("Read what changed"), "without a sign-in the page shows nothing about the updates");
+  must((await callU("/admin/updates", { cookies: user })).status === 403, "a signed-in person who is not a maintainer cannot open the updates");
+  const page = await (await callU("/admin/updates", { cookies: admin })).text();
+  must(page.includes("Playwright MCP") && page.includes("compare/" + SHA + "..." + NEWEST) && page.includes('name="read"') && page.includes("1 listed kit has newer commits") && !page.includes(DISPATCH), "the page lists the kit that needs reading, links the changes, and counts the quiet ones");
+  const form = { url: PW, commit: NEWEST, read: "yes" };
+  const go = (f, cookies = admin, origin = OK) => callU("/admin/updates/refresh", { method: "POST", cookies, origin, form: f });
+  must(loc(await go({ ...form, read: "" })).endsWith("m=needread") && dispatches.length === before, "updating needs the box ticked");
+  must(loc(await go(form, stale)).includes("/auth") || (await go(form, stale)).status === 401, "a stale sign-in is asked to sign in again");
+  must((await go(form, user)).status === 403 && (await go(form, admin, "https://evil.example")).status === 403 && dispatches.length === before, "a non-maintainer and another origin are refused");
+  must(loc(await go({ ...form, url: "https://github.com/x/not-listed" })).endsWith("m=gone") && dispatches.length === before, "only a listed repository can be updated");
+  must(loc(await go({ ...form, commit: "d".repeat(40) })).endsWith("m=movedupdate") && dispatches.length === before, "if the repository moved since the page was drawn, nothing starts");
+  newest = "";
+  must(loc(await go(form)).endsWith("m=movedupdate") && dispatches.length === before, "if the newest commit cannot be read, nothing starts");
+  newest = NEWEST;
+  const ok = await go(form);
+  must(loc(ok).endsWith("m=updating") && dispatches.length === before + 1 && dispatches[before].file === "update-listing.yml" && dispatches[before].body.inputs.url === PW && dispatches[before].body.inputs.expect_commit === NEWEST.slice(0, 12) && Object.keys(dispatches[before].body.inputs).length === 2, "a maintainer who read the changes starts the update job with the repository and the commit they were shown, nothing else");
+  must(dispatches[before].auth.includes(DISPATCH) && !JSON.stringify(dispatches[before].body).includes(DISPATCH), "the job is started with the dispatch token, which is never in the request body");
+  globalThis.fetch = inner;
+}
 
 if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }
 console.log("ok: maintainers edit and remove live listings through fixed jobs with fresh sign-ins; others, stale sessions, other origins and unlisted targets are refused");
