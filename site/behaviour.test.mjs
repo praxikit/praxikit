@@ -161,6 +161,25 @@ async function run({ cachedMe = null, hint = false, me = null, saved = [], dark 
   must(p.calls.some(([u]) => u === "https://praxikit.com/l/touch/"), "a touch warms the page at once");
 }
 
+// ---- a form that is sending: the button shows it, and a second press does nothing
+{
+  const p = await run({ dark: false });
+  const mkForm = () => { const cls = new Set(), attrs = {}, btn = { disabled: false, classList: { add: (c) => cls.add(c), remove: (c) => cls.delete(c) }, setAttribute: (k, v) => { attrs[k] = v; }, removeAttribute: (k) => { delete attrs[k]; } }; const f = { _a: {}, querySelector: () => btn, querySelectorAll: () => (cls.has("is-busy") ? [btn] : []), hasAttribute: (k) => k in f._a, getAttribute: (k) => f._a[k], setAttribute: (k, v) => { f._a[k] = v; }, removeAttribute: (k) => { delete f._a[k]; } }; return { f, btn, cls }; };
+  const submit = (f, ev = {}) => { const e = { target: f, defaultPrevented: false, preventDefault() { e.prevented = true; }, ...ev }; for (const fn of p.docListeners.submit ?? []) fn(e); return e; };
+  const a = mkForm(); submit(a.f);
+  await new Promise((r) => setTimeout(r, 10));
+  must(a.cls.has("is-busy") && a.btn.disabled === true, "pressing a form's button shows it working and disables it");
+  must(submit(a.f).prevented === true, "a second submit while the first is sending is stopped");
+  for (const fn of p.winListeners.pageshow ?? []) fn({});
+  must(!a.cls.has("is-busy") && a.btn.disabled === false, "coming back to the page frees the button");
+  const b = mkForm(); submit(b.f, { defaultPrevented: true });
+  await new Promise((r) => setTimeout(r, 10));
+  must(!b.cls.has("is-busy"), "a form the page handles itself (it will not leave the page) is left alone");
+  const c = mkForm(); c.f._a["data-nobusy"] = "1"; submit(c.f);
+  await new Promise((r) => setTimeout(r, 10));
+  must(!c.cls.has("is-busy"), "a form marked data-nobusy is left alone");
+}
+
 // ---- the menu button (small screens)
 {
   const p = await run({});

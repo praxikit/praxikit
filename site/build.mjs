@@ -557,6 +557,19 @@ const SITE_JS = `
     document.addEventListener("focusin", function (e) { var a = link(e); if (a) warm(a); });
     document.addEventListener("touchstart", function (e) { var a = link(e); if (a) warm(a); }, { passive: true });
   })();
+  // ---- a form that is sending: its button shows it is working and cannot be pressed twice
+  (function () {
+    var sending = [];
+    function free(x) { x.btn.classList.remove("is-busy"); x.btn.disabled = false; x.btn.removeAttribute("aria-busy"); x.form.removeAttribute("data-sending"); }
+    document.addEventListener("submit", function (e) {
+      var f = e.target; if (e.defaultPrevented || !f || !f.querySelector || f.hasAttribute("data-nobusy")) return;
+      if (f.getAttribute("data-sending")) { e.preventDefault(); return; }
+      var b = e.submitter || f.querySelector("button[type=submit], button:not([type])"); if (!b) return;
+      f.setAttribute("data-sending", "1"); sending.push({ form: f, btn: b });
+      setTimeout(function () { b.classList.add("is-busy"); b.setAttribute("aria-busy", "true"); b.disabled = true; }, 0);
+    });
+    window.addEventListener("pageshow", function () { while (sending.length) free(sending.pop()); });
+  })();
   // ---- copy an install line from a card
   document.querySelectorAll("[data-copy-text]").forEach(function (b) {
     b.addEventListener("click", function (e) {
@@ -700,9 +713,12 @@ const SITE_JS = `
   if (results) {
     var qs = new URLSearchParams(location.search), term0 = (qs.get("q") || "").slice(0, 100), field = document.getElementById("search-q"), status = document.getElementById("search-status");
     if (field) field.value = term0;
+    var indexed = false;
     function run(term) {
       if (!term.trim()) { results.textContent = ""; status.textContent = "Type to search kits, picks, skills, tags and pages."; return; }
+      if (!indexed) { results.textContent = ""; status.textContent = "Searching…"; for (var s = 0; s < 4; s++) { var sk = document.createElement("li"); sk.className = "skel skel-row"; sk.setAttribute("aria-hidden", "true"); results.appendChild(sk); } }
       loadIndex().then(function (idx) {
+        indexed = true;
         var found = searchIndex(idx, term);
         renderResults(found, results, 50);
         status.textContent = found.length ? found.length + (found.length === 1 ? " result" : " results") + " for " + term : "Nothing matches " + term + ". Try fewer words, or browse the tags.";
@@ -812,7 +828,7 @@ const MAX_CHIPS = 8; // a card shows at most two rows of tags; the rest are on t
 const BOOKMARK = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16.2a.4.4 0 0 1-.64.32L12 16.9l-5.86 4.12a.4.4 0 0 1-.64-.32V4.5a1 1 0 0 1 1-1z"/></svg>';
 const saveLink = (key, name = "", text = false) => (APP ? `<a class="save-btn${text ? " with-text" : ""}" href="${esc(APP)}/collection/save?item=${encodeURIComponent(key)}" data-save="${esc(key)}" data-name="${esc(name)}" aria-label="Save ${esc(name)} to your collection" title="Save to your collection" rel="noopener">${BOOKMARK}${text ? "<span>Save</span>" : ""}</a>` : "");
 /** "What people say": filled in by the site script from the app (counts, notes, the vote button). */
-const communityBlock = (key) => (APP ? `<section class="community" id="community" data-item="${esc(key)}"><h2>What people say</h2><div id="community-body"><p class="muted">Loading…</p></div><noscript><p class="muted">Votes and notes need JavaScript.</p></noscript></section>` : "");
+const communityBlock = (key) => (APP ? `<section class="community" id="community" data-item="${esc(key)}"><h2>What people say</h2><div id="community-body"><p class="vh">Loading…</p><div class="skel" aria-hidden="true"></div><div class="skel" aria-hidden="true"></div></div><noscript><p class="muted">Votes and notes need JavaScript.</p></noscript></section>` : "");
 function tagChips(item, up, max = MAX_CHIPS) {
   const all = tagsOf(item);
   if (!all.length) return "";

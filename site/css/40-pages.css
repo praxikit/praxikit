@@ -895,6 +895,13 @@ td.res-pass {
 
 /* placeholders while the community blocks load: three quiet bars, still when motion is reduced */
 .skel { list-style: none; height: 2.6rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg2), var(--line), var(--bg2)); background-size: 200% 100%; animation: skel 1.4s ease-in-out infinite; margin: var(--s2) 0; }
+.skel-row { height: 4.2rem; }
+div.skel { margin: var(--s3) 0; height: 3.2rem; }
+/* a button that is sending */
+button.is-busy, .btn.is-busy { cursor: progress; opacity: .85; }
+button.is-busy::before, .btn.is-busy::before { content: ""; display: inline-block; width: 1em; height: 1em; margin-right: .55em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -.15em; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { button.is-busy::before, .btn.is-busy::before { animation-duration: 2.4s; } }
 @keyframes skel { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 @media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
 
