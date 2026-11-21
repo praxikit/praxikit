@@ -943,3 +943,16 @@ td.res-pass {
 .touch li strong { white-space: nowrap; font-weight: 600; }
 .touch-yes { background: var(--warn-bg); color: var(--warn); }
 .sec-inner { margin-top: var(--s6); }
+
+/* compare: pick a type, pick up to three kits, read the table */
+.cmp-kinds { display: flex; flex-wrap: wrap; gap: var(--s2); margin: var(--s4) 0; }
+.cmp-kinds button { min-height: 44px; padding: 0 var(--s4); border-radius: var(--pill, 999px); border: 0; background: var(--card); color: var(--fg); font: inherit; font-weight: 600; box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; }
+.cmp-kinds button[aria-pressed="true"] { background: var(--fg); color: var(--bg); box-shadow: none; }
+.cmp-pick { border: 0; padding: 0; margin: var(--s4) 0; display: grid; gap: var(--s1); grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
+.cmp-pick legend { padding: 0; margin-bottom: var(--s2); font-weight: 600; }
+.cmp-pick .check { display: flex; align-items: center; gap: var(--s2); min-height: 44px; }
+.cmp-table { overflow-x: auto; margin: var(--s4) 0; }
+.cmp-table table { border-collapse: collapse; min-width: 32rem; width: 100%; background: var(--card); border-radius: var(--radius); box-shadow: inset 0 0 0 1px var(--line); }
+.cmp-table th, .cmp-table td { text-align: left; vertical-align: top; padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); font-size: var(--fs-sm); }
+.cmp-table tbody th { color: var(--muted); font-weight: 600; width: 11rem; }
+.cmp-table thead th { font-size: var(--fs-md, 1rem); }

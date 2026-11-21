@@ -30,6 +30,7 @@ put("site/metrics.json", JSON.stringify({ "https://github.com/o/rec": { stars: 6
 put("site/listings.json", JSON.stringify([
   { name: XSS, url: "https://github.com/o/rec", author: XSS, why: XSS, kind: "mcp", source: "recommended", added: "2026-11-14", commit: SHA, checks: "no-flags-found", pick: true, note: XSS, found: { files: 42, checks: [{ id: "network", status: "flag", note: "3 lines & more" }, { id: "shape", status: "pass", note: "" }] } },
   { name: "Community " + XSS, url: "https://github.com/o/comm", author: "someone", why: XSS, kind: "skill", source: "community", added: "2026-11-14", commit: SHA, checks: "checks-flagged", issue: 5 },
+  { name: "A plugin", url: "https://github.com/o/plug", author: "someone", why: "Has a marketplace.", kind: "plugin", source: "community", added: "2026-11-10", commit: SHA, checks: "no-flags-found" },
   { name: "Scanned only", url: "https://github.com/o/scanned", author: "someone", why: "Updated by the scan.", kind: "skill", source: "community", added: "2026-11-10", commit: "c".repeat(40), checks: "no-flags-found", read: "2026-11-19", reader: "scan", readCommit: SHA },
   { name: "Newer commits", url: "https://github.com/o/newer", author: "someone", why: "Has newer commits.", kind: "skill", source: "community", added: "2026-11-14", commit: SHA, checks: "no-flags-found" },
 ]));
@@ -51,7 +52,7 @@ const htmlFiles = walk(out).filter((f) => f.endsWith(".html"));
 }
 
 
-must(htmlFiles.length === 26, `expected 23 earlier pages plus the removal log and two more listings = 26 html files, got ${htmlFiles.length}`);
+must(htmlFiles.length === 28, `expected 23 earlier pages plus the removal log and two more listings = 28 html files, got ${htmlFiles.length}`);
 {
   // the stylesheet: five source files, assembled into three cascade layers (the app adds a fourth); only the generated cover colours sit outside a layer
   const css = readFileSync(join(out, "style.css"), "utf8"), rows = css.split(String.fromCharCode(10));
@@ -90,7 +91,7 @@ must(htmlFiles.length === 26, `expected 23 earlier pages plus the removal log an
 for (const f of htmlFiles) {
   const h = readFileSync(f, "utf8");
   // drop only our own inline scripts (marked data-site); any other <script> is a failure
-  const stripped = h.replace(/<script src="[^"]*"(?: defer)? data-site><\/script>/g, "").replace(/<script type="application\/ld\+json">[^<]*<\/script>/g, "");
+  const stripped = h.replace(/<script src="[^"]*"(?: defer)? data-site><\/script>/g, "").replace(/<script type="application\/ld\+json">[^<]*<\/script>/g, "").replace(/<script type="application\/json" id="cmp-data">[^<]*<\/script>/g, "");
   must(!/<script/i.test(stripped), `unexpected <script> in ${f}`);
   must(!/<img src=x/.test(h), `raw <img> payload in ${f}`);
   const noValues = stripped.replace(/="[^"]*"/g, '=""'); // attribute values are inert text; look at attribute names only
@@ -123,6 +124,15 @@ must(skillsPage.includes("Repository not reachable") && !skillsPage.includes("Ne
   must(sc.includes("scanned automatically on 2026-11-19") && sc.includes("A person last read commit") && sc.includes("<code>aaaaaaa</code>") && sc.includes("Commit scanned") && sc.includes("Last read by a person") && !sc.includes("Commit read"), "a listing updated by the scan alone says so, and names the commit a person last read");
   must(readFileSync(join(out, "kits", "skills", "index.html"), "utf8").includes("Scanned at <code>ccccccc</code>"), "its card says Scanned at, not Read at");
 }
+{
+  const cmp = readFileSync(join(out, "compare", "index.html"), "utf8"), js = readFileSync(join(out, "compare.js"), "utf8");
+  const open = '<script type="application/json" id="cmp-data">', from = cmp.indexOf(open) + open.length, raw = [null, cmp.slice(from, cmp.indexOf("</script>", from))];
+  let data = null; try { data = JSON.parse(raw[1]); } catch { /* checked below */ }
+  must(Array.isArray(data) && data.length >= 2 && data.every((k) => k.id && k.name && k.kind && k.page) && !raw[1].includes("<"), "the compare page carries its data as valid JSON with no raw markup");
+  must(!js.includes("innerHTML") && !js.includes("eval(") && js.includes("textContent") && cmp.includes('src="../compare.js"'), "the compare script builds the table from text only and is loaded from the site itself");
+  must(readFileSync(join(out, "l", "o-rec", "index.html"), "utf8").includes('href="../../compare/?k=l/o-rec"'), "a listing page links to the comparison with itself preselected");
+}
+must(readFileSync(join(out, "l", "o-plug", "index.html"), "utf8").includes("/plugin marketplace add o/plug") && !readFileSync(join(out, "l", "o-rec", "index.html"), "utf8").includes("marketplace add o/"), "a listed plugin shows the marketplace command for its repository, with the caveat; other types do not");
 const picksHtml = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
 must(picksHtml.includes("l/o-rec/") && picksHtml.includes("My pick") && !picksHtml.includes('class="pick-note"') && readFileSync(join(out, "l", "o-rec", "index.html"), "utf8").includes("Why I picked it") && !existsSync(join(out, "picks")) && !existsSync(join(out, "updates")), "picks live on the kits page with the owner's note, and there are no separate Picks or Updates pages");
 must(!idx.includes(">Recommended<") && !idx.includes(">Picks<") && idx.includes("My picks"), "the word Recommended is gone, and picks are a section on the home page, not a navigation tab");

@@ -147,7 +147,7 @@ const BLOCKS = [[0, 0], [8, 0], [0, 8], [0, 16], [8, 16], [0, 24]]; // x, y of e
 const SPARK = [16, 8];
 const mark = (fill, spark) => BLOCKS.map(([x, y]) => `<rect x="${x}" y="${y}" width="6" height="6" rx="1.4" fill="${fill}"/>`).join("") + `<rect x="${SPARK[0]}" y="${SPARK[1]}" width="6" height="6" rx="1.4" fill="${spark}"/>`;
 const LOGO = `<svg class="logo" viewBox="0 0 22 30" width="22" height="30" aria-hidden="true" focusable="false">${mark("var(--accent)", "var(--spark)")}</svg>`;
-const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1 30 32" width="240" height="256">${mark("#0f8a7e", "#d97a14")}</svg>`;
+const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -1 30 32" width="240" height="256">${mark("#4a2fd9", "#e07b1a")}</svg>`;
 const ISSUE = (t) => `${REPO}/issues/new?template=${t}`;
 
 /** Structured data for search engines. "<" is escaped so no text from a kit can end the script block. */
@@ -160,7 +160,7 @@ const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(d
 /** The mark as a transparent PNG, square, for the favicon files search engines and phones ask for. */
 function markPng(size) {
   const pad = 0.08, sc = (size * (1 - 2 * pad)) / 30, ox = size * pad - 0 * sc, oy = size * pad + 0 * sc;
-  const rects = [...BLOCKS.map(([x, y]) => [x, y, [15, 138, 126]]), [SPARK[0], SPARK[1], [217, 122, 20]]].map(([x, y, col]) => ({ x: ox + (x + 4) * sc, y: oy + y * sc, w: 6 * sc, r: 1.4 * sc, col }));
+  const rects = [...BLOCKS.map(([x, y]) => [x, y, [74, 47, 217]]), [SPARK[0], SPARK[1], [224, 123, 26]]].map(([x, y, col]) => ({ x: ox + (x + 4) * sc, y: oy + y * sc, w: 6 * sc, r: 1.4 * sc, col }));
   const rows = [];
   for (let y = 0; y < size; y++) {
     const row = Buffer.alloc(1 + size * 4);
@@ -189,7 +189,7 @@ function icoOf(png, size) {
 function ogPng() {
   const W = 1200, H = 630, rows = [];
   const sc = 15, ox = 600 - (22 * sc) / 2, oy = 315 - (30 * sc) / 2; // the mark, centred
-  const rects = [...BLOCKS.map(([x, y]) => [x, y, [15, 138, 126]]), [SPARK[0], SPARK[1], [217, 122, 20]]].map(([x, y, col]) => ({ x: ox + x * sc, y: oy + y * sc, w: 6 * sc, r: 1.4 * sc, col }));
+  const rects = [...BLOCKS.map(([x, y]) => [x, y, [74, 47, 217]]), [SPARK[0], SPARK[1], [224, 123, 26]]].map(([x, y, col]) => ({ x: ox + x * sc, y: oy + y * sc, w: 6 * sc, r: 1.4 * sc, col }));
   const cover = (px, py, q) => { // anti-aliased rounded square
     const cx = q.x + q.w / 2, cy = q.y + q.w / 2, hx = q.w / 2 - q.r;
     const dx = Math.max(Math.abs(px - cx) - hx, 0), dy = Math.max(Math.abs(py - cy) - hx, 0);
@@ -199,7 +199,7 @@ function ogPng() {
     const row = Buffer.alloc(1 + W * 3);
     for (let x = 0; x < W; x++) {
       const g = Math.max(0, 1 - Math.hypot((x - 600) / 620, (y - 315) / 380)); // soft glow behind the mark
-      let r = 11 + 20 * g * g, gr = 18 + 56 * g * g, b = 17 + 50 * g * g;
+      let r = 15 + 34 * g * g, gr = 13 + 22 * g * g, b = 32 + 70 * g * g;
       for (const q of rects) { const a = cover(x + 0.5, y + 0.5, q); if (a > 0) { r += (q.col[0] - r) * a; gr += (q.col[1] - gr) * a; b += (q.col[2] - b) * a; } }
       row[1 + x * 3] = Math.round(r); row[2 + x * 3] = Math.round(gr); row[3 + x * 3] = Math.round(b);
     }
@@ -780,8 +780,8 @@ const page = ({ title, depth, body, description, canonical, home = false, curren
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="The Praxikit mark: six teal blocks forming a P, with one amber block set apart.">
 <meta name="twitter:image" content="${esc(HOME_URL)}og.png">
-${canonical ? `<meta property="og:url" content="${esc(canonical)}">\n` : ""}<meta name="theme-color" content="#f8f7f3" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0b1211" media="(prefers-color-scheme: dark)">
+${canonical ? `<meta property="og:url" content="${esc(canonical)}">\n` : ""}<meta name="theme-color" content="#f1f0fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f0d20" media="(prefers-color-scheme: dark)">
 ${ld ? `<script type="application/ld+json">${jsonLd(ld)}</script>\n` : ""}
 ${canonical ? `<link rel="canonical" href="${esc(canonical)}">\n` : ""}<link rel="alternate" type="application/atom+xml" title="Praxikit releases" href="${up}feed.xml">
 ${head}
@@ -1038,7 +1038,7 @@ const HOWTO = {
   hook: "This is a hook. The author's README says how to enable it, and what it runs.",
 };
 function howtoSection(l) {
-  return `<section class="howto" id="install"><h2>How to install</h2><p>${esc(HOWTO[l.kind] ?? "Follow the install steps in the author's README.")} It is not in the Praxikit marketplace, so Praxikit does not install it for you.</p><p><a class="btn ghost" href="${esc(l.url)}#readme" rel="noopener noreferrer">Open the README on GitHub</a></p></section>`;
+  return `<section class="howto" id="install"><h2>How to install</h2><p>${esc(HOWTO[l.kind] ?? "Follow the install steps in the author's README.")} It is not in the Praxikit marketplace, so Praxikit does not install it for you.</p>${l.kind === "plugin" ? `<p class="muted">If the repository publishes a Claude Code marketplace (its README says so), this adds it; then run <code>/plugin</code> to choose the kit. If the README gives different steps, follow those.</p>${copyCmd(`/plugin marketplace add ${l.url.slice(19)}`)}` : ""}<p><a class="btn ghost" href="${esc(l.url)}#readme" rel="noopener noreferrer">Open the README on GitHub</a></p></section>`;
 }
 
 /** What the kit can touch, in four plain lines, from the saved check results. Nothing is shown for a listing without them. */
@@ -1064,7 +1064,7 @@ function listingPage(l, all) {
 <p class="actions"><a class="btn" href="${esc(l.url)}" rel="noopener noreferrer">View on GitHub</a>${APP ? saveLink(l.url, l.name, true) : ""}</p></div>
 <div class="prod-main">
 <h1>${esc(l.name)}</h1>
-<p class="meta-line">${d.badge}<span>by ${esc(l.author)}, not built by Praxikit · ${esc(KIND_LABEL[l.kind] ?? l.kind)}</span></p>
+<p class="meta-line">${d.badge}<span>by ${esc(l.author)}, not built by Praxikit · ${esc(KIND_LABEL[l.kind] ?? l.kind)} · <a href="../../compare/?k=${esc(lpath(l).slice(0, -1))}">Compare</a></span></p>
 <p class="lead">${esc(l.why)}</p>
 ${signals(l)}${tagChips(l, "../../")}
 <p class="asof">This report describes commit <a href="${esc(`${l.url}/commit/${l.commit}`)}" rel="noopener noreferrer"><code>${esc(l.commit.slice(0, 7))}</code></a>, ${byScan(l) ? `scanned automatically on ${esc(l.read)}. A person last read commit <a href="${esc(`${l.url}/commit/${l.readCommit}`)}" rel="noopener noreferrer"><code>${esc(l.readCommit.slice(0, 7))}</code></a>.` : `read on ${esc(l.read ?? l.added)}.`} Praxikit does not cover changes made to the repository after that commit.</p>
@@ -1216,7 +1216,7 @@ function kitsPage(kits, group) {
   const empty = group && !list.length ? `<div class="empty"><p><strong>No ${esc(group.noun)} yet.</strong> <a href="${up}submit/">Submit one</a> or <a href="${up}kits/">see all kits</a>.</p></div>` : "";
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="${up}">Home</a> / ${group ? `<a href="${up}kits/">Kits</a> / ${esc(group.label)}` : "Kits"}</p>
 <div class="sec-head"><h1>${esc(title)}</h1><p class="muted" id="count" aria-live="polite">${plural(list.length, "kit")}</p></div>
-${group ? `<p class="lead">${esc(group.blurb)}</p>` : '<p class="lead">Kits built here, and kits by other people that were scanned and read before they were listed. Each one is marked as such.</p>'}
+${group ? `<p class="lead">${esc(group.blurb)}</p>` : `<p class="lead">Kits built here, and kits by other people that were scanned and read before they were listed. Each one is marked as such. <a href="${up}compare/">Compare kits</a> side by side.</p>`}
 ${typeNav(kits, up, group ? group.id : "all")}
 ${search}
 <div id="kits">${list.length ? listHtml(list, up) : ""}</div>
@@ -1318,6 +1318,81 @@ ${checker([k], k.name) ? `<h2 class="ck-title">Am I up to date?</h2>${checker([k
 ${communityBlock(`k/${k.name}/`)}</div>`;
   return page({ title: `${k.name} — Praxikit`, depth: 2, body, canonical: `${HOME_URL}k/${k.name}/`, description: k.promise, ld: { "@context": "https://schema.org", "@type": "SoftwareApplication", name: k.name, description: k.promise, softwareVersion: k.version, applicationCategory: "DeveloperApplication", operatingSystem: "Any", isAccessibleForFree: true, url: `${HOME_URL}k/${k.name}/`, offers: { "@type": "Offer", price: "0", priceCurrency: "USD" } } });
 }
+
+// ---- compare: up to three kits of the same type, side by side. The data is public facts already on each kit's page.
+const touchOf = (l) => {
+  const f = l.found; if (!f) return null;
+  const g = (id) => f.checks.find((c) => c.id === id)?.status ?? "";
+  return { autorun: g("autorun"), network: g("network"), exec: g("exec"), instructions: g("instructions") };
+};
+function compareData(items) {
+  return items.map((k) => {
+    if (!k.url) return { id: `k/${k.name}`, name: k.name, kind: k.kind, kindLabel: KIND_LABEL[k.kind] ?? k.kind, by: "Praxikit", page: `k/${k.name}/`, built: true, version: k.version, health: null, stars: null, read: "", reader: "", tier: "same", touch: null, tags: tagsOf(k).slice(0, 6) };
+    const h = healthOf(k), m = METRICS[k.url], d = DRIFT[k.url] ?? "";
+    return { id: lpath(k).replace(/\/$/, ""), name: k.name, kind: k.kind, kindLabel: KIND_LABEL[k.kind] ?? k.kind, by: k.author, page: lpath(k), built: false, version: "", health: h ? h.score : null, stars: m ? m.stars : null, commit: k.commit.slice(0, 7), read: k.read ?? k.added, reader: k.reader === "scan" ? "scan" : "person", tier: d, touch: touchOf(k), tags: tagsOf(k).slice(0, 6) };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+function comparePage(items) {
+  const data = JSON.stringify(compareData(items)).replace(/</g, "\\u003c");
+  const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / Compare</p>
+<h1>Compare kits</h1>
+<p class="lead">Pick up to three kits of the same type and read them side by side: how well each is looked after, what the check found, and when a person last read it.</p>
+<div id="cmp" class="cmp"><p class="muted">Comparing needs JavaScript. You can still open each kit's page from the <a href="../kits/">kits list</a>.</p></div>
+<script type="application/json" id="cmp-data">${data}</script></div>`;
+  return page({ title: "Compare kits — Praxikit", depth: 1, body, current: "kits", head: `<script src="../compare.js" defer data-site></script>`, canonical: `${HOME_URL}compare/`, description: "Compare up to three kits of the same type side by side: health, what the check found, and when a person last read each one." });
+}
+const COMPARE_JS = `(function () {
+  var box = document.getElementById("cmp"), raw = document.getElementById("cmp-data");
+  if (!box || !raw) return;
+  var data; try { data = JSON.parse(raw.textContent); } catch (e) { return; }
+  var byId = {}; data.forEach(function (k) { byId[k.id] = k; });
+  var sel = []; var kind = "";
+  var q = new URLSearchParams(location.search).get("k");
+  if (q) q.split(",").slice(0, 3).forEach(function (id) { var k = byId[id]; if (k && (!kind || k.kind === kind)) { kind = k.kind; if (sel.indexOf(id) < 0) sel.push(id); } });
+  var kinds = {}; data.forEach(function (k) { (kinds[k.kind] = kinds[k.kind] || { label: k.kindLabel, n: 0 }).n++; });
+  var usable = Object.keys(kinds).filter(function (c) { return kinds[c].n >= 2; });
+  if (!kind) kind = usable[0] || "";
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  var WORD = { pass: "Not found", flag: "Found, look closer", fail: "Found, failed" };
+  var ROWS = [
+    ["By", function (k) { return k.by; }],
+    ["Health score", function (k) { return k.health == null ? "Not scored" : k.health + " / 100"; }],
+    ["GitHub stars", function (k) { return k.stars == null ? "Not shown" : String(k.stars); }],
+    ["Last read", function (k) { return k.built ? "Built here, v" + k.version : (k.reader === "scan" ? "Scanned automatically " : "Read by a person ") + k.read + " at " + k.commit; }],
+    ["Since then", function (k) { return k.tier === "review" ? "Changed in files that run code" : k.tier === "newer" ? "Newer commits, nothing that runs code" : k.tier === "unreachable" ? "Repository not reachable" : "Unchanged"; }],
+    ["Starts by itself", function (k) { return k.touch ? (WORD[k.touch.autorun] || "Unknown") : "Not recorded"; }],
+    ["Talks to the network from code", function (k) { return k.touch ? (WORD[k.touch.network] || "Unknown") : "Not recorded"; }],
+    ["Starts other programs", function (k) { return k.touch ? (WORD[k.touch.exec] || "Unknown") : "Not recorded"; }],
+    ["Tells the agent to run commands", function (k) { return k.touch ? (WORD[k.touch.instructions] || "Unknown") : "Not recorded"; }],
+    ["Tags", function (k) { return k.tags.join(", ") || "None"; }]
+  ];
+  function save() { var u = new URL(location.href); if (sel.length) u.searchParams.set("k", sel.join(",")); else u.searchParams.delete("k"); try { history.replaceState(null, "", u.pathname + u.search); } catch (e) {} }
+  function render() {
+    box.textContent = "";
+    if (!usable.length) { box.appendChild(el("p", "muted", "There are not yet two kits of the same type to compare.")); return; }
+    var tabs = el("div", "cmp-kinds"); tabs.setAttribute("role", "group"); tabs.setAttribute("aria-label", "Type");
+    usable.forEach(function (c) { var b = el("button", "", kinds[c].label + " (" + kinds[c].n + ")"); b.type = "button"; b.setAttribute("aria-pressed", String(c === kind)); b.addEventListener("click", function () { if (c !== kind) { kind = c; sel = []; save(); render(); } }); tabs.appendChild(b); });
+    box.appendChild(tabs);
+    var fs = el("fieldset", "cmp-pick"); fs.appendChild(el("legend", "", "Choose up to three " + kinds[kind].label + " kits"));
+    data.filter(function (k) { return k.kind === kind; }).forEach(function (k) {
+      var lab = el("label", "check"), cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = sel.indexOf(k.id) > -1; cb.disabled = !cb.checked && sel.length >= 3;
+      cb.addEventListener("change", function () { var i = sel.indexOf(k.id); if (cb.checked && i < 0 && sel.length < 3) sel.push(k.id); else if (!cb.checked && i > -1) sel.splice(i, 1); save(); render(); });
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + k.name)); fs.appendChild(lab);
+    });
+    box.appendChild(fs);
+    if (sel.length < 2) { box.appendChild(el("p", "muted", "Choose at least two to compare.")); return; }
+    var wrap = el("div", "cmp-table"), t = document.createElement("table"), head = document.createElement("tr");
+    head.appendChild(el("th", "", "")); head.firstChild.scope = "col";
+    sel.forEach(function (id) { var k = byId[id], th = el("th"), a = el("a", "", k.name); a.href = k.page; th.scope = "col"; th.appendChild(a); head.appendChild(th); });
+    var thead = document.createElement("thead"); thead.appendChild(head); t.appendChild(thead);
+    var tb = document.createElement("tbody");
+    ROWS.forEach(function (r) { var tr = document.createElement("tr"), th = el("th", "", r[0]); th.scope = "row"; tr.appendChild(th); sel.forEach(function (id) { tr.appendChild(el("td", "", r[1](byId[id]))); }); tb.appendChild(tr); });
+    t.appendChild(tb); wrap.appendChild(t); box.appendChild(wrap);
+    box.appendChild(el("p", "muted", "From the automatic check, which matches patterns in the files it read. Not found is not a promise, and Found, look closer is not a verdict."));
+  }
+  render();
+})();
+`;
 
 function aboutPage() {
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / About</p><h1>About Praxikit</h1>
@@ -1514,6 +1589,8 @@ write("policy/index.html", policyPage());
 write("removals/index.html", removalsPage());
 write("privacy/index.html", privacyPage());
 write("about/index.html", aboutPage());
+write("compare/index.html", comparePage(items));
+writeFileSync(join(OUT, "compare.js"), COMPARE_JS);
 writeFileSync(join(OUT, "og.png"), ogPng());
 writeFileSync(join(OUT, "favicon.svg"), LOGO_SVG.replace(' width="240" height="256"', ""));
 writeFileSync(join(OUT, "favicon.ico"), icoOf(markPng(48), 48));
