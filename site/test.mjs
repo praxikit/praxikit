@@ -113,7 +113,7 @@ must(skillsPage.includes('href="../../l/o-comm/"') && skillsPage.includes('data-
 must(/href="https:\/\/github\.com\/o\/comm" rel="noopener noreferrer"/.test(commHtml) && commHtml.includes("Submitted by its author") && commHtml.includes("not built by Praxikit") && commHtml.includes("<code>aaaaaaa</code>") && commHtml.includes("Check facts"), "its page links to GitHub safely and carries the review receipt with the reviewed commit");
 const mcpPage = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
 must(mcpPage.includes("My pick") && !mcpPage.includes('class="pick-note"') && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("l/o-rec/") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
-must(idx.includes("Needs re-review") && recHtml.includes('href="https://github.com/o/rec/compare/' + SHA + '...HEAD"'), "a listing whose repository moved on says so, and its page links to the comparison");
+must(!idx.includes("Needs re-review") && recHtml.includes("Needs re-review") && recHtml.includes('href="https://github.com/o/rec/compare/' + SHA + '...HEAD"'), "a listing whose repository moved on says so, and its page links to the comparison");
 must(skillsPage.includes("Repository not reachable") && !skillsPage.includes("Needs re-review"), "an unreachable listing says so, and a 'same' or unknown status adds nothing");
 {
   const newerPage = readFileSync(join(out, "l", "o-newer", "index.html"), "utf8");

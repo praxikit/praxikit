@@ -978,9 +978,9 @@ function extCard(l, up) {
 ${coverLink({ href: page, kind: l.kind, name: l.name, flags, health: h ? h.score : null })}
 <div class="cap">
 <div class="cap-top"><p class="byline">by ${esc(l.author)}${starLine(l) ? ` · ${starLine(l)}` : ""}</p>${saveLink(l.url, l.name)}</div>
-${d.warn ? `<p class="cap-warn">${d.badge}</p>` : ""}<p class="promise">${esc(l.why)}</p>
+${d.state === "unreachable" ? `<p class="cap-warn">${d.badge}</p>` : ""}<p class="promise">${esc(l.why)}</p>
 ${tagChips(l, up, 2)}
-<div class="cap-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>${byScan(l) ? "Scanned at" : "Read at"} <code>${esc(l.commit.slice(0, 7))}</code></span></span></div>
+<div class="cap-foot"><span class="receipt" title="${esc(receiptText(l))}">${SHIELD}<span>${byScan(l) ? "Scanned at" : "Read at"} <code>${esc(l.commit.slice(0, 7))}</code></span></span></div>
 </div>
 </li>`;
 }
