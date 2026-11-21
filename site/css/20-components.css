@@ -1291,3 +1291,8 @@ label.check {
 .cap-warn { margin: 0; }
 .cap-warn .kind { display: inline-block; }
 .avatar-fallback { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); font: 700 var(--fs-sm) var(--display); flex: none; }
+
+/* the save button sits beside the byline, so the card has one row of actions less */
+.cap-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.cap-top .byline { min-width: 0; }
+.cap-top .save-btn { margin: -8px -8px -8px 0; flex: none; }

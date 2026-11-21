@@ -968,12 +968,10 @@ function extCard(l, up) {
   return `<li class="card" data-kind="${KIND_LABEL[l.kind] ? l.kind : "plugin"}" data-card data-src="${l.pick ? "pick" : "listed"}" data-name="${esc(l.name.toLowerCase())}" data-date="${esc(l.added)}" data-stars="${m ? m.stars : 0}" data-health="${h ? h.score : 0}" data-tags="${esc(tagsOf(l).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
 ${coverLink({ href: page, kind: l.kind, name: l.name, flags, health: h ? h.score : null })}
 <div class="cap">
-<p class="byline">by ${esc(l.author)}${starLine(l) ? ` · ${starLine(l)}` : ""}</p>
+<div class="cap-top"><p class="byline">by ${esc(l.author)}${starLine(l) ? ` · ${starLine(l)}` : ""}</p>${saveLink(l.url, l.name)}</div>
 ${d.warn ? `<p class="cap-warn">${d.badge}</p>` : ""}<p class="promise">${esc(l.why)}</p>
-${l.pick ? `<p class="pick-note">${esc(l.note)}</p>` : ""}
-${tagChips(l, up, 3)}
-${APP ? `<p class="stat" data-stat="${esc(l.url)}" hidden></p>` : ""}
-<div class="cap-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>Read at <code>${esc(l.commit.slice(0, 7))}</code></span></span><span class="card-tools">${repoLink(l.url, `Open ${l.name} on GitHub`)}${saveLink(l.url, l.name)}</span></div>
+${tagChips(l, up, 2)}
+<div class="cap-foot"><span class="receipt${d.warn ? " warn" : ""}" title="${esc(receiptText(l))}">${SHIELD}<span>Read at <code>${esc(l.commit.slice(0, 7))}</code></span></span></div>
 </div>
 </li>`;
 }
@@ -988,11 +986,10 @@ function card(k, up) {
   return `<li class="card" data-kind="${KIND_LABEL[k.kind] ? k.kind : "plugin"}" data-card data-src="built" data-stars="0" data-health="0" data-name="${esc(k.name.toLowerCase())}" data-date="${esc(latest || "")}" data-tags="${esc(tagsOf(k).join(" "))}" data-groups="${esc(groups)}" data-text="${esc(text)}">
 ${coverLink({ href: `${up}k/${k.name}/`, kind: k.kind, name: k.name, builtMark: true })}
 <div class="cap">
-<p class="byline">by Praxikit · <span class="ver">v${esc(k.version)}</span></p>
+<div class="cap-top"><p class="byline">by Praxikit · <span class="ver">v${esc(k.version)}</span></p>${saveLink(`k/${k.name}/`, k.name)}</div>
 <p class="promise">${esc(k.promise)}</p>
-${tagChips(k, up, 3)}
-${APP ? `<p class="stat" data-stat="k/${esc(k.name)}/" hidden></p>` : ""}
-<div class="cap-foot"><span class="receipt" title="Built and read by the owner. No second person has reviewed it yet.">${SHIELD}<span>Built here${bits ? `, ${esc(bits)}` : ""}${latest ? `, updated ${esc(latest)}` : ""}</span></span><span class="card-tools">${repoLink(`${REPO}/tree/main/kits/${k.name}`, `Open ${k.name} on GitHub`)}${saveLink(`k/${k.name}/`, k.name)}</span></div>
+${tagChips(k, up, 2)}
+<div class="cap-foot"><span class="receipt" title="Built and read by the owner. No second person has reviewed it yet.">${SHIELD}<span>Built here${latest ? ` · updated ${esc(latest)}` : ""}</span></span></div>
 </div>
 </li>`;
 }
@@ -1050,7 +1047,7 @@ function listingPage(l, all) {
 ${signals(l)}${tagChips(l, "../../")}
 ${labelSection(l, d)}
 ${howtoSection(l)}
-${l.pick ? `<section><h2>How I use it</h2><p class="pick-note big">${esc(l.note)}</p><p class="muted">This is one of the owner's picks: a kit made by someone else that they use themselves.</p></section>` : `<section><h2>Why it is listed</h2><p>${esc(sourceWord(l))}. It was scanned automatically and read by a person before it was listed. Listing is not an endorsement.</p></section>`}
+${l.pick ? `<section><h2>Why I picked it</h2><p class="pick-note big">${esc(l.note)}</p><p class="muted">This is one of the owner's picks: a kit made by someone else that they use themselves.</p></section>` : `<section><h2>Why it is listed</h2><p>${esc(sourceWord(l))}. It was scanned automatically and read by a person before it was listed. Listing is not an endorsement.</p></section>`}
 ${healthSection(l)}
 <section><h2>What the review covers</h2>
 <p>The automatic check reads the repository without running or installing anything and reports its licence, secret-like strings, code that runs automatically, network access, binaries and hidden instructions. A person then reads the report. It never says a kit is safe: read the code before you give it access to anything that matters. <a href="../../policy/">How listings work</a>.</p></section>
@@ -1149,7 +1146,7 @@ ${installPanel(builtKits[0])}
 ${stack ? `<div class="stack" aria-label="Some kits">${stack}</div>` : ""}
 </div></section>
 
-${start.length ? `<section class="wrap sec"><div class="sec-head"><h2>Start here</h2><a class="viewall" href="kits/?show=built">Built here</a></div>${shelfRow(start)}</section>` : ""}
+${start.length ? `<section class="wrap sec"><div class="sec-head"><h2>Start here</h2><a class="viewall" href="kits/">All kits</a></div>${shelfRow(start)}</section>` : ""}
 
 <section class="wrap sec"><div class="sec-head"><h2>Recently listed</h2><a class="viewall" href="kits/?sort=new">All ${plural(kits.length, "kit")}</a></div>${shelfRow(newest)}
 <ul class="chiprow" aria-label="Browse by type">${typeChips}</ul></section>

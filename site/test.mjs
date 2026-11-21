@@ -99,7 +99,7 @@ for (const f of htmlFiles) {
 }
 const idx = readFileSync(join(out, "index.html"), "utf8");
 must(idx.includes("&lt;script&gt;alert(1)&lt;/script&gt;"), "payload not shown escaped on index");
-must(idx.includes('href="./l/o-rec/"') && /<a target="_blank" class="icon-act" href="https:\/\/github\.com\/o\/rec" rel="noopener noreferrer"/.test(idx), "a pick on the home page links to its own page, and a repository icon opens GitHub safely");
+must(idx.includes('href="./l/o-rec/"') && !idx.includes('class="icon-act"') && !idx.includes('class="pick-note"'), "a pick on the home page links to its own page; cards carry no repository icon and no pick note (both live on the page)");
 must(!idx.includes('class="details"') && !idx.includes(">Details<") && !idx.includes("View details"), "cards have no action row: the whole card opens its page");
 const skillsPage = readFileSync(join(out, "kits/skills/index.html"), "utf8");
 const commHtml = readFileSync(join(out, "l/o-comm/index.html"), "utf8"), recHtml = readFileSync(join(out, "l/o-rec/index.html"), "utf8");
@@ -109,7 +109,7 @@ must(commHtml.includes("What the check found") && commHtml.includes("were not sa
 must(skillsPage.includes('href="../../l/o-comm/"') && skillsPage.includes('data-src="listed"') && !skillsPage.includes('class="cflag pick"') && skillsPage.includes("by someone"), "a community listing shows on its type page as a listed kit, linking to its own page");
 must(/href="https:\/\/github\.com\/o\/comm" rel="noopener noreferrer"/.test(commHtml) && commHtml.includes("Submitted by its author") && commHtml.includes("not built by Praxikit") && commHtml.includes("<code>aaaaaaa</code>") && commHtml.includes("Check facts"), "its page links to GitHub safely and carries the review receipt with the reviewed commit");
 const mcpPage = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
-must(mcpPage.includes("My pick") && mcpPage.includes('class="pick-note"') && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("l/o-rec/") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
+must(mcpPage.includes("My pick") && !mcpPage.includes('class="pick-note"') && mcpPage.includes("&lt;script&gt;alert(1)&lt;/script&gt;") && !mcpPage.includes("<img src=x") && mcpPage.includes("l/o-rec/") && !mcpPage.includes("No MCP configs yet"), "a pick counts as an MCP config, and is marked as a pick");
 must(idx.includes("Needs re-review") && recHtml.includes('href="https://github.com/o/rec/compare/' + SHA + '...HEAD"'), "a listing whose repository moved on says so, and its page links to the comparison");
 must(skillsPage.includes("Repository not reachable") && !skillsPage.includes("Needs re-review"), "an unreachable listing says so, and a 'same' or unknown status adds nothing");
 {
@@ -117,7 +117,7 @@ must(skillsPage.includes("Repository not reachable") && !skillsPage.includes("Ne
   must(newerPage.includes("Newer commits since it was read") && newerPage.includes("none touch files that run code") && !newerPage.includes("Needs re-review") && !newerPage.includes('class="cflag warn"') && newerPage.includes('href="https://github.com/o/newer/compare/' + SHA + '...HEAD"'), "a listing with newer commits that touch nothing that runs is told quietly, with a link to the comparison, and gets no warning");
 }
 const picksHtml = readFileSync(join(out, "kits/mcp/index.html"), "utf8");
-must(picksHtml.includes("l/o-rec/") && picksHtml.includes("My pick") && picksHtml.includes('class="pick-note"') && !existsSync(join(out, "picks")) && !existsSync(join(out, "updates")), "picks live on the kits page with the owner's note, and there are no separate Picks or Updates pages");
+must(picksHtml.includes("l/o-rec/") && picksHtml.includes("My pick") && !picksHtml.includes('class="pick-note"') && readFileSync(join(out, "l", "o-rec", "index.html"), "utf8").includes("Why I picked it") && !existsSync(join(out, "picks")) && !existsSync(join(out, "updates")), "picks live on the kits page with the owner's note, and there are no separate Picks or Updates pages");
 must(!idx.includes(">Recommended<") && !idx.includes(">Picks<") && idx.includes("My picks"), "the word Recommended is gone, and picks are a section on the home page, not a navigation tab");
 must(!/href="https:\/\/github\.com[^"]*"(?![^>]*rel=)/.test(idx), "external GitHub link without rel");
 must(existsSync(join(out, "k/evil/index.html")) && existsSync(join(out, "c/planning/index.html")) && existsSync(join(out, "c/design-and-3d/index.html")), "kit or collection pages missing");
@@ -133,7 +133,7 @@ const sub = readFileSync(join(out, "submit/index.html"), "utf8");
 must(!sub.includes("template=suggest-kit.yml") && !sub.includes("template=recommend.yml"), "submitting is the form on the site; the old issue forms are gone");
 // routes: the home page shows a few kits and links on to pages instead of holding everything
 must(idx.includes('href="kits/"') && idx.includes('href="kits/plugins/"') && idx.includes('href="kits/skills/"') && idx.includes('href="kits/mcp/"') && idx.includes('href="kits/other/"'), "home must link to the kits page and each type page");
-must(idx.includes('href="kits/"') && idx.includes('href="kits/?show=built"') && idx.includes('href="submit/"') && !idx.includes('href="updates/"') && !idx.includes('href="picks/"') && idx.includes("<body data-home data-root=\"./\" data-app=\"\">"), "home links to kits, the picks filter and submit, and no longer to Updates or Picks pages");
+must(idx.includes('href="kits/"') && idx.includes('href="submit/"') && !idx.includes('href="updates/"') && !idx.includes('href="picks/"') && idx.includes("<body data-home data-root=\"./\" data-app=\"\">"), "home links to kits, the picks filter and submit, and no longer to Updates or Picks pages");
 must((idx.match(/<li class="card[ "]/g) ?? []).length <= 6 + 8, "home shows at most six kits to start with and eight recent listings");
 const pol = readFileSync(join(out, "policy/index.html"), "utf8");
 must(pol.includes("security/advisories/new") && pol.includes("template=report-listing.yml") && pol.includes('href="../removals/"') &&pol.includes("not a safety guarantee") && pol.includes("one maintainer"), "policy page needs the private channel, the report form, the removal log and honest limits");
