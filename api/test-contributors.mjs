@@ -90,7 +90,7 @@ const order = [...listHtml.matchAll(/class="login" href="\/u\/([^"]+)"/g)].map((
 must(order.join() === "carol,dave,eve,frank,gina", `everyone with a live listing is on the board, most first, ties by name: ${order.join()}`);
 must(html.includes('class="place place-1"') && html.includes('class="place place-2"') && html.includes('class="place place-3"') && !html.includes('class="place place-4"'), "the top three stand on a podium");
 must(/place-1"[\s\S]*?class="crown"[\s\S]*?carol[\s\S]*?2 kits/.test(html) && /place-2"[\s\S]*?<span class="posn">2<\/span>/.test(html) && /place-3"[\s\S]*?<span class="posn">2<\/span>/.test(html), "first place wears the crown and is carol with two live listings (the removed and pending ones do not count); second and third show their place");
-must(/<span class="rank">1<\/span>[\s\S]*?carol[\s\S]*?<span class="score">2<\/span>/.test(listHtml) && /gina[\s\S]*?<span class="score">1<\/span>/.test(listHtml) && !html.includes("Everyone else"), "everyone, top three included, is in the ranked list with a score box");
+must(/<span class="rank">1<\/span>[\s\S]*?carol[\s\S]*?<span class="score"><strong>2<\/strong>/.test(listHtml) && /gina[\s\S]*?<span class="score"><strong>1<\/strong>/.test(listHtml) && !html.includes("Everyone else"), "everyone, top three included, is in the ranked list with a score box");
 must(/<span class="rank">2<\/span>[\s\S]*?dave[\s\S]*?<span class="rank">2<\/span>[\s\S]*?eve/.test(listHtml), "a tie shares a place");
 must(html.includes("First listing") && html.includes("Picked") && html.includes("Author") && !html.includes("Five listed"), "badges follow what the person has done");
 must(html.includes("5</strong> people") && html.includes("6</strong> kits"), "the page says how many people and kits");
@@ -145,7 +145,7 @@ must(r.headers.get("Location") === "/settings?m=publicOn" && (await text(await c
 // ---- a listing taken off the site stops counting at once
 INDEX = INDEX.filter((e) => e.u !== "https://github.com/o/a");
 html = await text(await call("/contributors"));
-must(/carol[\s\S]*?<span class="score">1<\/span>/.test(html.slice(html.indexOf('<ol class="lb-list">'))), "removing a listing lowers the score straight away");
+must(/carol[\s\S]*?<span class="score"><strong>1<\/strong>/.test(html.slice(html.indexOf('<ol class="lb-list">'))), "removing a listing lowers the score straight away");
 resetIndex();
 
 // ---- the data download, and deleting an account
