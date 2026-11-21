@@ -12,13 +12,13 @@
     "archived": false
   },
   "https://github.com/anthropics/claude-plugins-official": {
-    "stars": 47800,
+    "stars": 47900,
     "licence": "Apache-2.0",
     "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/blader/humanizer": {
-    "stars": 71500,
+    "stars": 71700,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
@@ -42,13 +42,13 @@
     "archived": false
   },
   "https://github.com/cloudflare/security-audit-skill": {
-    "stars": 76100,
+    "stars": 76400,
     "licence": "MIT",
     "pushed": "2026-09-10",
     "archived": false
   },
   "https://github.com/coreyhaines31/marketingskills": {
-    "stars": 61600,
+    "stars": 61800,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
@@ -63,6 +63,12 @@
     "stars": 1600,
     "licence": "MIT",
     "pushed": "2026-11-12",
+    "archived": false
+  },
+  "https://github.com/freshtechbro/claudedesignskills": {
+    "stars": 1400,
+    "licence": "MIT",
+    "pushed": "2025-11-20",
     "archived": false
   },
   "https://github.com/github/github-mcp-server": {
@@ -108,7 +114,7 @@
     "archived": false
   },
   "https://github.com/microsoft/playwright-mcp": {
-    "stars": 39900,
+    "stars": 40000,
     "licence": "Apache-2.0",
     "pushed": "2026-11-12",
     "archived": false
@@ -134,7 +140,7 @@
   "https://github.com/OthmanAdi/planning-with-files": {
     "stars": 28200,
     "licence": "MIT",
-    "pushed": "2026-11-05",
+    "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/supabase/mcp": {
@@ -150,7 +156,7 @@
     "archived": false
   },
   "https://github.com/Vincentwei1021/video-shotcraft": {
-    "stars": 21800,
+    "stars": 21900,
     "licence": "Apache-2.0",
     "pushed": "2026-11-19",
     "archived": false
