@@ -48,6 +48,12 @@ const APP_CSS = `
 .app .need-btn:hover{border-color:var(--accent);color:var(--accent)}
 .app .need-btn[aria-pressed="true"]{background:var(--accent-bg);border-color:var(--accent);color:var(--accent)}
 .app .need-btn .count{padding:0 8px;border-radius:99px;background:var(--code-bg);color:var(--muted);font-size: var(--fs-sm)}
+.app .panel{background:var(--card);box-shadow:inset 0 0 0 1px var(--line);border-radius:var(--radius);padding:var(--s5);margin:var(--s4) 0;max-width:40rem}
+.app .panel > h2:first-child{margin-top:0}
+.app .panel > :last-child{margin-bottom:0}
+.app .panel dl{margin-top:0}
+.app .panel.danger-zone{box-shadow:inset 0 0 0 1px var(--bad)}
+.app .page-lead{color:var(--muted);max-width:60ch;margin:var(--s2) 0 var(--s4)}
 .app .req-form{max-width:640px;margin:1rem 0 2rem}
 @media (max-width:560px){.app .request{flex-direction:column}}
 .app .adm-tabs{display:flex;flex-wrap:wrap;gap:var(--s2);margin:0 0 var(--s3)}
@@ -93,7 +99,7 @@ const APP_CSS = `
 .app .badge-chip{font-size: var(--fs-xs);font-weight:650;padding:2px 10px;border-radius:99px;background:var(--accent-bg);color:var(--accent)}
 .app .badge-list{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr))}
 .app .badge-list li{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column}
-.app .danger-zone{border:1px solid var(--bad);border-radius:8px;padding:6px 16px 14px;margin-top:2rem}
+.app .danger-zone{margin-top:var(--s6)}
 `;
 // the app's rules are the last cascade layer, after the site's three (the order is declared here too, because this file loads first)
 export const CSS = `@layer tokens, base, site, app;
@@ -152,7 +158,7 @@ export function submitPage({ session, flash, error, values = {}, isPublic = fals
 <h1>Submit a kit</h1>
 <p>Paste the link to a public GitHub repository. We read its name, owner, licence and README from GitHub; you do not need to describe it. A person reviews every submission before anything is listed, and nothing is listed for payment.</p>
 ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}${error ? `<p class="note">${esc(error)}</p>` : ""}${who}
-<form method="post" action="/submit">
+<form method="post" action="/submit" class="panel">
 <label for="url">Repository link</label><input id="url" name="url" type="url" required maxlength="200" placeholder="https://github.com/owner/repo" value="${esc(values.url ?? "")}">
 <label for="why">Note <span class="hint">(optional, up to 200 characters; shown if you are recommending someone else's kit)</span></label><textarea id="why" name="why" maxlength="200">${esc(values.why ?? "")}</textarea>
 <p class="muted">${isPublic ? "Your GitHub username is shown on the listing and on the Contributors board if this is listed." : "Your name is hidden, so you will not be named on the listing or the board."} You can change this in <a href="/settings">Settings</a>.</p>

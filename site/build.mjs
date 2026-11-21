@@ -503,7 +503,7 @@ const SITE_JS = `
         li.appendChild(node("span", "count", q.needs + (q.needs === 1 ? " needs this" : " need this"))); hr.appendChild(li);
       });
       if (!hr.children.length) hr.appendChild(node("li", "muted", "No requests yet. Ask for the first kit."));
-    }).catch(function () {});
+    }).catch(function () { hb.textContent = ""; hr.textContent = ""; hb.appendChild(node("li", "muted", "Open the leaderboard to see who is on it.")); hr.appendChild(node("li", "muted", "Open the requests page to see what is wanted.")); });
   }
   var com = document.getElementById("community-body"), comRoot = document.getElementById("community");
   if (com && comRoot && appOrigin && location.origin === appOrigin) {
@@ -1187,7 +1187,7 @@ ${start.length ? `<section class="wrap sec"><div class="sec-head"><h2>Start here
 </ol>
 <p class="muted"><a href="policy/">How listings, reports and removals work</a></p></section>
 
-${APP ? `<section class="wrap sec" id="home-community"><div class="home-cols"><div><div class="sec-head"><h2>Top contributors</h2><a class="viewall" href="${esc(APP)}/contributors">Leaderboard</a></div><ol class="mini-board" id="home-board"><li class="muted">Loading…</li></ol></div><div><div class="sec-head"><h2>Most wanted</h2><a class="viewall" href="${esc(APP)}/requests">All requests</a></div><ul class="mini-req" id="home-reqs"><li class="muted">Loading…</li></ul><p class="muted">Missing a kit? <a href="${esc(APP)}/requests">Ask for it</a>.</p></div></div></section>` : ""}
+${APP ? `<section class="wrap sec" id="home-community"><div class="home-cols"><div><div class="sec-head"><h2>Top contributors</h2><a class="viewall" href="${esc(APP)}/contributors">Leaderboard</a></div><ol class="mini-board" id="home-board"><li class="skel"><span class="vh">Loading…</span></li><li class="skel" aria-hidden="true"></li><li class="skel" aria-hidden="true"></li></ol></div><div><div class="sec-head"><h2>Most wanted</h2><a class="viewall" href="${esc(APP)}/requests">All requests</a></div><ul class="mini-req" id="home-reqs"><li class="skel"><span class="vh">Loading…</span></li><li class="skel" aria-hidden="true"></li><li class="skel" aria-hidden="true"></li></ul><p class="muted">Missing a kit? <a href="${esc(APP)}/requests">Ask for it</a>.</p></div></div></section>` : ""}
 
 <section class="wrap sec"><div class="submit-band"><div><h2>Built a kit?</h2><p class="muted">Submit it for free. An automatic check reads the repository without running it, then a person reads it before anything is listed.</p></div><a class="btn" href="submit/">Submit a kit</a></div></section>
 

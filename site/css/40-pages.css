@@ -956,3 +956,8 @@ td.res-pass {
 .cmp-table th, .cmp-table td { text-align: left; vertical-align: top; padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); font-size: var(--fs-sm); }
 .cmp-table tbody th { color: var(--muted); font-weight: 600; width: 11rem; }
 .cmp-table thead th { font-size: var(--fs-md, 1rem); }
+
+/* placeholders while the community blocks load: three quiet bars, still when motion is reduced */
+.skel { list-style: none; height: 2.6rem; border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--bg2), var(--line), var(--bg2)); background-size: 200% 100%; animation: skel 1.4s ease-in-out infinite; margin: var(--s2) 0; }
+@keyframes skel { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .skel { animation: none; } }

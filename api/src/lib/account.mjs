@@ -98,20 +98,21 @@ ${contrib ? myContributionsHtml({ c: contrib, pending, isPublic, login: session.
 
 export function settingsPage({ session, user, flash, isPublic = false }) {
   return page("Settings — Praxikit", `<h1>Settings</h1>
+<p class="page-lead">Your account, how your name appears on the site, and your data.</p>
 ${flash ? `<p class="ok">${esc(flash)}</p>` : ""}
-<h2>Account</h2>
+<section class="panel"><h2>Account</h2>
 <dl><dt>GitHub username</dt><dd>@${esc(session.sub)}</dd><dt>GitHub id</dt><dd>${Number(session.id)}</dd><dt>Signed in with</dt><dd>GitHub (username only; no token is kept)</dd><dt>Role</dt><dd>${session.role === "admin" ? "Maintainer" : "Member"}</dd>${user ? `<dt>Member since</dt><dd>${esc(String(user.created_at).slice(0, 10))}</dd><dt>Last sign-in</dt><dd>${esc(String(user.last_seen).slice(0, 10))}</dd>` : ""}</dl>
-<p class="muted">Your name and photo come from your GitHub profile. To change them, change them on GitHub; they update here the next time you sign in.</p>
+<p class="muted">Your name and photo come from your GitHub profile. To change them, change them on GitHub; they update here the next time you sign in.</p></section>
 ${publicSettingHtml({ isPublic })}
-<h2>Your data</h2>
+<section class="panel"><h2>Your data</h2>
 <p>Download everything the app holds about you: your account record, your collection and your submissions.</p>
-<p><a class="btn ghost" href="/account/export">Download my data</a> <a href="/privacy/">What we keep and why</a></p>
-${session.role === "admin" ? "" : `<h2>Maintainer access</h2>
+<p><a class="btn ghost" href="/account/export">Download my data</a> <a href="/privacy/">What we keep and why</a></p></section>
+${session.role === "admin" ? "" : `<section class="panel"><h2>Maintainer access</h2>
 <p>Maintainers sign in with organisation access, so GitHub can confirm they belong to the praxikit organisation. That asks for more permission than a normal sign-in, so only do it if you are a maintainer.</p>
-<p><a class="btn ghost" href="/auth/login">Sign in with organisation access</a></p>`}
-<h2>Session</h2>
-<form method="post" action="/auth/logout"><button class="ghost" type="submit">Sign out on this device</button></form>
-<form method="post" action="/account/delete" class="danger-zone"><h2>Delete my account</h2>
+<p><a class="btn ghost" href="/auth/login">Sign in with organisation access</a></p></section>`}
+<section class="panel"><h2>Session</h2>
+<form method="post" action="/auth/logout"><button class="ghost" type="submit">Sign out on this device</button></form></section>
+<form method="post" action="/account/delete" class="panel danger-zone"><h2>Delete my account</h2>
 <p class="muted">This removes your collection, your waiting submissions and your account record. Submissions that were already decided stay in the catalogue's history without your name. It cannot be undone.</p>
 <label for="confirm">Type your GitHub username (<code>${esc(session.sub)}</code>) to confirm</label><input id="confirm" type="text" name="confirm" autocomplete="off" maxlength="60">
 <p><button type="submit" class="ghost">Delete my account and everything in it</button></p></form>`);

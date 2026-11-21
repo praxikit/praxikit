@@ -96,7 +96,7 @@ ${badgesFor(c).length ? `<ul class="badge-row">${chips(c)}</ul>` : '<p class="mu
 <p class="muted">${isPublic ? `Your username is shown on the kits you put forward. <a href="/u/${esc(encodeURIComponent(login))}">See your public page</a>.` : "Your name is hidden: you are not on the board and not named on the listings."} <a href="/settings">Settings</a></p></div>`;
 }
 
-export const publicSettingHtml = ({ isPublic }) => `<h2>Your name on the site</h2>
+export const publicSettingHtml = ({ isPublic }) => `<section class="panel"><h2>Your name on the site</h2>
 <p>When a kit you put forward is listed, your GitHub username is shown on its page and on the <a href="/contributors">Contributors</a> board, with a count of your listed kits. You can hide it at any time.</p>
 <form method="post" action="/settings/public"><input type="hidden" name="public" value="${isPublic ? "no" : "yes"}"><p class="muted">Right now: <strong>${isPublic ? "shown" : "hidden"}</strong>.</p>
-<button type="submit" class="ghost">${isPublic ? "Hide my name" : "Show my name"}</button></form>`;
+<button type="submit" class="ghost">${isPublic ? "Hide my name" : "Show my name"}</button></form></section>`;
