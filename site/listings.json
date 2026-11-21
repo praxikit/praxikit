@@ -1438,5 +1438,61 @@
       "promo-video",
       "remotion"
     ]
+  },
+  {
+    "name": "claudedesignskills",
+    "url": "https://github.com/freshtechbro/claudedesignskills",
+    "author": "freshtechbro",
+    "why": "Professional design agency skill stack for 3D/WebGL, animation, and modern web development",
+    "kind": "plugin",
+    "source": "recommended",
+    "added": "2026-11-21",
+    "commit": "1da73febff0c3e1dfefc07f8a5ef8f7d1dfdb6cd",
+    "checks": "checks-flagged",
+    "found": {
+      "files": 1027,
+      "checks": [
+        {
+          "id": "shape",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "licence",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "secrets",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "autorun",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "network",
+          "status": "pass",
+          "note": ""
+        },
+        {
+          "id": "exec",
+          "status": "flag",
+          "note": "8 line s in code:"
+        },
+        {
+          "id": "instructions",
+          "status": "flag",
+          "note": "28 line s in skill, agent, command or rules files that tell an agent to use the network or run programs:"
+        },
+        {
+          "id": "odd",
+          "status": "flag",
+          "note": "1 compiled or binary file s : .claude/skills/skill-creator/scripts/__pycache__/q"
+        }
+      ]
+    }
   }
 ]
