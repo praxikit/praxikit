@@ -924,3 +924,13 @@ td.res-pass {
 /* a listed kit's page: how to install */
 .howto p { max-width: 62ch; }
 .howto .btn { margin-top: var(--s1); }
+
+/* the home page opens with a search: a wide field, a few searches to try, and the kits right below */
+.hero-search { display: flex; gap: var(--s2); margin: var(--s4) 0 var(--s3); max-width: 36rem; }
+.hero-search input { flex: 1 1 auto; min-width: 0; min-height: 52px; padding: 0 var(--s4); border-radius: var(--pill, 999px); border: 2px solid var(--line); background: var(--card); color: var(--fg); font: inherit; font-size: var(--fs-md, 1.05rem); }
+.hero-search input:focus-visible { border-color: var(--accent); outline: 3px solid var(--accent-bg); outline-offset: 0; }
+.hero-search .btn { min-height: 52px; flex: none; }
+.try { margin: 0; font-size: var(--fs-sm); color: var(--muted); }
+.try-row { margin-top: var(--s2); }
+.hero .actions { margin-top: var(--s4); }
+@media (max-width: 520px) { .hero-search { flex-direction: column; } .hero-search .btn { width: 100%; } }

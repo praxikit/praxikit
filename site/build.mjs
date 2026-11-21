@@ -797,7 +797,7 @@ ${head}
 <header class="top"><div class="wrap bar">
 <a class="brand" href="${up}" aria-label="Praxikit home">${LOGO}<span>Praxikit</span></a>
 <form class="site-search" role="search" action="${up}search/" method="get"><label class="vh" for="site-q">Search the catalogue</label><input id="site-q" name="q" type="search" placeholder="Search  (Ctrl K)" autocomplete="off" spellcheck="false" maxlength="100"></form>
-<nav aria-label="Main" id="site-nav">${APP ? `<a class="admin-tab" href="${esc(APP)}/admin" data-nav data-admin-tab>Admin</a>` : ""}<a href="${up}kits/"${cur("kits")}>Kits</a>${APP ? `<a href="${esc(APP)}/contributors" data-nav data-also="/requests">Community</a>` : ""}<a href="${up}submit/"${cur("submit")}>Submit</a>${APP ? `<a href="${esc(APP)}/collection" data-nav>My collection</a>` : ""}
+<nav aria-label="Main" id="site-nav">${APP ? `<a class="admin-tab" href="${esc(APP)}/admin" data-nav data-admin-tab>Admin</a>` : ""}<a href="${up}kits/"${cur("kits")}>Kits</a>${APP ? `<a href="${esc(APP)}/contributors" data-nav data-also="/requests">Community</a>` : ""}<a href="${up}submit/"${cur("submit")}>Submit</a>${APP ? `<a href="${esc(APP)}/collection" data-nav>My collection</a>` : ""}<a href="${up}about/"${cur("about")}>About</a>
 <button id="theme" class="icon-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false" title="Toggle dark mode"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z" fill="currentColor"/></svg><span class="icon-label">Light or dark</span></button></nav>
 <div class="acct" id="acct">${APP ? `<a class="signin" href="${esc(APP)}/auth/login?mode=user">Sign in</a>` : ""}</div>
 <button class="icon-btn menu-toggle" id="menu-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="site-nav"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
@@ -1146,15 +1146,18 @@ function homePage(kits, picks) {
   const body = `
 <section class="hero"><div class="wrap hero-in">
 <div class="hero-text">
-<h1>Pick a kit. Read the label.</h1>
-<p class="lead">Kits are plugins, skills and MCP servers that give AI coding agents new abilities. Each one here was scanned, then read by a person. Its page shows the commit that was read and what the check found.</p>
-<p class="actions"><a class="btn" href="kits/">Browse ${kits.length} kits</a><a class="btn ghost" href="submit/">Submit a kit</a></p>
-${installPanel(builtKits[0])}
+<h1>Find a kit for what you are building.</h1>
+<p class="lead">Plugins, skills and MCP servers for AI coding agents. Each one was scanned, then read by a person, and its page shows what was read and what the check found.</p>
+<form class="hero-search" role="search" action="search/" method="get"><label class="vh" for="hero-q">Search every kit</label><input id="hero-q" name="q" type="search" placeholder="What do you want your agent to do?" autocomplete="off" spellcheck="false" maxlength="100"><button class="btn" type="submit">Search</button></form>
+${topTags.length ? `<p class="try">Try <span class="vh">searching for</span></p><ul class="chiprow try-row" aria-label="Searches to try">${topTags.slice(0, 6).map(([t]) => `<li><a class="chip-link" href="search/?q=${encodeURIComponent(t)}">${esc(t)}</a></li>`).join("")}</ul>` : ""}
+<p class="actions"><a class="btn ghost" href="kits/">Browse ${kits.length} kits</a><a class="btn ghost" href="submit/">Submit a kit</a></p>
 </div>
 ${stack ? `<div class="stack" aria-label="Some kits">${stack}</div>` : ""}
 </div></section>
 
 ${start.length ? `<section class="wrap sec"><div class="sec-head"><h2>Start here</h2><a class="viewall" href="kits/">All kits</a></div>${shelfRow(start)}</section>` : ""}
+
+<section class="wrap sec" id="install-here">${installPanel(builtKits[0])}</section>
 
 <section class="wrap sec"><div class="sec-head"><h2>Recently listed</h2><a class="viewall" href="kits/?sort=new">All ${plural(kits.length, "kit")}</a></div>${shelfRow(newest)}
 <ul class="chiprow" aria-label="Browse by type">${typeChips}</ul></section>
@@ -1302,17 +1305,35 @@ ${communityBlock(`k/${k.name}/`)}</div>`;
 function aboutPage() {
   const body = `<div class="wrap sec page-head"><p class="crumb"><a href="../">Home</a> / About</p><h1>About Praxikit</h1>
 <p class="lead">A small, honest catalogue of the skills, plugins and MCP servers worth giving an AI coding agent, each one readable before you install it.</p>
+
+<h2 class="sub">What is a kit?</h2>
+<p>A kit is something you add to an AI coding agent such as Claude Code to teach it a new ability. A <strong>skill</strong> is a set of instructions it follows, a <strong>plugin</strong> bundles skills, agents and hooks, and an <strong>MCP config</strong> connects it to a tool or service such as a browser or a database. They are easy to find and hard to trust, because installing one lets it influence what your agent does on your machine.</p>
+
+<h2 class="sub">How to use Praxikit</h2>
+<ol class="plain-steps">
+<li><strong>Find one.</strong> Search for what you want your agent to do, or browse by type. You do not need to know the name of a kit.</li>
+<li><strong>Read the label.</strong> Every kit page shows <em>Check facts</em>: the commit a person read, the date, and what the automatic check found, such as network calls or commands that run on their own.</li>
+<li><strong>Install it.</strong> Kits built here install from the Praxikit marketplace in two commands. Kits by other people install from their author's repository, and the page links to it with the steps.</li>
+<li><strong>Save it.</strong> Sign in with GitHub to keep a collection of kits and see when one has been updated.</li>
+</ol>
+
+<h2 class="sub">What the label tells you</h2>
+<ul>
+<li><strong>Read at a commit.</strong> The exact version of the code a person read before listing it. If the author changes the repository afterwards, the report describes the version that was read, not the new one.</li>
+<li><strong>Check facts.</strong> What the automatic check found. <em>Look closer</em> means a pattern needs a human to judge it. It does not mean the kit is unsafe, and <em>Pass</em> does not mean it is safe.</li>
+<li><strong>Health score.</strong> How well the repository is looked after: recent activity, licence, releases and stability. It says nothing about how good the kit is, and stars are not part of it.</li>
+<li><strong>Built, My pick, Listed.</strong> <em>Built</em> kits are made here. <em>My picks</em> are other people's kits the owner uses. <em>Listed</em> kits were submitted, scanned and read, and are not endorsed.</li>
+</ul>
+
 <h2 class="sub">Why it exists</h2>
-<p>Kits for coding agents are easy to find and hard to trust. Praxikit started as one person's own collection of the kits they actually use, with a plain list of what each one reads, writes and sends. It stays small on purpose: a catalogue you can read in one sitting beats a directory you have to search.</p>
-<h2 class="sub">What you will find here</h2>
-<ul><li><strong>Built by Praxikit.</strong> Kits made here, with a version, a changelog and a full account of what they touch.</li>
-<li><strong>My picks.</strong> Kits by other people that the owner really uses, each with a note on how.</li>
-<li><strong>Listed.</strong> Kits that were submitted, scanned and read by a person. Listing is not an endorsement.</li></ul>
+<p>Praxikit started as one person's own collection of the kits they actually use, with a plain list of what each one reads, writes and sends. It stays small on purpose: a catalogue you can read in one sitting beats a directory you have to search.</p>
+
 <h2 class="sub">How it is run</h2>
 <p>Praxikit is free, open source (MIT) and run by one maintainer, part-time. Nothing is listed for payment and nothing is sold. The checks never run a kit's code. Read the <a href="../policy/">policy</a> for what a listing means, how to report a problem and how removals work, and the <a href="../privacy/">privacy page</a> for what is kept if you sign in.</p>
+
 <h2 class="sub">Get involved</h2>
-<p>Built a kit? <a href="../submit/">Submit it</a>. Found a problem? Open an issue in the <a href="${esc(REPO)}/issues" rel="noopener noreferrer">repository</a>. The maintainer is <a href="https://github.com/royal-programmer" rel="noopener noreferrer">@royal-programmer</a> on GitHub.</p></div>`;
-  return page({ title: "About — Praxikit", depth: 1, body, canonical: `${HOME_URL}about/`, description: "Why Praxikit exists, what is in it, and how it is run: free, open source and read by a person before anything is listed." });
+<p>Built a kit? <a href="../submit/">Submit it</a>. Missing one? Ask for it on the requests page. Found a problem? Open an issue in the <a href="${esc(REPO)}/issues" rel="noopener noreferrer">repository</a>. The maintainer is <a href="https://github.com/royal-programmer" rel="noopener noreferrer">@royal-programmer</a> on GitHub.</p></div>`;
+  return page({ title: "About — Praxikit", depth: 1, body, current: "about", canonical: `${HOME_URL}about/`, description: "What Praxikit is, how to find and install a kit, and how to read the label on each one: free, open source and read by a person before anything is listed." });
 }
 
 function privacyPage() {
