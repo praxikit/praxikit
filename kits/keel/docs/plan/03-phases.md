@@ -80,6 +80,33 @@ Status: ⬜ not started · 🟨 in progress · ✅ passed (date) · ⛔ blocked 
 
 **Depends on:** 1
 
+## Phase 3 — v0.7: efficiency, so a session cannot quietly waste usage ✅ (2026-11-22)
+
+**Goal:** Keel makes the cheap way the default: scope before building, a context meter with a one-command hand-off, a month-to-date guard, per-task model routing from evidence, and a report that shows where tokens went. Quality checks stay; ceremony shrinks with task size.
+
+**Files:**
+- `plugin/scripts/{report,route,scope-hint,context-meter,month-guard,tool-thrift}.mjs`, `plugin/scripts/lib/usage.mjs`, `plugin/scripts/{footer,session-start}.mjs`
+- `plugin/skills/{scope,handoff,report,route}/SKILL.md`, `plugin/skills/{delegate,plan,settings,cost}/SKILL.md`
+- `plugin/agents/{critic,builder,reviewer,scout}.md`, `plugin/{tiers,defaults,prices}.json`, `plugin/hooks/hooks.json`
+- `plugin/method/METHOD.md`, `plugin/method/prompts/brief.md`, `plugin/.claude-plugin/plugin.json`
+- `tests/`, `README.md`, `CHANGELOG.md`, `kit.json`
+
+**Tasks:**
+1. (Lead) `report.mjs`: real shares by model, token type, project and session from local transcripts. Measure first.
+2. (Lead) Scope gate (`/keel:scope` plus a prompt hint hook), task sizing, context meter, `/keel:handoff`, month-to-date guard.
+3. (Lead) Router: factors to tier by code, hard floors, escalation on failed checks, outcome log.
+4. (Builder) Tool-thrift nudges, task budgets in the brief, tests for each script.
+
+**Checks:**
+- `node plugin/scripts/report.mjs --root <fixture>` prints the model, token-type, project and session tables for a synthetic transcript set
+- every new script has a test in `tests/`; `node tests/run.mjs` passes
+- `claude plugin validate ./plugin` passes
+- hooks exit 0 on garbage input and never block a tool call (warnings only)
+
+**Security:** scripts read only local transcripts and `.keel/`; no network; hooks never execute transcript content; no secrets read or written.
+
+**Depends on:** 0
+
 ## Free-tier watchlist
 
 | Limit | Service | First matters in phase |

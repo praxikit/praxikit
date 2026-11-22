@@ -30,6 +30,10 @@ Commands and observations that prove it. The builder runs them and pastes the ou
 - `curl -s localhost:3000/api/x | jq .ok` prints `true`
 - the screenshot at 393 px wide shows …
 
+## Size and budget
+Size: S (one file, clear check: no brief needed), M (a few files, known approach) or L (a redesign, a new feature, hard to undo).
+Budget: the turns or dollars after which the builder stops and reports, even if unfinished. The lead decides whether to go on.
+
 ## Do not
 What is out of scope, what must not be changed, what must not be installed. Secrets never go in
 code. No new dependencies unless listed above.

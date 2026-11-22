@@ -9,10 +9,11 @@ The saving in model routing is the brief, not the routing. This skill refuses to
 
 ## Steps
 
-1. **Pick the tier.** Scout for reading, searching, measuring, summarising. Builder for
-   implementation with known files. Reviewer for a second read of a diff. If the task needs
-   design judgment, visual judgment, or a root cause nobody has found yet, do not delegate: say
-   so and do it as the Lead.
+1. **Pick the tier with `/keel:route`**, not by feel. Run `node "${CLAUDE_PLUGIN_ROOT}/scripts/route.mjs"` with the task's facts
+   (kind, whether a command can verify it, ambiguity 0 to 2, files, lines, the paths it touches, failed checks so far). It returns the tier, the
+   model, whether to delegate at all, and the reasons. If it says do it inline, do it inline: a sub-agent starts with an empty context and a brief,
+   which costs more than a tiny change. Scout for reading, searching, measuring; Builder for implementation with known files; Reviewer for a second
+   read of a diff. A design decision, a visual judgment or a root cause nobody has found goes to the think tier (the critic, or the lead on that model).
 2. **Write the brief** from `${CLAUDE_PLUGIN_ROOT}/method/prompts/brief.md`. Every section
    filled: Goal, Context, Files (exact paths), Steps, Acceptance checks (commands), Do not, Report
    back. Name the phase from `docs/plan/03-phases.md` and keep the Files inside that phase's list.
@@ -27,7 +28,9 @@ The saving in model routing is the brief, not the routing. This skill refuses to
    or the next cheaper one if none is more capable, and tell the user you did. Never launch a bare
    general-purpose agent for delegated work (the Keel hook refuses an Agent call without a model
    for this reason).
-5. **Run the checks yourself** when the agent reports back. Paste the outputs into
+5. **Run the checks yourself** when the agent reports back, then record the outcome so the router learns:
+   `node "${CLAUDE_PLUGIN_ROOT}/scripts/route.mjs" --record --kind <kind> --tier <tier> --ok yes|no`. If a check fails, re-run `route.mjs` with
+   `--failures N`: it moves the task up a tier instead of repeating the same attempt. Paste the outputs into
    `docs/plan/05-progress.md` under today's entry. If a check fails, fix it or send the agent back
    with the failure; do not mark it done.
 6. **Report** to the user: what changed (files), the check outputs, what is left.
@@ -37,4 +40,5 @@ The saving in model routing is the brief, not the routing. This skill refuses to
 - A Builder brief never says "improve", "clean up" or "make it nicer" without a measurable check.
 - A Builder never gets a design decision to make; those are in `02-decisions.md` or are made by
   the Lead first.
+- Every brief ends with a size and a budget, and asks for a short report (a few lines and the check outputs, no file dumps).
 - One task per launch. Parallel launches only for independent tasks with disjoint Files.

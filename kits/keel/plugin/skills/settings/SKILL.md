@@ -19,7 +19,7 @@ Settings live in `.keel/config.json` at the project root. The plugin's own defau
    { "defaults": { "forYou": true, "taskList": true, "costFooter": true, "doneCheck": true, "marks": "ascii" },
      "budget": { "prompt": 1.00, "session": 10.00 },
      "models": ["haiku", "sonnet"],
-     "tiers": { "scout": "haiku", "builder": "sonnet", "reviewer": "sonnet", "critic": "inherit" },
+     "tiers": { "scout": "haiku", "builder": "sonnet", "reviewer": "sonnet", "critic": "opus" },
      "prices": {} }
    ```
 5. **Say what applies when.** Footer and tier changes apply immediately. For you and Task list are injected when a session starts, so they apply from the next session (or after `/clear`).

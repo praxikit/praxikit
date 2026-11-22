@@ -1,5 +1,5 @@
 {
-  "description": "Keel: (1) refuse a sub-agent launch that names no model; (2) warn once per session when an edit lands outside the current phase's Files list; (3) inject Keel's response format once per session (For you, Task list); (4) print a one-line token and cost footer when a prompt finishes.",
+  "description": "Keel: (1) refuse a sub-agent launch that names no model; (2) warn once per session when an edit lands outside the current phase's Files list; (3) inject Keel's response format once per session (For you, Task list); (4) print a one-line token, cost and context footer when a prompt finishes; (5) remind the model to scope an open-ended ask, to offer a fresh start when the context is large, and to take the cheap path near the monthly limit.",
   "hooks": {
     "SessionStart": [
       {
@@ -8,6 +8,18 @@
             "type": "command",
             "command": "node",
             "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/session-start.mjs"],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/prompt-hint.mjs"],
             "timeout": 10
           }
         ]
@@ -27,6 +39,17 @@
       }
     ],
     "PostToolUse": [
+      {
+        "matcher": "mcp__.*screenshot.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/tool-thrift.mjs"],
+            "timeout": 10
+          }
+        ]
+      },
       {
         "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [

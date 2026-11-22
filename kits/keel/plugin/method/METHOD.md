@@ -77,6 +77,12 @@ Honest expectations: a third to a half off on implementation-heavy work; little 
 mostly judgment. Running the **lead** one tier down for routine sessions saves more than any
 sub-agent routing.
 
+## Size the task, and scope the big ones
+
+Ceremony should scale with the task. **S**: one file or behaviour with a clear check: just do it. **M**: a few files, a known approach: a short brief with checks, typing delegated. **L**: a redesign, a new feature, a change across the app, anything hard to undo: scope it with the person (goal, at most three choice questions, two or three cheap samples where taste is involved), write the brief with a size and a budget, run the critique gate, then phases. When unsure between M and L, treat it as L: the extra turns cost less than a wrong rebuild.
+
+The cost of a long conversation is the cost of re-reading it every turn. Prefer a fresh session with a hand-off note to a very large one, and prefer text checks to screenshots.
+
 ## Re-planning
 
 When the idea changes, when a phase's checks cannot be met, or when the drift hook keeps firing:

@@ -1,5 +1,18 @@
 # Changelog — keel
 
+## 0.7.0 — 2026-11-22
+Efficiency: the cheap way is the default, and the big costs are visible.
+- New: `/keel:scope` and a prompt hook. An open-ended ask ("redesign it", "make it the best") gets a goal, at most three choice questions and cheap samples before anything is built, then a brief with a size, checks and a budget. The hook only reminds the model; turn it off with `defaults.scopeHint=false`.
+- New: task sizes (S just do it, M a short brief, L scope and critique) in the method, the brief template and the delegate skill, so small work carries no ceremony.
+- New: context meter. The footer shows the conversation's size (what every turn re-reads); from 150k tokens (`limits.contextWarn`) it says so and Keel tells the model to offer `/keel:handoff`.
+- New: `/keel:handoff` writes `.keel/handoff.md` (goal, state, decisions, files, checks, next) so the work continues in a fresh session at a fraction of the per-turn cost.
+- New: month guard. Set `limits.monthlyLimit` in `~/.claude/keel.json` and run `report.mjs --write-month-cache` once; the footer shows the month against the limit from 70%, and Keel tells the model to take the cheap path from there. Estimates at list prices.
+- New: `/keel:route` and `scripts/route.mjs`. Which model gets a task is decided from the task's facts (kind, can a command verify it, ambiguity, size, paths touched, failed checks), with floors (auth, payments, secrets, migrations, CI and releases never below the think tier), escalation after failed checks, a log of outcomes that moves a kind of task up or down after enough runs, and a "do it inline" answer for tiny changes. The ladder is haiku, sonnet, opus, fable and is configurable.
+- Changed: the critic has its own tier (`opus`) instead of inheriting the session's model, so a cheap lead session still gets a strong critique.
+- New: `/keel:report` shows where tokens and money went across every session on the machine: by model, token type, project and session, the average context per turn, and the habits that bloat a context. It measures, so tuning starts from the real shares.
+- New: tool thrift. A reminder after every 8th screenshot (`limits.screenshots`), and a short standing rule in the session-start text (size the task, read with offsets, text before screenshots, no polling, small sub-agent briefs). Off with `defaults.thrift=false`.
+- Changed: `/keel:status` prints the update command instead of a link to a checker that no longer exists.
+
 ## 0.6.2 — 2026-11-16
 - Changed: the update link `/keel:status` prints now points at `praxikit.com`, the catalogue's own address (it was on a GitHub address that no longer answers). Update to get a link that works.
 

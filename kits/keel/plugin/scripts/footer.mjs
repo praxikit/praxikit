@@ -8,6 +8,8 @@ import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, loadPrices, summarize, footer } from "./lib/usage.mjs";
+import { lastContext, limits, readMonth, touchSession, monthLine, fmtK } from "./lib/guard.mjs";
+import { basename } from "node:path";
 
 const quiet = () => process.exit(0);
 let payload;
@@ -19,7 +21,19 @@ const project = typeof payload.cwd === "string" ? payload.cwd : process.cwd();
 try {
   const cfg = loadConfig(pluginRoot, project);
   if (cfg.defaults?.costFooter === false) quiet();
-  const line = footer(summarize(payload.transcript_path, loadPrices(pluginRoot, project)), cfg.budget);
-  if (line) process.stdout.write(JSON.stringify({ systemMessage: line }) + "\n");
+  const sum = summarize(payload.transcript_path, loadPrices(pluginRoot, project));
+  let line = footer(sum, cfg.budget);
+  if (line) {
+    const lim = limits(cfg), ctx = lastContext(payload.transcript_path);
+    // what every turn re-reads: shown always, with the way out once it is large
+    if (ctx > 0) line += ` · context ${fmtK(ctx)}${ctx >= lim.contextWarn ? " (large: /keel:handoff, then start fresh)" : ""}`;
+    if (lim.monthlyLimit) {
+      // the month is a ledger of sessions: this one is updated here, the others when /keel:report last ran
+      touchSession(payload.session_id ?? basename(payload.transcript_path, ".jsonl"), Object.values(sum.session).reduce((a, r) => a + r.cost, 0));
+      const text = monthLine(readMonth(), lim);
+      if (text) line += ` · ${text}`;
+    }
+    process.stdout.write(JSON.stringify({ systemMessage: line }) + "\n");
+  }
 } catch { /* a footer must never break a session */ }
 process.exit(0);

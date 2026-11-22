@@ -46,8 +46,8 @@ must(st.includes("[x] Phase 0") && st.includes("[>] Phase 1") && st.includes("[ 
 must(st.includes("Now: Phase 1 — Core") && st.includes("ship the core") && st.includes("npm test") && st.includes("login works"), "current phase shows goal and checks");
 must(st.includes("Cost this session"), "status includes cost");
 const pv = JSON.parse(readFileSync(join(plugin, ".claude-plugin", "plugin.json"), "utf8")).version;
-must(st.includes(`https://praxikit.com/updates/?kit=keel&v=${pv}#updates`), "status prints a link that pre-fills the update checker with the installed version");
-must(noPlan.stdout.includes(`v=${pv}`), "the update link is also printed when there is no plan");
+must(st.includes(`Keel v${pv}`) && st.includes("/plugin marketplace update praxikit") && !st.includes("updates/?kit"), "status prints the installed version and the update command");
+must(noPlan.stdout.includes(`Keel v${pv}`) && noPlan.stdout.includes("/plugin marketplace update praxikit"), "the update command is also printed when there is no plan");
 
 // ---- phase cost ledger (fake home so no real transcripts are read)
 const home = join(dir, "home"), work = join(dir, "work");

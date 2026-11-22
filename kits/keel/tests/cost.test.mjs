@@ -88,7 +88,12 @@ writeFileSync(join(proj, ".keel", "config.json"), JSON.stringify({ defaults: { m
 c = ctx(proj);
 must(c.includes("✅") && c.includes("⬜") && !c.includes("[x]"), "marks:emoji switches the task list marks");
 writeFileSync(join(proj, ".keel", "config.json"), JSON.stringify({ defaults: { forYou: false, taskList: false } }));
-must(ctx(proj) === "", "both off means no injected context");
+c = ctx(proj);
+must(!c.includes("### For you") && !c.includes("Keel response format") && c.includes("Keel thrift") && c.includes("/keel:handoff"), "with the response format off the thrift rules still apply");
+writeFileSync(join(proj, ".keel", "config.json"), JSON.stringify({ defaults: { forYou: false, taskList: false, thrift: false } }));
+must(ctx(proj) === "", "everything off means no injected context");
+writeFileSync(join(proj, ".keel", "config.json"), "{}");
+must(ctx(proj).includes("Keel thrift") && ctx(proj).includes("### For you"), "by default the response format and the thrift rules are both injected");
 
 rmSync(dir, { recursive: true, force: true });
 if (failures.length) { console.error(failures.map((f) => "FAIL " + f).join("\n")); process.exit(1); }

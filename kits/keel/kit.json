@@ -2,9 +2,9 @@
   "name": "keel",
   "kind": "plugin",
   "collections": ["Planning", "Build and delegate", "Quality and security"],
-  "tags": ["planning", "critique", "model-routing", "sub-agents", "phases"],
-  "version": "0.6.2",
-  "promise": "Plan with a critique gate, build in phases that prove themselves, give each task to the cheapest capable model, see what it cost.",
+  "tags": ["planning", "critique", "model-routing", "sub-agents", "phases", "cost"],
+  "version": "0.7.0",
+  "promise": "Plan with a critique gate, scope big asks first, send each task to the cheapest model that can do it, and keep sessions affordable.",
   "install": [
     "/plugin marketplace add praxikit/praxikit",
     "/plugin install keel@praxikit"
@@ -30,7 +30,17 @@
     {
       "title": "One line after every prompt",
       "note": "The cost footer. Estimates from list prices; subscription users do not pay these amounts.",
-      "body": "Keel · ≈$0.03 this prompt (sonnet 5.5) · session ≈$0.25 · 95.8k in, 1.5k out · est."
+      "body": "Keel · ≈$0.03 this prompt (sonnet 5.5) · session ≈$0.25 · 95.8k in, 1.5k out · context 96k · est."
+    },
+    {
+      "title": "Context meter and a way out",
+      "note": "When the conversation passes 150k tokens (every turn re-reads all of it) the footer says so, and Keel tells the model to offer /keel:handoff.",
+      "body": "Keel · ≈$0.41 this prompt (sonnet 5.5) · session ≈$12.60 · 212k in, 2.1k out · context 212k (large: /keel:handoff, then start fresh) · month ≈$1050 of $1500 (70%, est.)"
+    },
+    {
+      "title": "An open-ended ask is scoped first",
+      "note": "Illustrative. 'Redesign the whole site' gets a goal, up to three choice questions and cheap samples before anything is built.",
+      "body": "Goal: a calmer, denser catalogue that still reads as trustworthy.\n\nThree questions (choose):\n1. Density: [roomy] [balanced] [dense]\n2. Keep: [palette] [type] [layout]\n3. Direction: [A: ledger table] [B: shelf of covers] [C: workbench]\n\nSamples of A, B and C follow as small static pages. Nothing is built until you pick."
     },
     {
       "title": "Replies that end with what is yours to do",
@@ -52,17 +62,24 @@
     "reads": [
       "docs/plan/ in your project, for the drift warning and /keel:status",
       ".keel/config.json in your project, for your settings",
-      "This session's transcript and its sub-agent transcripts under ~/.claude/projects, for token counts only"
+      "This session's transcript and its sub-agent transcripts under ~/.claude/projects, for token counts only (the context meter and the footer)",
+      "All transcripts under ~/.claude/projects, for token counts and tool names only, when you run /keel:report or its month command",
+      "~/.claude/keel.json, if you create it, for your monthly limit",
+      ".keel/routing-log.jsonl, for the router's record of which tier passed which kind of task"
     ],
     "writes": [
       "Nothing on its own. Skills write docs/plan/ and .keel/ files only when you run them",
-      "A one-line marker file in your OS temp folder so the drift warning shows once per session"
+      "A one-line marker file in your OS temp folder so the drift, context and screenshot reminders show once and not on every turn",
+      "~/.claude/keel-month.json: this month's estimated cost per session, only when you set a monthly limit",
+      ".keel/routing-log.jsonl when you record a task outcome, and .keel/handoff.md when you run /keel:handoff"
     ],
     "network": "None from the hooks or scripts (a test checks the scripts for network code). The scout and critic agents can search the web when you use them."
   },
   "limits": [
     "Not a pentest and not a model classifier.",
     "Model routing works in Claude Code only; the method and prompts work with any agent.",
+    "Keel cannot change your session's model, compact for you, or block a prompt: it reminds the model and tells you. The facts the router uses are the model's judgement; the mapping from them to a tier is code.",
+    "The month figure counts sessions on this machine only, at list prices: an estimate, not your invoice.",
     "The security skill wires free scanners and an evidenced checklist; it is not a pentest and does not prove a project is secure.",
     "Cost figures are estimates from list prices, not a bill; subscription users do not pay them. Sub-agent usage is read from Claude Code transcript files, whose format is not a public contract."
   ]

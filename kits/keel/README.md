@@ -26,11 +26,15 @@ Then, in any project:
 | `/keel:delegate <task>` | Writes a full brief and hands the task to the right tier (Scout / Builder / Reviewer) |
 | `/keel:verify [phase]` | Runs a phase's acceptance checks, pastes the output, marks it passed or not |
 | `/keel:cost` | Full token and cost table per model for the last prompt and the session, sub-agents included |
+| `/keel:scope <ask>` | An open-ended ask: goal, up to three choice questions, cheap samples, then a brief with a size, checks and a budget. Nothing is built until you pick |
+| `/keel:route` | Which model should do this task, from its facts: floors for sensitive work, escalation when a check fails, a record that learns |
+| `/keel:handoff` | Write a short hand-off note and continue in a fresh session instead of re-reading a huge one |
+| `/keel:report` | Where tokens and money went across every session: by model, token type, project and session |
 | `/keel:settings` | Turn the For you / Task list / cost footer on or off; choose which models tasks are distributed among and each tier's model |
 | `/keel:security` | Free scanners in CI, entry-point table from the code, pre-launch checklist ticked only with evidence, OWASP review |
 | `/keel:replan <change>` | The idea changed: back through the gate, decisions and phases edited, logged |
 
-Agents the plugin adds: `keel:critic` (your session's model), `keel:builder` (Sonnet),
+Agents the plugin adds: `keel:critic` (Opus), `keel:builder` (Sonnet),
 `keel:reviewer` (Sonnet), `keel:scout` (Haiku).
 
 Each prompt ends with a **For you** section (what only you can do, step by step) and a **Task list** (`[x]` done, `[>]` in progress, `[ ]` next; emoji marks optional) when there is something to show, followed by a one-line token and cost estimate per model. These are on by default, with nothing to enable; switch any of them off in `/keel:settings`.
@@ -58,6 +62,18 @@ docs/plan/
   04-security.md    threat model, scanners, pre-launch checklist, OWASP review
   05-progress.md    what happened, newest first, with pasted check output
 ```
+
+## Keeping a session affordable
+
+Most of the cost of a long session is not what the model writes: it is every turn re-reading everything said so far. Keel makes the cheap path the default.
+
+- **Scope before building.** An open-ended ask is answered with a goal, three choice questions and cheap samples, not a guess.
+- **Size the task.** Small work is just done; only large work gets the full gate.
+- **See the context.** The footer shows its size and, when it is large, says so and offers `/keel:handoff`.
+- **Route by evidence.** `/keel:route` picks the tier from the task's facts and learns from the outcomes it records.
+- **Know where it went.** `/keel:report` and an optional month guard turn "why is this so expensive" into numbers.
+
+Keel reminds and measures; it does not block a prompt, change your model or compact for you. All reminders can be turned off in `.keel/config.json`.
 
 ## Why the critique gate
 
