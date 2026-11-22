@@ -2,7 +2,7 @@
   "https://github.com/54yyyu/zotero-mcp": "review",
   "https://github.com/addyosmani/agent-skills": "review",
   "https://github.com/anthropics/claude-plugins-official": "newer",
-  "https://github.com/blader/humanizer": "newer",
+  "https://github.com/blader/humanizer": "same",
   "https://github.com/brave/brave-search-mcp-server": "review",
   "https://github.com/ckreiling/mcp-server-docker": "same",
   "https://github.com/cloudflare/mcp-server-cloudflare": "same",
@@ -21,11 +21,11 @@
   "https://github.com/microsoft/playwright-mcp": "review",
   "https://github.com/modelcontextprotocol/servers": "review",
   "https://github.com/obra/superpowers": "same",
-  "https://github.com/obsidianmd/obsidian-skills": "newer",
+  "https://github.com/obsidianmd/obsidian-skills": "same",
   "https://github.com/OthmanAdi/planning-with-files": "review",
   "https://github.com/supabase/mcp": "review",
   "https://github.com/upstash/context7": "review",
-  "https://github.com/Vincentwei1021/video-shotcraft": "same",
+  "https://github.com/Vincentwei1021/video-shotcraft": "newer",
   "https://github.com/VoltAgent/awesome-claude-code-subagents": "same",
   "https://github.com/voska/hass-mcp": "newer"
 }

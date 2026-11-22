@@ -1178,7 +1178,7 @@
     "kind": "skill",
     "source": "recommended",
     "added": "2026-11-17",
-    "commit": "caf3e98cd22d810db164f26c9a442f0a280daa43",
+    "commit": "b110b2f8e9eb1f287892f937050dfd40af862cbb",
     "checks": "no-flags-found",
     "tags": [
       "notes",
@@ -1229,7 +1229,10 @@
           "note": ""
         }
       ]
-    }
+    },
+    "read": "2026-11-22",
+    "reader": "scan",
+    "readCommit": "caf3e98cd22d810db164f26c9a442f0a280daa43"
   },
   {
     "name": "Cloudflare security audit",
@@ -1361,7 +1364,7 @@
     "kind": "skill",
     "source": "recommended",
     "added": "2026-11-17",
-    "commit": "b48c832f0f809c1b5658edbb838c2521b72f2413",
+    "commit": "a32f24407364c74c812b43c15926d638bee1e072",
     "checks": "no-flags-found",
     "tags": [
       "writing",
@@ -1412,7 +1415,10 @@
           "note": ""
         }
       ]
-    }
+    },
+    "read": "2026-11-22",
+    "reader": "scan",
+    "readCommit": "b48c832f0f809c1b5658edbb838c2521b72f2413"
   },
   {
     "name": "video-shotcraft",
