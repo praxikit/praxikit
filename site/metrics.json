@@ -8,17 +8,17 @@
   "https://github.com/addyosmani/agent-skills": {
     "stars": 120000,
     "licence": "MIT",
-    "pushed": "2026-11-12",
+    "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/anthropics/claude-plugins-official": {
-    "stars": 48000,
+    "stars": 48100,
     "licence": "Apache-2.0",
     "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/blader/humanizer": {
-    "stars": 72600,
+    "stars": 73000,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
@@ -30,7 +30,7 @@
     "archived": false
   },
   "https://github.com/ckreiling/mcp-server-docker": {
-    "stars": 761,
+    "stars": 762,
     "licence": "GPL-3.0",
     "pushed": "2026-08-06",
     "archived": false
@@ -42,13 +42,13 @@
     "archived": false
   },
   "https://github.com/cloudflare/security-audit-skill": {
-    "stars": 77400,
+    "stars": 77800,
     "licence": "MIT",
     "pushed": "2026-09-10",
     "archived": false
   },
   "https://github.com/coreyhaines31/marketingskills": {
-    "stars": 62200,
+    "stars": 62400,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
@@ -90,7 +90,7 @@
     "archived": false
   },
   "https://github.com/hustcc/mcp-mermaid": {
-    "stars": 652,
+    "stars": 653,
     "licence": "MIT",
     "pushed": "2026-05-14",
     "archived": false
@@ -126,13 +126,13 @@
     "archived": false
   },
   "https://github.com/obra/superpowers": {
-    "stars": 325000,
+    "stars": 326000,
     "licence": "MIT",
     "pushed": "2026-10-29",
     "archived": false
   },
   "https://github.com/obsidianmd/obsidian-skills": {
-    "stars": 53500,
+    "stars": 53600,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
@@ -150,19 +150,19 @@
     "archived": false
   },
   "https://github.com/upstash/context7": {
-    "stars": 65300,
+    "stars": 65400,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/Vincentwei1021/video-shotcraft": {
-    "stars": 22200,
+    "stars": 22400,
     "licence": "Apache-2.0",
     "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/VoltAgent/awesome-claude-code-subagents": {
-    "stars": 26700,
+    "stars": 26800,
     "licence": "MIT",
     "pushed": "2026-10-29",
     "archived": false
