@@ -6,19 +6,19 @@
     "archived": false
   },
   "https://github.com/addyosmani/agent-skills": {
-    "stars": 120000,
+    "stars": 121000,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/anthropics/claude-plugins-official": {
-    "stars": 48200,
+    "stars": 48300,
     "licence": "Apache-2.0",
-    "pushed": "2026-11-19",
+    "pushed": "2026-11-26",
     "archived": false
   },
   "https://github.com/blader/humanizer": {
-    "stars": 73500,
+    "stars": 73900,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
@@ -42,13 +42,13 @@
     "archived": false
   },
   "https://github.com/cloudflare/security-audit-skill": {
-    "stars": 78200,
+    "stars": 78600,
     "licence": "MIT",
     "pushed": "2026-09-10",
     "archived": false
   },
   "https://github.com/coreyhaines31/marketingskills": {
-    "stars": 62600,
+    "stars": 62800,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
@@ -56,7 +56,7 @@
   "https://github.com/crystaldba/postgres-mcp": {
     "stars": 3500,
     "licence": "MIT",
-    "pushed": "2026-08-13",
+    "pushed": "2026-11-26",
     "archived": false
   },
   "https://github.com/Flux159/mcp-server-kubernetes": {
@@ -66,15 +66,15 @@
     "archived": false
   },
   "https://github.com/freshtechbro/claudedesignskills": {
-    "stars": 1400,
+    "stars": 1500,
     "licence": "MIT",
     "pushed": "2025-11-20",
     "archived": false
   },
   "https://github.com/github/github-mcp-server": {
-    "stars": 34700,
+    "stars": 34800,
     "licence": "MIT",
-    "pushed": "2026-11-19",
+    "pushed": "2026-11-26",
     "archived": false
   },
   "https://github.com/GLips/Figma-Context-MCP": {
@@ -90,7 +90,7 @@
     "archived": false
   },
   "https://github.com/hustcc/mcp-mermaid": {
-    "stars": 653,
+    "stars": 652,
     "licence": "MIT",
     "pushed": "2026-05-14",
     "archived": false
@@ -114,25 +114,25 @@
     "archived": false
   },
   "https://github.com/microsoft/playwright-mcp": {
-    "stars": 40100,
+    "stars": 40200,
     "licence": "Apache-2.0",
     "pushed": "2026-11-12",
     "archived": false
   },
   "https://github.com/modelcontextprotocol/servers": {
-    "stars": 92200,
+    "stars": 92300,
     "licence": "NOASSERTION",
     "pushed": "2026-11-19",
     "archived": false
   },
   "https://github.com/obra/superpowers": {
-    "stars": 326000,
+    "stars": 327000,
     "licence": "MIT",
-    "pushed": "2026-11-19",
+    "pushed": "2026-11-26",
     "archived": false
   },
   "https://github.com/obsidianmd/obsidian-skills": {
-    "stars": 53700,
+    "stars": 53900,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
@@ -146,17 +146,17 @@
   "https://github.com/supabase/mcp": {
     "stars": 3000,
     "licence": "Apache-2.0",
-    "pushed": "2026-11-19",
+    "pushed": "2026-11-26",
     "archived": false
   },
   "https://github.com/upstash/context7": {
-    "stars": 65400,
+    "stars": 65500,
     "licence": "MIT",
-    "pushed": "2026-11-19",
+    "pushed": "2026-11-26",
     "archived": false
   },
   "https://github.com/Vincentwei1021/video-shotcraft": {
-    "stars": 22600,
+    "stars": 22700,
     "licence": "Apache-2.0",
     "pushed": "2026-11-19",
     "archived": false
