@@ -12,13 +12,13 @@
     "archived": false
   },
   "https://github.com/anthropics/claude-plugins-official": {
-    "stars": 48300,
+    "stars": 48400,
     "licence": "Apache-2.0",
     "pushed": "2026-11-26",
     "archived": false
   },
   "https://github.com/blader/humanizer": {
-    "stars": 73900,
+    "stars": 74200,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
@@ -42,15 +42,15 @@
     "archived": false
   },
   "https://github.com/cloudflare/security-audit-skill": {
-    "stars": 78600,
+    "stars": 79100,
     "licence": "MIT",
     "pushed": "2026-09-10",
     "archived": false
   },
   "https://github.com/coreyhaines31/marketingskills": {
-    "stars": 62800,
+    "stars": 63000,
     "licence": "MIT",
-    "pushed": "2026-11-19",
+    "pushed": "2026-11-26",
     "archived": false
   },
   "https://github.com/crystaldba/postgres-mcp": {
@@ -122,23 +122,23 @@
   "https://github.com/modelcontextprotocol/servers": {
     "stars": 92300,
     "licence": "NOASSERTION",
-    "pushed": "2026-11-19",
+    "pushed": "2026-11-26",
     "archived": false
   },
   "https://github.com/obra/superpowers": {
-    "stars": 327000,
+    "stars": 328000,
     "licence": "MIT",
     "pushed": "2026-11-26",
     "archived": false
   },
   "https://github.com/obsidianmd/obsidian-skills": {
-    "stars": 53900,
+    "stars": 54200,
     "licence": "MIT",
-    "pushed": "2026-11-19",
+    "pushed": "2026-11-26",
     "archived": false
   },
   "https://github.com/OthmanAdi/planning-with-files": {
-    "stars": 28200,
+    "stars": 28300,
     "licence": "MIT",
     "pushed": "2026-11-19",
     "archived": false
@@ -156,7 +156,7 @@
     "archived": false
   },
   "https://github.com/Vincentwei1021/video-shotcraft": {
-    "stars": 22700,
+    "stars": 23100,
     "licence": "Apache-2.0",
     "pushed": "2026-11-19",
     "archived": false
